@@ -3,19 +3,20 @@ import { dirname, join } from "node:path";
 import { Layer, TelosEdge, TelosGraph, TelosNode, createNodeId } from "./schema.js";
 import { extractQueryPath } from "./languages/registry.js";
 
-interface LayerRule { match: string; layer: Layer }
+interface LayerRule { match: string; layer: Layer; regex: RegExp }
 const hintCache = new Map<string, LayerRule[]>();
 function layerRules(language: string): LayerRule[] {
   if (!hintCache.has(language)) {
     const p = join(dirname(extractQueryPath(language)), "layer-hints.json");
-    hintCache.set(language, existsSync(p) ? JSON.parse(readFileSync(p, "utf8")).rules : []);
+    const raw: { match: string; layer: Layer }[] = existsSync(p) ? JSON.parse(readFileSync(p, "utf8")).rules : [];
+    hintCache.set(language, raw.map((r) => ({ ...r, regex: new RegExp(r.match) })));
   }
   return hintCache.get(language)!;
 }
 
 function assignLayer(node: TelosNode): Layer {
   for (const r of layerRules(node.language)) {
-    if (new RegExp(r.match).test(node.path) || new RegExp(r.match).test(node.name)) return r.layer;
+    if (r.regex.test(node.path) || r.regex.test(node.name)) return r.layer;
   }
   return "unknown";
 }

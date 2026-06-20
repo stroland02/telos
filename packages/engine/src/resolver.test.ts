@@ -30,4 +30,24 @@ describe("resolveGraph", () => {
     const out = resolveGraph({ nodes: [ctrl], edges: [] });
     expect(out.nodes[0].layer).toBe("api");
   });
+
+  it("drops a call edge when the name is ambiguous (2+ definitions)", () => {
+    const bar1 = fn("src/a.ts", "bar");
+    const bar2 = fn("src/b.ts", "bar");
+    const foo = fn("src/c.ts", "foo");
+    const out = resolveGraph({
+      nodes: [bar1, bar2, foo],
+      edges: [{ sourceId: foo.id, targetId: createNodeId("?", "bar"), kind: "calls", resolved: false }],
+    });
+    expect(out.edges.filter((e) => e.kind === "calls")).toHaveLength(0);
+  });
+
+  it("drops a call edge to an unknown name", () => {
+    const foo = fn("src/c.ts", "foo");
+    const out = resolveGraph({
+      nodes: [foo],
+      edges: [{ sourceId: foo.id, targetId: createNodeId("?", "doesNotExist"), kind: "calls", resolved: false }],
+    });
+    expect(out.edges.filter((e) => e.kind === "calls")).toHaveLength(0);
+  });
 });

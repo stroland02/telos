@@ -10,6 +10,7 @@ describe("runScan", () => {
   it("returns a summary with positive node count", async () => {
     const summary = await runScan(repo);
     expect(summary.nodeCount).toBeGreaterThan(0);
+    expect(summary.edgeCount).toBeGreaterThan(0);
     expect(summary.dbPath).toMatch(/graph\.db$/);
   });
 });

@@ -20,5 +20,8 @@ export function buildProgram(): Command {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  buildProgram().parseAsync(process.argv);
+  buildProgram().parseAsync(process.argv).catch((err) => {
+    console.error(err instanceof Error ? err.message : err);
+    process.exitCode = 1;
+  });
 }
