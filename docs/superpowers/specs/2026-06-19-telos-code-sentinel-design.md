@@ -243,8 +243,56 @@ Rust, Java, C#, Ruby, PHP, C/C++, Swift, Kotlin) — covering ~95% of real repos
 | Phase | Scope | Enabled by v1 design |
 |---|---|---|
 | **v1 (this spec)** | Universal static graph + sleek semantic-zoom map, CLI + local web | — |
-| **Phase 2 — Sentinel goes live** | OpenTelemetry ingest → animate real traffic/latency/errors on the map | API server + node IDs map cleanly to OTel span names |
+| **Phase 2 — Sentinel goes live** | OpenTelemetry ingest → animate real traffic/latency/errors on the map; process-level monitoring (see §8.1) | API server + node IDs map cleanly to OTel span names |
 | **Phase 3 — Semantic brain** | LLM pass fills `summary`, accurate layers/domains, guided tours, Q&A | `layer`/`summary` fields already in schema |
+
+### 8.1 Phase 2 Deep-Dive — Live Monitoring Strategy (reference capture)
+
+*Forward-looking notes for Phase 2; not part of the v1 build. Captured here so v1
+decisions stay compatible with them.*
+
+The flagship "Sentinel goes live" experience combines two complementary signal sources,
+both animated on top of the static architecture map:
+
+**A. Application-level observability (cross-platform, language-agnostic).**
+The app emits **OpenTelemetry** traces/metrics/logs; Telos ingests them and lights up the
+graph: edges pulse with live call traffic, nodes heat-map by latency/throughput, errors
+flash on the responsible node, and a trace can be "played back" as a path through the map.
+Strategies drawn from current developer tooling:
+
+- **Distributed tracing** (Jaeger / Grafana Tempo style) — follow one request across
+  services; map each span to a graph node via span name → `qualified_name`.
+- **Continuous profiling + flame graphs** (Pyroscope, py-spy style) — overlay "hot path"
+  intensity on the call graph so the most-executed code is visually obvious.
+- **APM live resource views** (Datadog style) — real-time CPU/memory/throughput per
+  service/node, plus live container/process panes.
+- **Metrics + logs** (Prometheus/Grafana Mimir + Loki style) — time-series per node;
+  click a node to see its recent logs.
+
+**B. Process / OS-level monitoring ("advanced Task Manager" class — the "pro tools" the
+user described).** For locally-running systems, complement traces with OS-level process
+telemetry, modeled on:
+
+- **Sysinternals Process Explorer** — hierarchical **process tree** (not a flat list),
+  per-process CPU/memory, open **handles** and **DLLs**, color-coding by state. Telos maps
+  running processes/services back to the codebase modules that produced them.
+- **Sysinternals Process Monitor** — real-time file/registry/process/thread activity with
+  full thread stacks and non-destructive filtering.
+- **System Informer** (ex-Process Hacker) — live CPU/memory/I/O/GPU, thread & handle
+  detail, open-source reference implementation.
+
+**Windows-native instrumentation worth implementing** (for deep local monitoring on
+Windows hosts):
+
+- **ETW (Event Tracing for Windows)** — low-overhead kernel/user event stream.
+- **Windows Performance Toolkit (WPA/xperf)** and **PerfView** — CPU sampling, stacks,
+  ETW capture and analysis.
+- **PerfMon performance counters** — per-process/per-thread resource counters.
+
+**Design implication for v1 (kept compatible now):** the universal node `id` and
+`qualified_name` are the join keys for *both* OTel span names and process/thread stack
+frames, so no schema change is needed when Phase 2 lands. The local API server is the
+natural ingest endpoint for these live feeds.
 
 ---
 
@@ -268,3 +316,12 @@ Rust, Java, C#, Ruby, PHP, C/C++, Swift, Kotlin) — covering ~95% of real repos
 - Codebase-Memory (arXiv) — https://arxiv.org/html/2603.27277v1
 - YASA Unified AST (arXiv) — https://arxiv.org/html/2601.17390v2
 - Polyglot AST research — https://inria.hal.science/hal-04077663/document
+
+### Phase 2 monitoring references
+
+- Sysinternals Process Explorer — https://learn.microsoft.com/en-us/sysinternals/downloads/process-explorer
+- Sysinternals Process Monitor — https://learn.microsoft.com/en-us/sysinternals/downloads/procmon
+- System Informer (ex-Process Hacker) — https://en.wikipedia.org/wiki/Process_Explorer
+- OpenTelemetry — https://opentelemetry.io/
+- Pyroscope continuous profiling — https://uptrace.dev/tools/continuous-profiling-tools
+- Observability platforms 2026 overview — https://guptadeepak.com/tools/top-5-observability-platforms-2026/
