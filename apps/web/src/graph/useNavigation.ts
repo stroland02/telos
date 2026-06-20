@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { TelosApi } from "../api/client";
 import { GraphView } from "../api/types";
 
@@ -15,6 +15,8 @@ export interface NavigationState {
 export function useNavigation(api: TelosApi): NavigationState {
   const [view, setView] = useState<GraphView | null>(null);
   const [crumbs, setCrumbs] = useState<Crumb[]>([{ id: null, label: "Overview" }]);
+  const crumbsRef = useRef(crumbs);
+  useEffect(() => { crumbsRef.current = crumbs; }, [crumbs]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,11 +49,9 @@ export function useNavigation(api: TelosApi): NavigationState {
   }, [api]);
 
   const goToCrumb = useCallback((index: number) => {
-    setCrumbs((cs) => {
-      const truncated = cs.slice(0, index + 1);
-      void loadLevel(truncated[truncated.length - 1].id);
-      return truncated;
-    });
+    const truncated = crumbsRef.current.slice(0, index + 1);
+    setCrumbs(truncated);
+    void loadLevel(truncated[truncated.length - 1].id);
   }, [loadLevel]);
 
   return { view, crumbs, loading, error, drillInto, goToCrumb };
