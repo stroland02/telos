@@ -245,6 +245,7 @@ Rust, Java, C#, Ruby, PHP, C/C++, Swift, Kotlin) — covering ~95% of real repos
 | **v1 (this spec)** | Universal static graph + sleek semantic-zoom map, CLI + local web | — |
 | **Phase 2 — Sentinel goes live** | OpenTelemetry ingest → animate real traffic/latency/errors on the map; process-level monitoring (see §8.1) | API server + node IDs map cleanly to OTel span names |
 | **Phase 3 — Semantic brain** | LLM pass fills `summary`, accurate layers/domains, guided tours, Q&A | `layer`/`summary` fields already in schema |
+| **Phase 4 — Telos Forge (beta vision)** | Visual-first construction: build software by composing the architecture map; round-trip to code (see §8.2) | Universal bidirectional graph is the same model; nodes/edges become editable authoring primitives |
 
 ### 8.1 Phase 2 Deep-Dive — Live Monitoring Strategy (reference capture)
 
@@ -293,6 +294,39 @@ Windows hosts):
 `qualified_name` are the join keys for *both* OTel span names and process/thread stack
 frames, so no schema change is needed when Phase 2 lands. The local API server is the
 natural ingest endpoint for these live feeds.
+
+### 8.2 Phase 4 Deep-Dive — Telos Forge: visual-first construction (beta vision)
+
+*Far-horizon vision captured for future brainstorming only. NOT specced, NOT scheduled,
+and explicitly out of scope for v1–v3. Recorded here so today's data model stays
+philosophically compatible with it.*
+
+The thesis: once Telos can faithfully *render* any system as a universal graph, the same
+graph can become the surface on which systems are *authored*. Instead of writing code and
+reading it back as a diagram, the developer **constructs the diagram and Telos materializes
+the code** — a visual, node-and-flow way of building software, the way this very project is
+being designed (architecture-first, then implementation).
+
+Sketch of what that could mean:
+
+- **Bidirectional graph.** Today the pipeline is code → graph. Phase 4 adds graph → code:
+  editing a node/edge on the canvas generates or rewrites the corresponding source, and
+  code edits continue to reflect back into the canvas. The universal node `id` /
+  `qualifiedName` are the anchor for round-tripping.
+- **Composable building blocks.** Drag components, services, data stores, and flows onto
+  the map; wire them together; pick implementations per node (language, framework). Telos
+  scaffolds files, signatures, and wiring from the visual structure.
+- **Intent over syntax.** The developer expresses *what connects to what* and *what each
+  unit does*; generation (likely LLM-assisted, building on Phase 3) fills in idiomatic
+  code, with the human reviewing/refining at the node level.
+- **Live + visual + authored, unified.** Combined with Phase 2, you would *watch* the
+  system you visually *built* run in real time on the same canvas.
+
+Open questions for the future brainstorm (deliberately unanswered now): how to keep
+generated and hand-written code reconciled without churn; how much is generated vs.
+templated vs. hand-authored; the granularity of visual primitives; and guardrails so the
+visual layer never hides critical behavior. These are Phase 4's problems, not v1's — listed
+so the eventual design starts from an honest problem statement.
 
 ---
 
