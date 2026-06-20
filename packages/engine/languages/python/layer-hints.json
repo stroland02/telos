@@ -1,0 +1,8 @@
+{
+  "rules": [
+    { "match": "/(views|api|routers)/|views\\.py$", "layer": "api" },
+    { "match": "service", "layer": "service" },
+    { "match": "/(models|repositories)/|models\\.py$", "layer": "data" },
+    { "match": "/(utils|helpers)/", "layer": "util" }
+  ]
+}
