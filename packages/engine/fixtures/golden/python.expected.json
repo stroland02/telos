@@ -1,0 +1,5 @@
+[
+  "python:class:UserRepository",
+  "python:file:mod.py",
+  "python:function:get"
+]
