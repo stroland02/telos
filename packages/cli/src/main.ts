@@ -1,24 +1,30 @@
 import { Command } from "commander";
-import { resolve, join } from "node:path";
+import { resolve, join, dirname } from "node:path";
 import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { scan } from "@telos/engine";
 import { GraphService, buildServer } from "@telos/server";
 import { pathToFileURL } from "node:url";
+import open from "open";
 
 export async function runScan(path: string): Promise<{ nodeCount: number; edgeCount: number; dbPath: string }> {
   const { dbPath, graph } = await scan(resolve(path));
   return { nodeCount: graph.nodes.length, edgeCount: graph.edges.length, dbPath };
 }
 
-export async function runServe(opts: { path: string; port: number }): Promise<{ address: string; close: () => Promise<void> }> {
+export async function runServe(opts: { path: string; port: number; open?: boolean }): Promise<{ address: string; close: () => Promise<void> }> {
   const repo = resolve(opts.path);
   const dbPath = join(repo, ".telos", "graph.db");
   if (!existsSync(dbPath)) {
     throw new Error(`No graph found at ${dbPath}. Run 'telos scan ${opts.path}' first.`);
   }
+  // packages/cli/dist/main.js -> ../../../apps/web/dist
+  const here = dirname(fileURLToPath(import.meta.url));
+  const webDist = resolve(here, "..", "..", "..", "apps", "web", "dist");
   const service = GraphService.fromDb(dbPath);
-  const app = buildServer(service);
+  const app = buildServer(service, existsSync(webDist) ? { staticDir: webDist } : {});
   const address = await app.listen({ port: opts.port, host: "127.0.0.1" });
+  if (opts.open) await open(address);
   return { address, close: async () => { await app.close(); service.close(); } };
 }
 
@@ -30,11 +36,12 @@ export function buildProgram(): Command {
       const s = await runScan(path);
       console.log(`Telos: ${s.nodeCount} nodes, ${s.edgeCount} edges -> ${s.dbPath}`);
     });
-  program.command("serve [path]").description("Serve the architecture API for a scanned repo")
+  program.command("serve [path]").description("Serve the architecture map for a scanned repo")
     .option("-p, --port <port>", "port to listen on", "5180")
-    .action(async (path: string | undefined, opts: { port: string }) => {
-      const { address } = await runServe({ path: path ?? ".", port: Number(opts.port) });
-      console.log(`Telos serving the architecture API at ${address}`);
+    .option("--open", "open the map in your browser", false)
+    .action(async (path: string | undefined, opts: { port: string; open: boolean }) => {
+      const { address } = await runServe({ path: path ?? ".", port: Number(opts.port), open: opts.open });
+      console.log(`Telos serving the architecture map at ${address}`);
     });
   return program;
 }

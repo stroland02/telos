@@ -1,4 +1,6 @@
 import Fastify, { FastifyInstance } from "fastify";
+import fastifyStatic from "@fastify/static";
+import { existsSync } from "node:fs";
 
 export interface GraphProvider {
   getOverview(): unknown;
@@ -7,7 +9,9 @@ export interface GraphProvider {
   search(q: string): unknown[];
 }
 
-export function buildServer(provider: GraphProvider): FastifyInstance {
+export interface ServerOptions { staticDir?: string }
+
+export function buildServer(provider: GraphProvider, options: ServerOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
 
   app.get("/api/health", async () => ({ status: "ok" }));
@@ -30,6 +34,14 @@ export function buildServer(provider: GraphProvider): FastifyInstance {
     const q = (req.query.q ?? "").trim();
     return { results: q.length === 0 ? [] : provider.search(q) };
   });
+
+  if (options.staticDir && existsSync(options.staticDir)) {
+    app.register(fastifyStatic, { root: options.staticDir });
+    app.setNotFoundHandler((req, reply) => {
+      if (req.url.startsWith("/api/")) return reply.code(404).send({ error: "not found" });
+      return reply.sendFile("index.html"); // SPA fallback
+    });
+  }
 
   return app;
 }
