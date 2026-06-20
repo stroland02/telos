@@ -100,3 +100,74 @@ export function aggregate(graph: TelosGraph): AggregatedGraph {
 
   return { clusters: [...clusters.values()], membership };
 }
+
+export type ViewLevel = ClusterLevel | "symbol";
+export interface ViewNode { id: string; label: string; level: ViewLevel; layer: Layer; symbolCount: number; fanIn: number; fanOut: number; }
+export interface ViewEdge { sourceId: string; targetId: string; weight: number; }
+export interface GraphView { nodes: ViewNode[]; edges: ViewEdge[]; }
+export interface NodeDetail { node: TelosNode; callers: TelosNode[]; callees: TelosNode[]; }
+
+function clusterToView(c: ClusterNode): ViewNode {
+  return { id: c.id, label: c.label, level: c.level, layer: c.layer, symbolCount: c.symbolCount, fanIn: c.fanIn, fanOut: c.fanOut };
+}
+
+function memberAt(agg: AggregatedGraph, nodeId: string, level: ClusterLevel): string | undefined {
+  const m = agg.membership[nodeId];
+  if (!m) return undefined;
+  return level === "layer" ? m.layerId : level === "module" ? m.moduleId : m.fileId;
+}
+
+function aggregateEdges(graph: TelosGraph, agg: AggregatedGraph, level: ClusterLevel, allowed: Set<string>): ViewEdge[] {
+  const weights = new Map<string, number>();
+  for (const e of graph.edges) {
+    if (e.kind === "contains") continue;
+    const s = memberAt(agg, e.sourceId, level);
+    const t = memberAt(agg, e.targetId, level);
+    if (!s || !t || s === t) continue;
+    if (!allowed.has(s) || !allowed.has(t)) continue;
+    const key = `${s} ${t}`;
+    weights.set(key, (weights.get(key) ?? 0) + 1);
+  }
+  return [...weights.entries()].map(([k, weight]) => {
+    const [sourceId, targetId] = k.split(" ");
+    return { sourceId, targetId, weight };
+  });
+}
+
+export function overview(graph: TelosGraph, agg: AggregatedGraph): GraphView {
+  const layers = agg.clusters.filter((c) => c.level === "layer");
+  const allowed = new Set(layers.map((c) => c.id));
+  return { nodes: layers.map(clusterToView), edges: aggregateEdges(graph, agg, "layer", allowed) };
+}
+
+export function childrenOf(graph: TelosGraph, agg: AggregatedGraph, clusterId: string): GraphView | null {
+  const parent = agg.clusters.find((c) => c.id === clusterId);
+  if (!parent) return null;
+
+  if (parent.level === "file") {
+    const childSet = new Set(parent.childIds);
+    const nodes: ViewNode[] = graph.nodes
+      .filter((n) => childSet.has(n.id))
+      .map((n) => ({ id: n.id, label: n.name, level: "symbol" as ViewLevel, layer: n.layer, symbolCount: 0, fanIn: n.fanIn, fanOut: n.fanOut }));
+    return { nodes, edges: [] }; // v1 calls are file-rooted: no symbol→symbol edges yet
+  }
+
+  const childLevel: ClusterLevel = parent.level === "layer" ? "module" : "file";
+  const children = agg.clusters.filter((c) => c.parentId === clusterId);
+  const allowed = new Set(children.map((c) => c.id));
+  return { nodes: children.map(clusterToView), edges: aggregateEdges(graph, agg, childLevel, allowed) };
+}
+
+export function nodeDetail(graph: TelosGraph, nodeId: string): NodeDetail | null {
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+  const node = byId.get(nodeId);
+  if (!node) return null;
+  const callers: TelosNode[] = [];
+  const callees: TelosNode[] = [];
+  for (const e of graph.edges) {
+    if (e.kind !== "calls") continue;
+    if (e.targetId === nodeId) { const c = byId.get(e.sourceId); if (c) callers.push(c); }
+    if (e.sourceId === nodeId) { const c = byId.get(e.targetId); if (c) callees.push(c); }
+  }
+  return { node, callers, callees };
+}
