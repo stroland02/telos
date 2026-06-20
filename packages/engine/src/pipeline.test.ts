@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterAll } from "vitest";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { rmSync } from "node:fs";
@@ -6,6 +6,8 @@ import { scan } from "./pipeline.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "../fixtures/scan-sample");
+
+afterAll(() => rmSync(resolve(repo, ".telos"), { recursive: true, force: true }));
 
 describe("scan", () => {
   it("builds a graph with nodes from both languages and a resolved call", async () => {

@@ -13,12 +13,17 @@ export async function scan(repoRoot: string): Promise<{ dbPath: string; graph: T
   const parser = await Parser.create();
   const nodes: TelosNode[] = []; const edges: TelosEdge[] = [];
 
-  for (const f of files) {
-    const source = await readFile(f.path, "utf8");
-    const tree = parser.parse(source, f.language);
-    const relPath = relative(repoRoot, f.path).replace(/\\/g, "/");
-    const r = extractFile({ tree, source, relPath, language: f.language });
-    nodes.push(...r.nodes); edges.push(...r.edges);
+  try {
+    for (const f of files) {
+      const source = await readFile(f.path, "utf8");
+      const tree = parser.parse(source, f.language);
+      const relPath = relative(repoRoot, f.path).replace(/\\/g, "/");
+      const r = extractFile({ tree, source, relPath, language: f.language });
+      nodes.push(...r.nodes); edges.push(...r.edges);
+      tree.delete();
+    }
+  } finally {
+    parser.dispose();
   }
 
   const graph = resolveGraph({ nodes, edges });

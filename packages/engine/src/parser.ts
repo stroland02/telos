@@ -44,4 +44,8 @@ export class Parser {
     this.parser.setLanguage(lang);
     return this.parser.parse(source) as TSTree;
   }
+
+  dispose(): void {
+    this.parser.delete();
+  }
 }
