@@ -2,6 +2,7 @@
   "rules": [
     { "match": "/(controllers|routes|api)/", "layer": "api" },
     { "match": "Service$", "layer": "service" },
+    { "match": "/services?/", "layer": "service" },
     { "match": "/(models|repositories|entities)/", "layer": "data" },
     { "match": "\\.tsx$|/components/", "layer": "ui" },
     { "match": "/(utils|helpers|lib)/", "layer": "util" }
