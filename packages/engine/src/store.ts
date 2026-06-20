@@ -45,8 +45,13 @@ export class GraphStore {
   }
 
   search(term: string): TelosNode[] {
-    const ids = (this.db.prepare("SELECT id FROM nodes_fts WHERE nodes_fts MATCH ?").all(`${term}*`) as any[])
-      .map((r) => r.id);
+    const tokens = term
+      .split(/\s+/)
+      .map((t) => t.replace(/["*:()\-]/g, "").trim())
+      .filter((t) => t.length > 0);
+    if (tokens.length === 0) return [];
+    const matchExpr = tokens.map((t) => `"${t}"*`).join(" ");
+    const ids = (this.db.prepare("SELECT id FROM nodes_fts WHERE nodes_fts MATCH ?").all(matchExpr) as any[]).map((r) => r.id);
     if (ids.length === 0) return [];
     const ph = ids.map(() => "?").join(",");
     return (this.db.prepare(`SELECT * FROM nodes WHERE id IN (${ph})`).all(...ids) as any[]).map(rowToNode);
