@@ -20,6 +20,8 @@ describe("walk", () => {
   it("finds source files and honors .gitignore", async () => {
     const files = await walk(sample);
     const names = files.map((f) => f.path.replace(/\\/g, "/").split("/").pop()).sort();
+    // ignored.ts is a valid TypeScript file excluded ONLY by the fixture .gitignore;
+    // this assertion fails if the `if (ig.ignores(rel)) continue;` line is removed from walker.ts.
     expect(names).toEqual(["a.ts", "b.py"]);
     expect(files.find((f) => f.path.endsWith("a.ts"))?.language).toBe("typescript");
   });
