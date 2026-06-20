@@ -1,29 +1,17 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ReactFlow, Background, BackgroundVariant, Controls } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { TelosApi } from "../api/client";
-import { NodeDetail } from "../api/types";
-import { useNavigation } from "../graph/useNavigation";
+import { NavigationState } from "../graph/useNavigation";
 import { toFlowGraph } from "../graph/layout";
 import { TelosNode } from "./TelosNode";
-import { Breadcrumbs } from "./Breadcrumbs";
-import { SearchBox } from "./SearchBox";
-import { DetailPanel } from "./DetailPanel";
 
 const nodeTypes = { telos: TelosNode };
 
-export function MapView({ api }: { api: TelosApi }) {
-  const nav = useNavigation(api);
-  const [detail, setDetail] = useState<NodeDetail | null>(null);
-
+export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode: (id: string) => void }) {
   const flow = useMemo(
     () => (nav.view ? toFlowGraph(nav.view) : { nodes: [], edges: [] }),
     [nav.view],
   );
-
-  const openNode = (id: string) => {
-    void api.node(id).then((d) => { if (d) setDetail(d); });
-  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -55,7 +43,7 @@ export function MapView({ api }: { api: TelosApi }) {
           onNodeClick={(_, node) => {
             const v = nav.view?.nodes.find((x) => x.id === node.id);
             if (!v) return;
-            if (v.level === "symbol" || v.level === "file") openNode(v.id);
+            if (v.level === "symbol" || v.level === "file") onOpenNode(v.id);
             else nav.drillInto({ id: v.id, label: v.label, level: v.level });
           }}
         >
@@ -74,13 +62,8 @@ export function MapView({ api }: { api: TelosApi }) {
             }}
           />
         </ReactFlow>
-
-        {/* Detail panel overlays the canvas from the right */}
-        <DetailPanel detail={detail} onClose={() => setDetail(null)} />
       </div>
 
-      {/* Breadcrumbs + search live in the top bar (rendered by App), so
-          we expose them here for MapView-level composition tests. */}
       {/* Empty/no-data state */}
       {!nav.loading && nav.view && nav.view.nodes.length === 0 && (
         <div
@@ -102,7 +85,3 @@ export function MapView({ api }: { api: TelosApi }) {
     </div>
   );
 }
-
-// Re-export sub-components so App can compose them in the top bar
-export { Breadcrumbs, SearchBox };
-export type { NodeDetail };

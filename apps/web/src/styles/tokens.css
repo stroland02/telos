@@ -13,6 +13,7 @@
   --accent-soft: rgba(34, 211, 238, 0.14);
 
   /* Layer palette (semantic) */
+  --layer-text: #ffffff;
   --layer-api: #3B82F6;
   --layer-service: #8B5CF6;
   --layer-data: #10B981;

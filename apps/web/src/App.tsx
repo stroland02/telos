@@ -1,13 +1,21 @@
+import { useState, useCallback } from "react";
 import { createApi } from "./api/client";
+import { NodeDetail, TelosNodeDTO } from "./api/types";
+import { useNavigation } from "./graph/useNavigation";
 import { MapView } from "./components/MapView";
 import { Breadcrumbs } from "./components/Breadcrumbs";
 import { SearchBox } from "./components/SearchBox";
-import { useNavigation } from "./graph/useNavigation";
+import { DetailPanel } from "./components/DetailPanel";
 
 const api = createApi();
 
-function AppShell() {
+export function App() {
   const nav = useNavigation(api);
+  const [detail, setDetail] = useState<NodeDetail | null>(null);
+
+  const openNode = useCallback((id: string) => {
+    void api.node(id).then((d) => { if (d) setDetail(d); });
+  }, []);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg)", color: "var(--text)" }}>
@@ -74,23 +82,16 @@ function AppShell() {
 
         {/* Search box — fixed width, right side */}
         <div style={{ flexShrink: 0, width: 240 }}>
-          <SearchBox api={api} onSelect={(node) => {
-            // Open the node detail via drillInto or direct open — for leaves we
-            // navigate as a drill; the MapView's own panel will open from node click.
-            // Here we just drill into the node's cluster so the map updates.
-            nav.drillInto({ id: node.id, label: node.name, level: "file" });
-          }} />
+          <SearchBox api={api} onSelect={(node: TelosNodeDTO) => openNode(node.id)} />
         </div>
       </header>
 
       {/* Canvas fills remaining height */}
       <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
-        <MapView api={api} />
+        <MapView nav={nav} onOpenNode={openNode} />
       </div>
+
+      <DetailPanel detail={detail} onClose={() => setDetail(null)} />
     </div>
   );
-}
-
-export function App() {
-  return <AppShell />;
 }

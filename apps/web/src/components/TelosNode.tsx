@@ -18,7 +18,7 @@ export function TelosNode({ data, selected }: NodeProps) {
         padding: "var(--s-2) var(--s-3)",
         borderRadius: "var(--r-md)",
         background: bg,
-        color: "#fff",
+        color: "var(--layer-text)",
         fontFamily: "var(--font-ui)",
         border: `1px solid var(--border)`,
         boxShadow: selected
