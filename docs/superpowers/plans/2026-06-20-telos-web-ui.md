@@ -31,6 +31,7 @@
   - `NodeDetail = { node: TelosNodeDTO; callers: TelosNodeDTO[]; callees: TelosNodeDTO[] }`
 - **Cluster id formats (for navigation):** `layer:<layer>`, `module:<layer>:<dir>`, file clusters use the file node's hash id, symbols are leaf node ids. The UI treats ids as opaque strings except to know that `childrenOf` returns `null`→404 at a leaf (handled as "no further drill").
 - **Honesty:** drilling a file shows its symbols with `edges: []` (v1 has no symbol→symbol edges). The UI must not invent edges.
+- **Design direction (binding):** the UI MUST follow `docs/superpowers/specs/2026-06-20-telos-ui-design-direction.md` — dark-first "Code Sentinel" tone, the §2 color tokens (slate chrome + layer hues + one cyan `--accent`), Inter + JetBrains Mono (self-hosted, no CDN), the 8pt spacing scale, restraint on motion (high-signal only, `prefers-reduced-motion` honored), WCAG 2.2 AA, and the §5 layout (slim top bar, full-bleed map, right-slide detail panel, mono metric chips). All visual values come from CSS custom properties in `apps/web/src/styles/tokens.css` — no hard-coded hex in components. Task 2 creates `tokens.css` + self-hosted `@font-face` and imports it in `main.tsx`; Task 6 styles every component via `var(--…)` per that doc's §7 mapping.
 
 ---
 
