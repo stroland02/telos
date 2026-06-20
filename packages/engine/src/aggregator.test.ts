@@ -51,3 +51,63 @@ describe("aggregate", () => {
     expect(agg.membership["f1"]).toEqual({ layerId: "layer:api", moduleId: "module:api:src/api", fileId: "f1" });
   });
 });
+
+describe("aggregate – file-node fanIn/fanOut rollup", () => {
+  it("rolls a file node's own fanOut up to file, module, and layer clusters", () => {
+    const graph: TelosGraph = {
+      nodes: [
+        // file node with nonzero fanOut (outgoing calls are file-rooted)
+        { id: "fx", kind: "file", name: "router.ts", qualifiedName: "src/api/router.ts",
+          language: "typescript", path: "src/api/router.ts", lineStart: 1, lineEnd: 20,
+          layer: "api", fanIn: 1, fanOut: 2, lines: 20, complexity: 0, summary: null },
+        // one symbol inside the file with its own metrics
+        { id: "sx", kind: "function", name: "route", qualifiedName: "src/api/router.ts::route",
+          language: "typescript", path: "src/api/router.ts", lineStart: 2, lineEnd: 5,
+          layer: "api", fanIn: 3, fanOut: 0, lines: 4, complexity: 1, summary: null },
+      ],
+      edges: [],
+    };
+    const agg = aggregate(graph);
+    const fileCluster = agg.clusters.find((c) => c.id === "fx")!;
+    const modCluster = agg.clusters.find((c) => c.id === "module:api:src/api")!;
+    const layerCluster = agg.clusters.find((c) => c.id === "layer:api")!;
+
+    // file node contributes fanIn=1, fanOut=2; symbol adds fanIn=3, fanOut=0
+    expect(fileCluster.fanOut).toBe(2);   // from file node
+    expect(fileCluster.fanIn).toBe(4);    // 1 (file) + 3 (symbol)
+    expect(modCluster.fanOut).toBe(2);
+    expect(modCluster.fanIn).toBe(4);
+    expect(layerCluster.fanOut).toBe(2);
+    expect(layerCluster.fanIn).toBe(4);
+
+    // symbolCount must NOT include the file node itself
+    expect(fileCluster.symbolCount).toBe(1);
+    expect(modCluster.symbolCount).toBe(1);
+    expect(layerCluster.symbolCount).toBe(1);
+  });
+});
+
+describe("aggregate – root-level files", () => {
+  it("places a path-less file under module:<layer>:. nested under its layer", () => {
+    const graph: TelosGraph = {
+      nodes: [
+        { id: "fr", kind: "file", name: "index.ts", qualifiedName: "index.ts",
+          language: "typescript", path: "index.ts", lineStart: 1, lineEnd: 5,
+          layer: "api", fanIn: 0, fanOut: 0, lines: 5, complexity: 0, summary: null },
+      ],
+      edges: [],
+    };
+    const agg = aggregate(graph);
+    const modCluster = agg.clusters.find((c) => c.id === "module:api:.")!;
+    const layerCluster = agg.clusters.find((c) => c.id === "layer:api")!;
+
+    expect(modCluster).toBeDefined();
+    expect(modCluster.level).toBe("module");
+    expect(modCluster.parentId).toBe("layer:api");
+    expect(layerCluster.childIds).toContain("module:api:.");
+
+    const fileCluster = agg.clusters.find((c) => c.id === "fr")!;
+    expect(fileCluster.parentId).toBe("module:api:.");
+    expect(agg.membership["fr"]).toEqual({ layerId: "layer:api", moduleId: "module:api:.", fileId: "fr" });
+  });
+});

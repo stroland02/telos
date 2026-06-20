@@ -63,12 +63,20 @@ export function aggregate(graph: TelosGraph): AggregatedGraph {
   const fileByPath = new Map<string, TelosNode>();
 
   // 1. Materialize all file clusters first, so every symbol has a parent.
+  //    Also roll the file node's own fanIn/fanOut into the cluster hierarchy
+  //    (calls are file-rooted so file nodes carry real fanOut; symbolCount is
+  //    NOT incremented here — it counts leaf symbols only).
   for (const f of fileNodes) {
     fileByPath.set(f.path, f);
     const fileId = ensureFile(f);
     const moduleId = clusters.get(fileId)!.parentId!;
     const layerId = clusters.get(moduleId)!.parentId!;
     membership[f.id] = { layerId, moduleId, fileId };
+    for (const id of [fileId, moduleId, layerId]) {
+      const c = clusters.get(id)!;
+      c.fanIn += f.fanIn;
+      c.fanOut += f.fanOut;
+    }
   }
 
   // 2. Attach symbols to their file and roll metrics up the chain.
