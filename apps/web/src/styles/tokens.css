@@ -37,6 +37,27 @@
   /* Typography */
   --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", monospace;
+
+  /* Type scale (§3) */
+  --t-wordmark-size: 18px;
+  --t-wordmark-lh: 24px;
+  --t-wordmark-weight: 600;
+
+  --t-h-size: 16px;
+  --t-h-lh: 22px;
+  --t-h-weight: 600;
+
+  --t-body-size: 14px;
+  --t-body-lh: 20px;
+  --t-body-weight: 400;
+
+  --t-label-size: 13px;
+  --t-label-lh: 18px;
+  --t-label-weight: 500;
+
+  --t-meta-size: 12px;
+  --t-meta-lh: 16px;
+  --t-meta-weight: 400;
 }
 
 /* Global reset */

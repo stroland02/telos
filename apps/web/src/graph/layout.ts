@@ -1,7 +1,7 @@
 import Dagre from "@dagrejs/dagre";
 import { GraphView, Layer, ViewLevel } from "../api/types";
 
-export interface FlowNodeData { label: string; level: ViewLevel; layer: Layer; symbolCount: number; fanIn: number; fanOut: number; }
+export interface FlowNodeData extends Record<string, unknown> { label: string; level: ViewLevel; layer: Layer; symbolCount: number; fanIn: number; fanOut: number; }
 export interface FlowNode { id: string; position: { x: number; y: number }; data: FlowNodeData; type: "telos"; }
 export interface FlowEdge { id: string; source: string; target: string; data: { weight: number }; }
 export interface FlowGraph { nodes: FlowNode[]; edges: FlowEdge[]; }
