@@ -2,5 +2,10 @@
   "name": "telos",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" }
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r build && pnpm -r exec vitest run",
+    "typecheck": "pnpm -r exec tsc -p tsconfig.json --noEmit"
+  }
 }
