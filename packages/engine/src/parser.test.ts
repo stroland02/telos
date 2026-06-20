@@ -17,4 +17,8 @@ describe("Parser", () => {
   it("throws on an unknown language", () => {
     expect(() => parser.parse("x", "cobol")).toThrow(/no grammar/i);
   });
+  it("parses JavaScript using the TS grammar", () => {
+    const tree = parser.parse("const x = () => 1;", "javascript");
+    expect(tree.rootNode.type).toBe("program");
+  });
 });
