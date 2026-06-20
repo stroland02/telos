@@ -18,6 +18,13 @@ describe("childrenOf", () => {
     expect(view.edges).toEqual([]); // the cross-layer call is not internal to this layer
   });
 
+  it("drills a module into its files", () => {
+    const agg = aggregate(sampleGraph);
+    const view = childrenOf(sampleGraph, agg, "module:api:src/api")!;
+    expect(view.nodes.map((n) => n.id)).toEqual(["f1"]);
+    expect(view.edges).toEqual([]); // the only call leaves this module, so nothing internal
+  });
+
   it("drills a file into its leaf symbols", () => {
     const agg = aggregate(sampleGraph);
     const view = childrenOf(sampleGraph, agg, "f1")!;

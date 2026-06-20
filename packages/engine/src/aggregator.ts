@@ -125,11 +125,11 @@ function aggregateEdges(graph: TelosGraph, agg: AggregatedGraph, level: ClusterL
     const t = memberAt(agg, e.targetId, level);
     if (!s || !t || s === t) continue;
     if (!allowed.has(s) || !allowed.has(t)) continue;
-    const key = `${s} ${t}`;
+    const key = `${s}\0${t}`;
     weights.set(key, (weights.get(key) ?? 0) + 1);
   }
   return [...weights.entries()].map(([k, weight]) => {
-    const [sourceId, targetId] = k.split(" ");
+    const [sourceId, targetId] = k.split("\0");
     return { sourceId, targetId, weight };
   });
 }
