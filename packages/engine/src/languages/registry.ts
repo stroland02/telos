@@ -6,3 +6,10 @@ export const EXTENSION_LANGUAGE: Record<string, string> = {
 };
 
 export const SUPPORTED_EXTENSIONS = Object.keys(EXTENSION_LANGUAGE);
+
+// Language id → grammar wasm filename (under packages/engine/grammars/).
+export const LANGUAGE_GRAMMAR: Record<string, string> = {
+  typescript: "tree-sitter-typescript.wasm",
+  javascript: "tree-sitter-typescript.wasm", // TS grammar parses JS
+  python: "tree-sitter-python.wasm",
+};
