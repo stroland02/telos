@@ -1,0 +1,66 @@
+:root {
+  /* Neutral slate canvas */
+  --bg: #0B0F14;
+  --surface: #121822;
+  --surface-2: #1A2230;
+  --border: #243044;
+  --text: #E6EDF3;
+  --text-muted: #90A0B3;
+  --text-faint: #5A6B7E;
+
+  /* Sentinel accent */
+  --accent: #22D3EE;
+  --accent-soft: rgba(34, 211, 238, 0.14);
+
+  /* Layer palette (semantic) */
+  --layer-api: #3B82F6;
+  --layer-service: #8B5CF6;
+  --layer-data: #10B981;
+  --layer-ui: #EC4899;
+  --layer-infra: #F59E0B;
+  --layer-util: #6B7280;
+  --layer-unknown: #94A3B8;
+
+  /* Spacing (8pt grid) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-6: 24px;
+  --s-8: 32px;
+
+  /* Radius */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+
+  /* Typography */
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", monospace;
+}
+
+/* Global reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* Reduced-motion guard */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
