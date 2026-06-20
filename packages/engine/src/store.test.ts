@@ -35,7 +35,7 @@ function sampleGraph(): TelosGraph {
         path: "b.ts",
         lineStart: 5,
         lineEnd: 20,
-        layer: "domain",
+        layer: "service",
         fanIn: 0,
         fanOut: 1,
         lines: 15,
