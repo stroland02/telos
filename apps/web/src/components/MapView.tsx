@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { ReactFlow, Background, BackgroundVariant, Controls, MiniMap, Panel } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { NavigationState } from "../graph/useNavigation";
@@ -8,7 +8,8 @@ import { LayerFilter, LAYER_ORDER } from "./LayerFilter";
 import { PathFinderBar, PATH_FINDER_IDLE, bfsPath } from "./PathFinder";
 import type { PathFinderState } from "./PathFinder";
 import { ExportButton } from "./ExportButton";
-import type { Layer } from "../api/types";
+import type { Layer, GraphView } from "../api/types";
+import type { TelosApi } from "../api/client";
 
 const LAYER_HEX: Record<string, string> = {
   api:     "#3B82F6",
@@ -22,13 +23,46 @@ const LAYER_HEX: Record<string, string> = {
 
 const nodeTypes = { telos: TelosNode };
 
-export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode: (id: string) => void }) {
+export function MapView({ nav, api, onOpenNode }: { nav: NavigationState; api: TelosApi; onOpenNode: (id: string) => void }) {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [pfState, setPfState] = useState<PathFinderState>(PATH_FINDER_IDLE);
 
-  const flow = useMemo(
-    () => (nav.view ? toFlowGraph(nav.view) : { nodes: [], edges: [] }),
+  // Granularity toggle: "Files" vs "Files + Symbols"
+  // Only active when the current level contains file nodes.
+  const hasFileNodes = useMemo(
+    () => (nav.view?.nodes ?? []).some((n) => n.level === "file"),
     [nav.view],
+  );
+  const [showSymbols, setShowSymbols] = useState(false);
+  // Reset toggle when navigating to a level without file nodes
+  useEffect(() => { if (!hasFileNodes) setShowSymbols(false); }, [hasFileNodes]);
+
+  // When showSymbols is on, fetch symbol children for every file node in the view.
+  const [symbolView, setSymbolView] = useState<GraphView | null>(null);
+  useEffect(() => {
+    if (!showSymbols || !hasFileNodes || !nav.view) { setSymbolView(null); return; }
+    const fileIds = nav.view.nodes.filter((n) => n.level === "file").map((n) => n.id);
+    Promise.all(fileIds.map((id) => api.cluster(id))).then((views) => {
+      const symNodes = views.flatMap((v) => v?.nodes ?? []);
+      setSymbolView({ nodes: symNodes, edges: [] });
+    }).catch(() => setSymbolView(null));
+  }, [showSymbols, hasFileNodes, nav.view, api]);
+
+  // Merge symbol children into the view when granularity is expanded.
+  const activeView = useMemo(() => {
+    if (!nav.view) return null;
+    if (showSymbols && symbolView && symbolView.nodes.length > 0) {
+      // De-duplicate: symbols from symbolView that aren't already in nav.view
+      const existingIds = new Set(nav.view.nodes.map((n) => n.id));
+      const newNodes = symbolView.nodes.filter((n) => !existingIds.has(n.id));
+      return { nodes: [...nav.view.nodes, ...newNodes], edges: nav.view.edges };
+    }
+    return nav.view;
+  }, [nav.view, showSymbols, symbolView]);
+
+  const flow = useMemo(
+    () => (activeView ? toFlowGraph(activeView) : { nodes: [], edges: [] }),
+    [activeView],
   );
 
   const activeLayers = useMemo(
@@ -178,6 +212,70 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
           onToggle={toggleLayer}
           onShowAll={showAll}
         />
+
+        {/* Granularity toggle — appears only at file level and when path-finder is idle.
+            Positioned top-left (inside ReactFlow via absolute, clear of PathFinderBar center). */}
+        {hasFileNodes && !pfState.active && pfState.path === null && (
+          <div
+            style={{
+              position: "absolute",
+              top: "var(--s-2)",
+              left: "var(--s-2)",
+              display: "flex",
+              gap: 0,
+              zIndex: 5,
+              pointerEvents: "auto",
+            }}
+          >
+            <button
+              onClick={() => setShowSymbols(false)}
+              aria-pressed={!showSymbols}
+              title="Show file nodes only"
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "var(--t-meta-size)",
+                lineHeight: "var(--t-meta-lh)",
+                padding: "var(--s-1) var(--s-3)",
+                background: !showSymbols ? "var(--accent-soft)" : "var(--surface)",
+                border: `1px solid ${!showSymbols ? "var(--accent)" : "var(--border)"}`,
+                borderRadius: "var(--r-sm) 0 0 var(--r-sm)",
+                color: !showSymbols ? "var(--accent)" : "var(--text-muted)",
+                cursor: "pointer",
+                outline: "none",
+                transition: "background 120ms ease, color 120ms ease, border-color 120ms ease",
+                whiteSpace: "nowrap",
+              }}
+              onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
+              onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+            >
+              Files
+            </button>
+            <button
+              onClick={() => setShowSymbols(true)}
+              aria-pressed={showSymbols}
+              title="Expand symbols within each file"
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "var(--t-meta-size)",
+                lineHeight: "var(--t-meta-lh)",
+                padding: "var(--s-1) var(--s-3)",
+                background: showSymbols ? "var(--accent-soft)" : "var(--surface)",
+                border: `1px solid ${showSymbols ? "var(--accent)" : "var(--border)"}`,
+                borderLeft: "none",
+                borderRadius: "0 var(--r-sm) var(--r-sm) 0",
+                color: showSymbols ? "var(--accent)" : "var(--text-muted)",
+                cursor: "pointer",
+                outline: "none",
+                transition: "background 120ms ease, color 120ms ease, border-color 120ms ease",
+                whiteSpace: "nowrap",
+              }}
+              onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
+              onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+            >
+              +Symbols
+            </button>
+          </div>
+        )}
 
         {/* Path-finder control bar — centered top */}
         <PathFinderBar
