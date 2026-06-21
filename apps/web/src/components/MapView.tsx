@@ -284,12 +284,15 @@ export function MapView({ nav, api, density, onOpenNode }: { nav: NavigationStat
           </div>
         )}
 
-        {/* Path-finder control bar — centered top */}
+        {/* Path-finder control bar — centered top.
+            When the TourBar is active it occupies the top-right panel (~56px tall);
+            offset PathFinderBar down so the two bars never sit on the same row. */}
         <PathFinderBar
           state={pfState}
           onActivate={() => setPfState({ active: true, sourceId: null, path: null, noPath: false })}
           onReset={() => setPfState(PATH_FINDER_IDLE)}
           sourceLabel={sourceLabel}
+          topOffset={tourActive ? 64 : 0}
         />
 
         <ReactFlow
@@ -305,6 +308,7 @@ export function MapView({ nav, api, density, onOpenNode }: { nav: NavigationStat
         >
           <Background variant={BackgroundVariant.Dots} color="var(--border)" gap={24} size={1} />
           <Controls
+            position="bottom-center"
             style={{
               background: "var(--surface)",
               border: "1px solid var(--border)",
@@ -317,9 +321,12 @@ export function MapView({ nav, api, density, onOpenNode }: { nav: NavigationStat
               const layer = (node.data as { layer?: string }).layer ?? "unknown";
               return LAYER_HEX[layer] ?? LAYER_HEX.unknown;
             }}
-            maskColor="rgba(18,24,34,0.7)"
+            nodeStrokeColor="transparent"
+            nodeStrokeWidth={0}
+            maskColor="rgba(11,15,20,0.6)"
+            bgColor="#121822"
             style={{
-              background: "var(--surface)",
+              background: "#121822",
               border: "1px solid var(--border)",
               borderRadius: "var(--r-md)",
             }}

@@ -2,7 +2,7 @@ import Dagre from "@dagrejs/dagre";
 import { GraphView, Layer, ViewLevel } from "../api/types";
 
 export interface FlowNodeData extends Record<string, unknown> { label: string; level: ViewLevel; layer: Layer; symbolCount: number; fanIn: number; fanOut: number; complexity: number; width: number; height: number; }
-export interface FlowNode { id: string; position: { x: number; y: number }; data: FlowNodeData; type: "telos"; }
+export interface FlowNode { id: string; position: { x: number; y: number }; data: FlowNodeData; type: "telos"; width: number; height: number; }
 export interface FlowEdge { id: string; source: string; target: string; data: { weight: number }; }
 export interface FlowGraph { nodes: FlowNode[]; edges: FlowEdge[]; }
 
@@ -36,6 +36,10 @@ export function toFlowGraph(view: GraphView): FlowGraph {
       id: n.id,
       type: "telos",
       position: { x: p.x - s.width / 2, y: p.y - s.height / 2 },
+      // Top-level width/height are required by @xyflow/react v12 for the
+      // MiniMap to know node dimensions without waiting for DOM measurement.
+      width: s.width,
+      height: s.height,
       data: { label: n.label, level: n.level, layer: n.layer, symbolCount: n.symbolCount, fanIn: n.fanIn, fanOut: n.fanOut, complexity: n.complexity, width: s.width, height: s.height },
     };
   });

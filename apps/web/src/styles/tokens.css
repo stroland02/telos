@@ -150,7 +150,46 @@ body {
   line-height: 20px;
 }
 
-/* Reduced-motion guard */
+/* ─── React Flow controls theming ───────────────────────────────────────────
+   The .react-flow__controls wrapper is styled inline in MapView; these rules
+   theme the individual buttons to the dark slate palette (design direction §5).
+   Controls are positioned bottom-center via the position prop.
+   ──────────────────────────────────────────────────────────────────────────── */
+.react-flow__controls-button {
+  background: var(--surface) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--border) !important;
+  fill: var(--text-muted) !important;
+  color: var(--text-muted) !important;
+  width: 28px !important;
+  height: 28px !important;
+  transition: background 80ms ease, fill 80ms ease !important;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--surface-2) !important;
+  fill: var(--text) !important;
+  color: var(--text) !important;
+}
+
+.react-flow__controls-button:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent) !important;
+  outline: none !important;
+  z-index: 1;
+  position: relative;
+}
+
+.react-flow__controls-button svg {
+  fill: inherit !important;
+  max-width: 12px !important;
+  max-height: 12px !important;
+}
+
+/* ─── Reduced-motion guard ──────────────────────────────────────────────────*/
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
