@@ -21,9 +21,9 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
           role="alert"
           style={{
             padding: "var(--s-2) var(--s-4)",
-            background: "rgba(185,28,28,0.15)",
-            borderBottom: "1px solid rgba(185,28,28,0.4)",
-            color: "#fca5a5",
+            background: "var(--danger-soft)",
+            borderBottom: "1px solid var(--danger)",
+            color: "var(--danger)",
             fontSize: "var(--t-body-size)",
             lineHeight: "var(--t-body-lh)",
           }}

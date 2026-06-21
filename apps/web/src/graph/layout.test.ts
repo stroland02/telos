@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toFlowGraph, LAYER_COLORS } from "./layout";
+import { toFlowGraph } from "./layout";
 import { GraphView } from "../api/types";
 
 const view: GraphView = {
@@ -37,11 +37,5 @@ describe("toFlowGraph", () => {
 
   it("is deterministic across runs", () => {
     expect(toFlowGraph(view)).toEqual(toFlowGraph(view));
-  });
-
-  it("exposes a color for every layer", () => {
-    for (const layer of ["api", "service", "data", "ui", "infra", "util", "unknown"] as const) {
-      expect(LAYER_COLORS[layer]).toMatch(/^#[0-9a-fA-F]{6}$/);
-    }
   });
 });

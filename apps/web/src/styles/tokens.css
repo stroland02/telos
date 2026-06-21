@@ -22,6 +22,10 @@
   --layer-util: #6B7280;
   --layer-unknown: #94A3B8;
 
+  /* Danger */
+  --danger: #f87171;
+  --danger-soft: rgba(248,113,113,0.12);
+
   /* Spacing (8pt grid) */
   --s-1: 4px;
   --s-2: 8px;

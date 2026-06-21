@@ -79,10 +79,10 @@ export function DetailPanel({ detail, onClose }: { detail: NodeDetail | null; on
       aria-label="Node detail"
       style={{
         position: "absolute",
-        top: 0,
+        top: 48,
         right: 0,
+        bottom: 0,
         width: 320,
-        height: "100%",
         background: "var(--surface)",
         borderLeft: "1px solid var(--border)",
         padding: "var(--s-4)",

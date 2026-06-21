@@ -6,16 +6,6 @@ export interface FlowNode { id: string; position: { x: number; y: number }; data
 export interface FlowEdge { id: string; source: string; target: string; data: { weight: number }; }
 export interface FlowGraph { nodes: FlowNode[]; edges: FlowEdge[]; }
 
-export const LAYER_COLORS: Record<Layer, string> = {
-  api: "#3b82f6",
-  service: "#8b5cf6",
-  data: "#10b981",
-  ui: "#ec4899",
-  infra: "#f59e0b",
-  util: "#6b7280",
-  unknown: "#94a3b8",
-};
-
 const NODE_W = 180;
 const NODE_H = 56;
 
