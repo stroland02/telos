@@ -13,6 +13,16 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
     [nav.view],
   );
 
+  // Edge thickness encodes call-traffic weight (node-link visual-language
+  // convention: link "size" ∝ flow magnitude), normalized to a 1–4px range.
+  const edges = useMemo(() => {
+    const maxW = Math.max(1, ...flow.edges.map((e) => e.data.weight));
+    return flow.edges.map((e) => ({
+      ...e,
+      style: { stroke: "var(--text-faint)", strokeWidth: 1 + 3 * (e.data.weight / maxW) },
+    }));
+  }, [flow.edges]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Error banner */}
@@ -36,9 +46,10 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
       <div style={{ position: "relative", flex: 1, background: "var(--bg)" }}>
         <ReactFlow
           nodes={flow.nodes}
-          edges={flow.edges}
+          edges={edges}
           nodeTypes={nodeTypes}
           fitView
+          proOptions={{ hideAttribution: true }}
           style={{ background: "var(--bg)" }}
           onNodeClick={(_, node) => {
             const v = nav.view?.nodes.find((x) => x.id === node.id);
