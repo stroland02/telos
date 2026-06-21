@@ -40,6 +40,14 @@
   --danger: #f87171;
   --danger-soft: rgba(248,113,113,0.12);
 
+  /* Complexity tier tokens (SonarQube / cyclomatic standard: <5 simple, 5–15 moderate, >15 complex) */
+  --complexity-simple: #10B981;
+  --complexity-simple-bg: rgba(16,185,129,0.15);
+  --complexity-moderate: #F59E0B;
+  --complexity-moderate-bg: rgba(245,158,11,0.15);
+  --complexity-complex: #f87171;
+  --complexity-complex-bg: rgba(248,113,113,0.15);
+
   /* Spacing (8pt grid) */
   --s-1: 4px;
   --s-2: 8px;

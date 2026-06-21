@@ -4,8 +4,8 @@ import { GraphView } from "../api/types";
 
 const view: GraphView = {
   nodes: [
-    { id: "layer:api", label: "api", level: "layer", layer: "api", symbolCount: 3, fanIn: 0, fanOut: 2 },
-    { id: "layer:service", label: "service", level: "layer", layer: "service", symbolCount: 5, fanIn: 2, fanOut: 0 },
+    { id: "layer:api", label: "api", level: "layer", layer: "api", symbolCount: 3, fanIn: 0, fanOut: 2, complexity: 0 },
+    { id: "layer:service", label: "service", level: "layer", layer: "service", symbolCount: 5, fanIn: 2, fanOut: 0, complexity: 4 },
   ],
   edges: [{ sourceId: "layer:api", targetId: "layer:service", weight: 4 }],
 };

@@ -12,6 +12,8 @@ export interface ClusterNode {
   symbolCount: number;
   fanIn: number;
   fanOut: number;
+  /** Max cyclomatic complexity of any symbol in this cluster (0 when unknown). */
+  maxComplexity: number;
 }
 
 export interface ClusterPath { layerId: string; moduleId: string; fileId: string; }
@@ -37,7 +39,7 @@ export function aggregate(graph: TelosGraph): AggregatedGraph {
   const ensureLayer = (layer: Layer): string => {
     const id = `layer:${layer}`;
     if (!clusters.has(id)) {
-      clusters.set(id, { id, level: "layer", label: layer, layer, parentId: null, childIds: [], symbolCount: 0, fanIn: 0, fanOut: 0 });
+      clusters.set(id, { id, level: "layer", label: layer, layer, parentId: null, childIds: [], symbolCount: 0, fanIn: 0, fanOut: 0, maxComplexity: 0 });
     }
     return id;
   };
@@ -45,7 +47,7 @@ export function aggregate(graph: TelosGraph): AggregatedGraph {
     const layerId = ensureLayer(layer);
     const id = `module:${layer}:${dir}`;
     if (!clusters.has(id)) {
-      clusters.set(id, { id, level: "module", label: dir, layer, parentId: layerId, childIds: [], symbolCount: 0, fanIn: 0, fanOut: 0 });
+      clusters.set(id, { id, level: "module", label: dir, layer, parentId: layerId, childIds: [], symbolCount: 0, fanIn: 0, fanOut: 0, maxComplexity: 0 });
       clusters.get(layerId)!.childIds.push(id);
     }
     return id;
@@ -53,7 +55,7 @@ export function aggregate(graph: TelosGraph): AggregatedGraph {
   const ensureFile = (file: TelosNode): string => {
     const moduleId = ensureModule(file.layer, parentDir(file.path));
     if (!clusters.has(file.id)) {
-      clusters.set(file.id, { id: file.id, level: "file", label: baseName(file.path), layer: file.layer, parentId: moduleId, childIds: [], symbolCount: 0, fanIn: 0, fanOut: 0 });
+      clusters.set(file.id, { id: file.id, level: "file", label: baseName(file.path), layer: file.layer, parentId: moduleId, childIds: [], symbolCount: 0, fanIn: 0, fanOut: 0, maxComplexity: 0 });
       clusters.get(moduleId)!.childIds.push(file.id);
     }
     return file.id;
@@ -95,6 +97,7 @@ export function aggregate(graph: TelosGraph): AggregatedGraph {
       c.symbolCount += 1;
       c.fanIn += sym.fanIn;
       c.fanOut += sym.fanOut;
+      if (sym.complexity > c.maxComplexity) c.maxComplexity = sym.complexity;
     }
   }
 
@@ -102,13 +105,13 @@ export function aggregate(graph: TelosGraph): AggregatedGraph {
 }
 
 export type ViewLevel = ClusterLevel | "symbol";
-export interface ViewNode { id: string; label: string; level: ViewLevel; layer: Layer; symbolCount: number; fanIn: number; fanOut: number; }
+export interface ViewNode { id: string; label: string; level: ViewLevel; layer: Layer; symbolCount: number; fanIn: number; fanOut: number; complexity: number; }
 export interface ViewEdge { sourceId: string; targetId: string; weight: number; }
 export interface GraphView { nodes: ViewNode[]; edges: ViewEdge[]; }
 export interface NodeDetail { node: TelosNode; callers: TelosNode[]; callees: TelosNode[]; }
 
 function clusterToView(c: ClusterNode): ViewNode {
-  return { id: c.id, label: c.label, level: c.level, layer: c.layer, symbolCount: c.symbolCount, fanIn: c.fanIn, fanOut: c.fanOut };
+  return { id: c.id, label: c.label, level: c.level, layer: c.layer, symbolCount: c.symbolCount, fanIn: c.fanIn, fanOut: c.fanOut, complexity: c.maxComplexity };
 }
 
 function memberAt(agg: AggregatedGraph, nodeId: string, level: ClusterLevel): string | undefined {
@@ -148,7 +151,7 @@ export function childrenOf(graph: TelosGraph, agg: AggregatedGraph, clusterId: s
     const childSet = new Set(parent.childIds);
     const nodes: ViewNode[] = graph.nodes
       .filter((n) => childSet.has(n.id))
-      .map((n) => ({ id: n.id, label: n.name, level: "symbol" as ViewLevel, layer: n.layer, symbolCount: 0, fanIn: n.fanIn, fanOut: n.fanOut }));
+      .map((n) => ({ id: n.id, label: n.name, level: "symbol" as ViewLevel, layer: n.layer, symbolCount: 0, fanIn: n.fanIn, fanOut: n.fanOut, complexity: n.complexity }));
     return { nodes, edges: [] }; // v1 calls are file-rooted: no symbol→symbol edges yet
   }
 

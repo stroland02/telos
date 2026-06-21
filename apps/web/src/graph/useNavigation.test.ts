@@ -5,11 +5,11 @@ import { TelosApi } from "../api/client";
 import { GraphView } from "../api/types";
 
 const overview: GraphView = {
-  nodes: [{ id: "layer:api", label: "api", level: "layer", layer: "api", symbolCount: 1, fanIn: 0, fanOut: 0 }],
+  nodes: [{ id: "layer:api", label: "api", level: "layer", layer: "api", symbolCount: 1, fanIn: 0, fanOut: 0, complexity: 0 }],
   edges: [],
 };
 const apiChildren: GraphView = {
-  nodes: [{ id: "module:api:src/api", label: "src/api", level: "module", layer: "api", symbolCount: 1, fanIn: 0, fanOut: 0 }],
+  nodes: [{ id: "module:api:src/api", label: "src/api", level: "module", layer: "api", symbolCount: 1, fanIn: 0, fanOut: 0, complexity: 0 }],
   edges: [],
 };
 

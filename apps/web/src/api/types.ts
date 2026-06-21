@@ -1,6 +1,6 @@
 export type Layer = "api" | "service" | "data" | "ui" | "infra" | "util" | "unknown";
 export type ViewLevel = "layer" | "module" | "file" | "symbol";
-export interface ViewNode { id: string; label: string; level: ViewLevel; layer: Layer; symbolCount: number; fanIn: number; fanOut: number; }
+export interface ViewNode { id: string; label: string; level: ViewLevel; layer: Layer; symbolCount: number; fanIn: number; fanOut: number; complexity: number; }
 export interface ViewEdge { sourceId: string; targetId: string; weight: number; }
 export interface GraphView { nodes: ViewNode[]; edges: ViewEdge[]; }
 export interface TelosNodeDTO {

@@ -29,7 +29,7 @@ describe("childrenOf", () => {
     const agg = aggregate(sampleGraph);
     const view = childrenOf(sampleGraph, agg, "f1")!;
     expect(view.nodes).toEqual([
-      { id: "s1", label: "getUser", level: "symbol", layer: "api", symbolCount: 0, fanIn: 0, fanOut: 1 },
+      { id: "s1", label: "getUser", level: "symbol", layer: "api", symbolCount: 0, fanIn: 0, fanOut: 1, complexity: 1 },
     ]);
     expect(view.edges).toEqual([]);
   });

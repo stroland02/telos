@@ -26,6 +26,14 @@ function layerGlowVar(layer: string): string {
   return `var(--layer-${layer}-glow, var(--layer-unknown-glow))`;
 }
 
+/** Maps complexity value to a tier label (SonarQube / cyclomatic standard). */
+function complexityTier(c: number): { label: string; color: string; bg: string } | null {
+  if (c <= 0) return null; // 0 = unknown/not computed — don't show badge
+  if (c < 5)  return { label: "simple",   color: "var(--complexity-simple)",   bg: "var(--complexity-simple-bg)" };
+  if (c <= 15) return { label: "moderate", color: "var(--complexity-moderate)", bg: "var(--complexity-moderate-bg)" };
+  return          { label: "complex",  color: "var(--complexity-complex)",  bg: "var(--complexity-complex-bg)" };
+}
+
 export function TelosNode({ data, selected }: NodeProps) {
   const d = data as unknown as FlowNodeData & { _pathOn?: boolean | null; _pathDim?: boolean };
   const isLeaf = d.level === "symbol" || d.level === "file";
@@ -96,6 +104,10 @@ export function TelosNode({ data, selected }: NodeProps) {
         {d.label !== d.layer && <Chip label={d.layer} />}
         <Chip label={`${d.symbolCount} sym`} />
         <Chip label={`in ${d.fanIn} / out ${d.fanOut}`} />
+        {/* Complexity badge — only rendered when complexity is known (>0) */}
+        {complexityTier(d.complexity) && (
+          <ComplexityBadge tier={complexityTier(d.complexity)!} />
+        )}
       </div>
 
       <Handle type="source" position={Position.Right} style={{ background: "var(--border)" }} />
@@ -120,6 +132,30 @@ function Chip({ label }: { label: string }) {
       }}
     >
       {label}
+    </span>
+  );
+}
+
+function ComplexityBadge({ tier }: { tier: { label: string; color: string; bg: string } }) {
+  return (
+    <span
+      aria-label={`complexity: ${tier.label}`}
+      title={`Cyclomatic complexity: ${tier.label}`}
+      style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: "var(--t-meta-size)",
+        lineHeight: "var(--t-meta-lh)",
+        fontWeight: 600,
+        background: tier.bg,
+        border: `1px solid ${tier.color}`,
+        borderRadius: "var(--r-sm)",
+        padding: "0 var(--s-1)",
+        color: tier.color,
+        whiteSpace: "nowrap",
+        letterSpacing: "0.02em",
+      }}
+    >
+      {tier.label}
     </span>
   );
 }

@@ -87,6 +87,33 @@ describe("aggregate – file-node fanIn/fanOut rollup", () => {
   });
 });
 
+describe("aggregate – maxComplexity rollup", () => {
+  it("rolls the max symbol complexity up to file, module, and layer clusters", () => {
+    const agg = aggregate(sampleGraph);
+    // sampleGraph has symNode complexity=1 in both api and service layers.
+    const apiLayer = agg.clusters.find((c) => c.id === "layer:api")!;
+    expect(apiLayer.maxComplexity).toBe(1);
+    const apiFile = agg.clusters.find((c) => c.id === "f1")!;
+    expect(apiFile.maxComplexity).toBe(1);
+  });
+
+  it("leaves maxComplexity at 0 when all symbols have complexity 0", () => {
+    const graph = {
+      nodes: [
+        { id: "f0", kind: "file" as const, name: "a.ts", qualifiedName: "src/a.ts",
+          language: "typescript", path: "src/a.ts", lineStart: 1, lineEnd: 1,
+          layer: "api" as const, fanIn: 0, fanOut: 0, lines: 1, complexity: 0, summary: null },
+        { id: "s0", kind: "function" as const, name: "fn", qualifiedName: "src/a.ts::fn",
+          language: "typescript", path: "src/a.ts", lineStart: 1, lineEnd: 1,
+          layer: "api" as const, fanIn: 0, fanOut: 0, lines: 1, complexity: 0, summary: null },
+      ],
+      edges: [],
+    };
+    const agg = aggregate(graph);
+    expect(agg.clusters.find((c) => c.id === "layer:api")!.maxComplexity).toBe(0);
+  });
+});
+
 describe("aggregate – root-level files", () => {
   it("places a path-less file under module:<layer>:. nested under its layer", () => {
     const graph: TelosGraph = {
