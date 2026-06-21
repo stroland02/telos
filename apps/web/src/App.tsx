@@ -100,109 +100,143 @@ export function App() {
           <Breadcrumbs crumbs={nav.crumbs} onJump={nav.goToCrumb} />
         </div>
 
-        {/* Density mode toggle — 3-segment control, right of breadcrumb */}
-        <div style={{ flexShrink: 0, display: "flex", gap: 0 }} role="group" aria-label="Detail density">
-          {(["overview", "learn", "deep"] as DensityMode[]).map((m, i) => (
-            <button
-              key={m}
-              onClick={() => setDensity(m)}
-              aria-pressed={density === m}
-              title={m === "overview" ? "Label only" : m === "learn" ? "Label + key metrics" : "All metrics + complexity"}
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "var(--t-meta-size)",
-                lineHeight: "var(--t-meta-lh)",
-                padding: "2px var(--s-2)",
-                background: density === m ? "var(--accent-soft)" : "none",
-                border: `1px solid ${density === m ? "var(--accent)" : "var(--border)"}`,
-                borderLeft: i > 0 ? "none" : undefined,
-                borderRadius: i === 0 ? "var(--r-sm) 0 0 var(--r-sm)" : i === 2 ? "0 var(--r-sm) var(--r-sm) 0" : 0,
-                color: density === m ? "var(--accent)" : "var(--text-faint)",
-                cursor: "pointer",
-                outline: "none",
-                transition: "background 100ms ease, color 100ms ease",
-                textTransform: "capitalize",
-                whiteSpace: "nowrap",
-              }}
-              onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
-              onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-
-        {/* Theme toggle — sun (light) / moon (dark) icon button */}
-        <button
-          onClick={toggleTheme}
-          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          title={theme === "dark" ? "Light theme" : "Dark theme"}
+        {/* ── Right-side control group ────────────────────────────────────────
+             Groups: [density toggle] [theme] | [search] [?]
+             Inner gap --s-2 (8px) for tightly related controls.
+             A hairline divider separates the density cluster from search
+             so the bar reads as two logical zones: nav (left) + tools (right).
+             Reference: VS Code / Linear top-bar grouping patterns.
+             ─────────────────────────────────────────────────────────────── */}
+        <div
           style={{
             flexShrink: 0,
-            background: "none",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--r-sm)",
-            cursor: "pointer",
-            color: "var(--text-muted)",
-            fontSize: 14,
-            lineHeight: 1,
-            width: 28,
-            height: 28,
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            outline: "none",
-            transition: "color 80ms ease, border-color 80ms ease",
+            gap: "var(--s-2)",
           }}
-          onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
-          onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--accent)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
+          role="group"
+          aria-label="View controls"
         >
-          {theme === "dark" ? "☀" : "☾"}
-        </button>
+          {/* Density mode toggle — 3-segment control */}
+          <div style={{ display: "flex", gap: 0 }} role="group" aria-label="Detail density">
+            {(["overview", "learn", "deep"] as DensityMode[]).map((m, i) => (
+              <button
+                key={m}
+                onClick={() => setDensity(m)}
+                aria-pressed={density === m}
+                title={m === "overview" ? "Label only" : m === "learn" ? "Label + key metrics" : "All metrics + complexity"}
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "var(--t-meta-size)",
+                  lineHeight: "var(--t-meta-lh)",
+                  padding: "2px var(--s-2)",
+                  background: density === m ? "var(--accent-soft)" : "none",
+                  border: `1px solid ${density === m ? "var(--accent)" : "var(--border)"}`,
+                  borderLeft: i > 0 ? "none" : undefined,
+                  borderRadius: i === 0 ? "var(--r-sm) 0 0 var(--r-sm)" : i === 2 ? "0 var(--r-sm) var(--r-sm) 0" : 0,
+                  color: density === m ? "var(--accent)" : "var(--text-faint)",
+                  cursor: "pointer",
+                  outline: "none",
+                  transition: "background 100ms ease, color 100ms ease",
+                  textTransform: "capitalize",
+                  whiteSpace: "nowrap",
+                }}
+                onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
+                onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
 
-        {/* Search box — fixed width, right side */}
-        <div style={{ flexShrink: 0, width: 240 }}>
-          <SearchBox api={api} onSelect={(node: TelosNodeDTO) => openNode(node.id)} />
+          {/* Theme toggle — sun (light) / moon (dark) icon button */}
+          <button
+            onClick={toggleTheme}
+            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+            title={theme === "dark" ? "Light theme" : "Dark theme"}
+            style={{
+              flexShrink: 0,
+              background: "none",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--r-sm)",
+              cursor: "pointer",
+              color: "var(--text-muted)",
+              fontSize: 14,
+              lineHeight: 1,
+              width: 28,
+              height: 28,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              outline: "none",
+              transition: "color 80ms ease, border-color 80ms ease",
+            }}
+            onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
+            onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--accent)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
+          >
+            {theme === "dark" ? "☀" : "☾"}
+          </button>
         </div>
 
-        {/* "?" shortcut hint button */}
-        <button
-          onClick={() => setShortcutsOpen(true)}
-          aria-label="Keyboard shortcuts (?)"
-          title="Keyboard shortcuts"
+        {/* Hairline divider — separates density/theme cluster from search zone */}
+        <div
+          aria-hidden="true"
+          style={{ width: 1, height: 20, background: "var(--border)", flexShrink: 0 }}
+        />
+
+        {/* Search + shortcuts — tightly grouped at --s-2 */}
+        <div
           style={{
             flexShrink: 0,
-            background: "none",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--r-sm)",
-            cursor: "pointer",
-            color: "var(--text-faint)",
-            fontFamily: "var(--font-mono)",
-            fontSize: "var(--t-meta-size)",
-            lineHeight: 1,
-            width: 24,
-            height: 24,
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            outline: "none",
-            transition: "color 80ms ease, border-color 80ms ease",
-          }}
-          onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
-          onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--text-muted)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.color = "var(--text-faint)";
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+            gap: "var(--s-2)",
           }}
         >
-          ?
-        </button>
+          {/* Search box */}
+          <div style={{ width: 224 }}>
+            <SearchBox api={api} onSelect={(node: TelosNodeDTO) => openNode(node.id)} />
+          </div>
+
+          {/* "?" shortcut hint button */}
+          <button
+            onClick={() => setShortcutsOpen(true)}
+            aria-label="Keyboard shortcuts (?)"
+            title="Keyboard shortcuts"
+            style={{
+              flexShrink: 0,
+              background: "none",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--r-sm)",
+              cursor: "pointer",
+              color: "var(--text-faint)",
+              fontFamily: "var(--font-mono)",
+              fontSize: "var(--t-meta-size)",
+              lineHeight: 1,
+              width: 24,
+              height: 24,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              outline: "none",
+              transition: "color 80ms ease, border-color 80ms ease",
+            }}
+            onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
+            onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--text-muted)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.color = "var(--text-faint)";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+            }}
+          >
+            ?
+          </button>
+        </div>
       </header>
 
       {/* Canvas fills remaining height */}
