@@ -1,15 +1,44 @@
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import { FlowNodeData } from "../graph/layout";
 
+// Inject sentinel pulse keyframes once — no CSS module needed, no hard-coded hex.
+// Uses var(--accent-soft) token from tokens.css. The global reduced-motion guard
+// in tokens.css suppresses this animation automatically.
+if (typeof document !== "undefined" && !document.getElementById("telos-node-keyframes")) {
+  const s = document.createElement("style");
+  s.id = "telos-node-keyframes";
+  s.textContent = `
+    @keyframes sentinelPulse {
+      0%,100% { filter: brightness(1); }
+      50%     { filter: brightness(1.18) drop-shadow(0 0 12px var(--accent-soft)); }
+    }
+  `;
+  document.head.appendChild(s);
+}
+
 /** Maps a layer name to its CSS token var(--layer-<layer>). */
 function layerVar(layer: string): string {
   return `var(--layer-${layer}, var(--layer-unknown))`;
+}
+
+/** Maps a layer name to its glow token var(--layer-<layer>-glow). */
+function layerGlowVar(layer: string): string {
+  return `var(--layer-${layer}-glow, var(--layer-unknown-glow))`;
 }
 
 export function TelosNode({ data, selected }: NodeProps) {
   const d = data as unknown as FlowNodeData;
   const isLeaf = d.level === "symbol" || d.level === "file";
   const bg = layerVar(d.layer);
+  const glow = layerGlowVar(d.layer);
+
+  // Box-shadow composition (design direction §4 elevation):
+  //   Default:  inset 1px border in layer hue + soft ambient glow
+  //   Selected: accent ring (2px) + accent halo + layer ambient
+  // The sentinel pulse (@keyframes) fires only when selected, max 2 cycles.
+  const shadow = selected
+    ? `0 0 0 2px var(--accent), 0 0 20px var(--accent-soft), 0 2px 12px ${glow}`
+    : `0 0 0 1px ${glow} inset, 0 2px 12px ${glow}`;
 
   return (
     <div
@@ -23,13 +52,13 @@ export function TelosNode({ data, selected }: NodeProps) {
         color: "var(--layer-text)",
         fontFamily: "var(--font-ui)",
         border: `1px solid var(--border)`,
-        boxShadow: selected
-          ? `0 0 0 2px var(--accent), 0 0 16px var(--accent-soft), 0 2px 10px rgba(0,0,0,.3)`
-          : `0 2px 10px rgba(0,0,0,.25)`,
-        opacity: isLeaf ? 0.88 : 1,
-        transition: "box-shadow 90ms ease, opacity 90ms ease",
+        boxShadow: shadow,
+        opacity: isLeaf ? 0.85 : 1,
+        transition: "box-shadow 120ms ease, opacity 120ms ease",
         cursor: "pointer",
         outline: "none",
+        // Sentinel pulse only when selected — single slow glow cycle (§4 motion)
+        animation: selected ? "sentinelPulse var(--sentinel-pulse-duration) ease-in-out 2" : "none",
       }}
       tabIndex={0}
       role="button"
