@@ -6,6 +6,9 @@ const stub: GraphProvider = {
   getChildren: () => null,
   getNode: () => null,
   search: () => [],
+  getFiles: () => [],
+  getFilePaths: () => new Set(),
+  repoRoot: null,
 };
 
 describe("buildServer health", () => {

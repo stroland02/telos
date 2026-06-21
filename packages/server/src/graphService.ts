@@ -10,21 +10,33 @@ export class GraphService implements GraphProvider {
     private readonly graph: TelosGraph,
     private readonly agg: AggregatedGraph,
     private readonly store: GraphStore | null,
+    readonly repoRoot: string | null,
   ) {}
 
-  static fromDb(dbPath: string): GraphService {
+  static fromDb(dbPath: string, repoRoot?: string): GraphService {
     const store = GraphStore.open(dbPath);
     const graph = store.loadGraph();
-    return new GraphService(graph, aggregate(graph), store);
+    return new GraphService(graph, aggregate(graph), store, repoRoot ?? null);
   }
 
   static fromGraph(graph: TelosGraph): GraphService {
-    return new GraphService(graph, aggregate(graph), null);
+    return new GraphService(graph, aggregate(graph), null, null);
   }
 
   getOverview(): GraphView { return overview(this.graph, this.agg); }
   getChildren(id: string): GraphView | null { return childrenOf(this.graph, this.agg, id); }
   getNode(id: string): NodeDetail | null { return nodeDetail(this.graph, id); }
+
+  getFiles(): TelosNode[] {
+    return this.graph.nodes
+      .filter((n) => n.kind === "file")
+      .sort((a, b) => a.path.localeCompare(b.path));
+  }
+
+  /** Returns the set of paths belonging to file-kind nodes (for security allow-list). */
+  getFilePaths(): Set<string> {
+    return new Set(this.graph.nodes.filter((n) => n.kind === "file").map((n) => n.path));
+  }
 
   search(q: string): TelosNode[] {
     if (this.store) return this.store.search(q);

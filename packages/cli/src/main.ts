@@ -21,7 +21,7 @@ export async function runServe(opts: { path: string; port: number; open?: boolea
   // packages/cli/dist/main.js -> ../../../apps/web/dist
   const here = dirname(fileURLToPath(import.meta.url));
   const webDist = resolve(here, "..", "..", "..", "apps", "web", "dist");
-  const service = GraphService.fromDb(dbPath);
+  const service = GraphService.fromDb(dbPath, repo);
   const app = buildServer(service, existsSync(webDist) ? { staticDir: webDist } : {});
   const address = await app.listen({ port: opts.port, host: "127.0.0.1" });
   if (opts.open) await open(address);

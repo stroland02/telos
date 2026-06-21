@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildServer, GraphProvider } from "./server.js";
 
-const stub: GraphProvider = { getOverview: () => ({ nodes: [], edges: [] }), getChildren: () => null, getNode: () => null, search: () => [] };
+const stub: GraphProvider = { getOverview: () => ({ nodes: [], edges: [] }), getChildren: () => null, getNode: () => null, search: () => [], getFiles: () => [], getFilePaths: () => new Set(), repoRoot: null };
 
 let dirs: string[] = [];
 function staticDir(): string {
