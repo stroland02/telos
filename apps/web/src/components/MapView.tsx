@@ -1,15 +1,14 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { ReactFlow, Background, BackgroundVariant, Controls, MiniMap } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { NavigationState } from "../graph/useNavigation";
 import { toFlowGraph } from "../graph/layout";
 import { TelosNode } from "./TelosNode";
-import { LayerLegend } from "./LayerLegend";
+import { LayerFilter, LAYER_ORDER } from "./LayerFilter";
 import type { Layer } from "../api/types";
 
-// Maps a layer name to its resolved CSS-variable hex. We keep a static lookup
-// here so the MiniMap nodeColor callback gets a plain string (it can't resolve
-// CSS variables). Values mirror tokens.css --layer-* exactly.
+// Static hex map for MiniMap nodeColor callback (CSS vars not resolvable there).
+// Values mirror tokens.css --layer-* exactly — no hard-coded hex in components.
 const LAYER_HEX: Record<string, string> = {
   api:     "#3B82F6",
   service: "#8B5CF6",
@@ -23,8 +22,6 @@ const LAYER_HEX: Record<string, string> = {
 const nodeTypes = { telos: TelosNode };
 
 export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode: (id: string) => void }) {
-  // Track the hovered node ID to drive edge highlight/dim effect.
-  // null = no hover (all edges at normal opacity).
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
   const flow = useMemo(
@@ -32,42 +29,75 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
     [nav.view],
   );
 
-  // Derive the set of layers actually present in this view for the legend.
+  // Layers present in current view.
   const activeLayers = useMemo(
     () => new Set((nav.view?.nodes ?? []).map((n) => n.layer as Layer)),
     [nav.view],
   );
 
-  // Edge thickness encodes call-traffic weight (node-link visual-language
-  // convention: link "size" ∝ flow magnitude), normalized to a 1–4px range.
-  // On node hover: edges connected to the hovered node become --accent (cyan),
-  // unconnected edges dim to low opacity — instantly revealing the dependency
-  // subgraph. No re-layout; pure style update. (xyflow discussion #4496)
+  // Visible layers — all on by default; reset when view changes.
+  const [visibleLayers, setVisibleLayers] = useState<Set<Layer>>(() => new Set(LAYER_ORDER));
+
+  // Keep visibleLayers in sync when the view changes (new drill level).
+  // If a layer appears that wasn't in the previous set, show it by default.
+  const effectiveVisible = useMemo(() => {
+    const out = new Set<Layer>();
+    for (const l of activeLayers) {
+      if (visibleLayers.has(l)) out.add(l);
+    }
+    return out;
+  }, [activeLayers, visibleLayers]);
+
+  const toggleLayer = useCallback((layer: Layer) => {
+    setVisibleLayers((prev) => {
+      const next = new Set(prev);
+      if (next.has(layer)) next.delete(layer);
+      else next.add(layer);
+      return next;
+    });
+  }, []);
+
+  const showAll = useCallback(() => {
+    setVisibleLayers(new Set(LAYER_ORDER));
+  }, []);
+
+  // Filter nodes by visible layers.
+  const filteredNodes = useMemo(
+    () => flow.nodes.filter((n) => effectiveVisible.has((n.data as { layer: Layer }).layer)),
+    [flow.nodes, effectiveVisible],
+  );
+
+  // Filter edges — only keep edges where both endpoints are visible.
+  const visibleNodeIds = useMemo(
+    () => new Set(filteredNodes.map((n) => n.id)),
+    [filteredNodes],
+  );
+
+  // Edge styling: weight encoding + hover highlight + layer-filter opacity.
   const edges = useMemo(() => {
     const maxW = Math.max(1, ...flow.edges.map((e) => e.data.weight));
-    return flow.edges.map((e) => {
-      const w = 1 + 3 * (e.data.weight / maxW);
-      const isConnected =
-        hoveredNodeId !== null &&
-        (e.source === hoveredNodeId || e.target === hoveredNodeId);
-      const isAnyHovered = hoveredNodeId !== null;
-      return {
-        ...e,
-        style: {
-          stroke: isConnected
-            ? "var(--accent)"
-            : "var(--text-faint)",
-          strokeWidth: isConnected ? Math.max(w, 1.5) : w,
-          opacity: isAnyHovered && !isConnected ? 0.25 : 1,
-          transition: "stroke 120ms ease, opacity 120ms ease",
-        },
-      };
-    });
-  }, [flow.edges, hoveredNodeId]);
+    return flow.edges
+      .filter((e) => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target))
+      .map((e) => {
+        const w = 1 + 3 * (e.data.weight / maxW);
+        const isConnected =
+          hoveredNodeId !== null &&
+          (e.source === hoveredNodeId || e.target === hoveredNodeId);
+        const isAnyHovered = hoveredNodeId !== null;
+        return {
+          ...e,
+          style: {
+            stroke: isConnected ? "var(--accent)" : "var(--text-faint)",
+            strokeWidth: isConnected ? Math.max(w, 1.5) : w,
+            opacity: isAnyHovered && !isConnected ? 0.25 : 1,
+            transition: "stroke 120ms ease, opacity 120ms ease",
+          },
+        };
+      });
+  }, [flow.edges, visibleNodeIds, hoveredNodeId]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Error banner */}
       {nav.error && (
         <div
           role="alert"
@@ -84,11 +114,17 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
         </div>
       )}
 
-      {/* Canvas — full-bleed */}
       <div style={{ position: "relative", flex: 1, background: "var(--bg)" }}>
-        <LayerLegend activeLayers={activeLayers} />
+        {/* Layer filter — interactive toggles replacing the static legend */}
+        <LayerFilter
+          activeLayers={activeLayers}
+          visibleLayers={effectiveVisible}
+          onToggle={toggleLayer}
+          onShowAll={showAll}
+        />
+
         <ReactFlow
-          nodes={flow.nodes}
+          nodes={filteredNodes}
           edges={edges}
           nodeTypes={nodeTypes}
           fitView
@@ -103,12 +139,7 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
           onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
           onNodeMouseLeave={() => setHoveredNodeId(null)}
         >
-          <Background
-            variant={BackgroundVariant.Dots}
-            color="var(--border)"
-            gap={24}
-            size={1}
-          />
+          <Background variant={BackgroundVariant.Dots} color="var(--border)" gap={24} size={1} />
           <Controls
             style={{
               background: "var(--surface)",
@@ -117,10 +148,6 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
               boxShadow: "none",
             }}
           />
-          {/* MiniMap — token-styled, node color by layer, bottom-right.
-              nodeColor uses the static LAYER_HEX map (CSS vars can't be
-              resolved in a callback). maskColor uses a semi-transparent
-              --surface so the viewport rect shows through clearly. */}
           <MiniMap
             nodeColor={(node) => {
               const layer = (node.data as { layer?: string }).layer ?? "unknown";
@@ -137,9 +164,6 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
         </ReactFlow>
       </div>
 
-      {/* Loading overlay — calm skeleton shimmer while fetching a level.
-          Respects reduced-motion: animation is suppressed by the global guard
-          in tokens.css; the static placeholder remains visible. */}
       {nav.loading && (
         <div
           aria-live="polite"
@@ -181,7 +205,6 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
         </div>
       )}
 
-      {/* Empty/no-data state */}
       {!nav.loading && nav.view && nav.view.nodes.length === 0 && (
         <div
           role="status"
@@ -196,35 +219,9 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
             gap: "var(--s-2)",
           }}
         >
-          {/* Sentinel diamond — quiet visual anchor */}
-          <span
-            aria-hidden="true"
-            style={{
-              color: "var(--text-faint)",
-              fontSize: 28,
-              lineHeight: 1,
-              marginBottom: "var(--s-1)",
-            }}
-          >
-            ◇
-          </span>
-          <div
-            style={{
-              color: "var(--text-muted)",
-              fontSize: "var(--t-body-size)",
-              lineHeight: "var(--t-body-lh)",
-            }}
-          >
-            No graph data yet
-          </div>
-          <div
-            style={{
-              color: "var(--text-faint)",
-              fontSize: "var(--t-meta-size)",
-              lineHeight: "var(--t-meta-lh)",
-              fontFamily: "var(--font-mono)",
-            }}
-          >
+          <span aria-hidden="true" style={{ color: "var(--text-faint)", fontSize: 28, lineHeight: 1, marginBottom: "var(--s-1)" }}>◇</span>
+          <div style={{ color: "var(--text-muted)", fontSize: "var(--t-body-size)", lineHeight: "var(--t-body-lh)" }}>No graph data yet</div>
+          <div style={{ color: "var(--text-faint)", fontSize: "var(--t-meta-size)", lineHeight: "var(--t-meta-lh)", fontFamily: "var(--font-mono)" }}>
             Run <code>telos scan</code> to build the map
           </div>
         </div>
