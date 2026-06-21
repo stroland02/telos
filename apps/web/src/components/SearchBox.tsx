@@ -17,6 +17,10 @@ export function SearchBox({ api, onSelect }: { api: TelosApi; onSelect: (node: T
   return (
     <div style={{ position: "relative", minWidth: 220 }}>
       <input
+        id="telos-search"
+        name="search"
+        type="search"
+        autoComplete="off"
         placeholder="Search symbols… ⌘K"
         value={q}
         onChange={(e) => setQ(e.target.value)}
