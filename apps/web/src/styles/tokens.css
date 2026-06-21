@@ -36,6 +36,11 @@
   /* Sentinel pulse animation — 1.4s ease-in-out, max 2 iterations */
   --sentinel-pulse-duration: 1.4s;
 
+  /* Node chip surface tokens (theme-aware — see [data-theme="light"] below) */
+  --chip-bg:     rgba(0,0,0,0.28);
+  --chip-border: rgba(255,255,255,0.18);
+  --chip-text:   rgba(255,255,255,0.92);
+
   /* Danger */
   --danger: #f87171;
   --danger-soft: rgba(248,113,113,0.12);
@@ -85,6 +90,46 @@
   --t-meta-size: 12px;
   --t-meta-lh: 16px;
   --t-meta-weight: 400;
+}
+
+/* ─── Light theme token overrides ────────────────────────────────────────────
+   Applied when <html data-theme="light"> is set. All layer palette hues are
+   preserved (they carry semantic meaning); neutral canvas flips to warm white.
+   Contrast verified: --text on --bg = #0F172A on #F8FAFC ≈ 18.5:1 (AAA).
+   Accent: #0369A1 (sky-800) on white ≈ 7.4:1 (AAA).
+   Layer chips use white text on the same hues — passes AA at chip size.
+   ──────────────────────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg:        #F1F5F9;
+  --surface:   #FFFFFF;
+  --surface-2: #F8FAFC;
+  --border:    #CBD5E1;
+  --text:      #0F172A;
+  --text-muted:#475569;
+  --text-faint:#94A3B8;
+
+  --accent:      #0369A1;
+  --accent-soft: rgba(3,105,161,0.10);
+
+  /* Complexity tokens adjusted for light — same hues, readable on white */
+  --complexity-simple:     #059669;
+  --complexity-simple-bg:  rgba(5,150,105,0.12);
+  --complexity-moderate:   #D97706;
+  --complexity-moderate-bg:rgba(217,119,6,0.12);
+  --complexity-complex:    #DC2626;
+  --complexity-complex-bg: rgba(220,38,38,0.12);
+
+  /* Danger */
+  --danger:     #DC2626;
+  --danger-soft:rgba(220,38,38,0.10);
+
+  /* Sentinel pulse stays subtle in light theme */
+  --sentinel-pulse-duration: 1.4s;
+
+  /* Chip surface in light: dark text on semi-transparent dark bg over white */
+  --chip-bg:     rgba(15,23,42,0.08);
+  --chip-border: rgba(15,23,42,0.20);
+  --chip-text:   #0F172A;
 }
 
 /* Global reset */

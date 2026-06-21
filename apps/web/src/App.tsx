@@ -4,6 +4,7 @@ import { NodeDetail, TelosNodeDTO } from "./api/types";
 import { useNavigation } from "./graph/useNavigation";
 import { useDensity } from "./graph/useDensity";
 import type { DensityMode } from "./graph/useDensity";
+import { useTheme } from "./graph/useTheme";
 import { MapView } from "./components/MapView";
 import { Breadcrumbs } from "./components/Breadcrumbs";
 import { SearchBox } from "./components/SearchBox";
@@ -15,6 +16,7 @@ const api = createApi();
 export function App() {
   const nav = useNavigation(api);
   const { mode: density, setMode: setDensity } = useDensity();
+  const { theme, toggle: toggleTheme } = useTheme();
   const [detail, setDetail] = useState<NodeDetail | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
@@ -129,6 +131,36 @@ export function App() {
             </button>
           ))}
         </div>
+
+        {/* Theme toggle — sun (light) / moon (dark) icon button */}
+        <button
+          onClick={toggleTheme}
+          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          title={theme === "dark" ? "Light theme" : "Dark theme"}
+          style={{
+            flexShrink: 0,
+            background: "none",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--r-sm)",
+            cursor: "pointer",
+            color: "var(--text-muted)",
+            fontSize: 14,
+            lineHeight: 1,
+            width: 28,
+            height: 28,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            outline: "none",
+            transition: "color 80ms ease, border-color 80ms ease",
+          }}
+          onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
+          onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--accent)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
+        >
+          {theme === "dark" ? "☀" : "☾"}
+        </button>
 
         {/* Search box — fixed width, right side */}
         <div style={{ flexShrink: 0, width: 240 }}>

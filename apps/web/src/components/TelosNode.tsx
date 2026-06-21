@@ -139,11 +139,11 @@ function Chip({ label }: { label: string }) {
         fontSize: "var(--t-meta-size)",
         lineHeight: "var(--t-meta-lh)",
         fontWeight: "var(--t-meta-weight)" as React.CSSProperties["fontWeight"],
-        background: "rgba(0,0,0,0.25)",
-        border: "1px solid rgba(255,255,255,0.15)",
+        background: "var(--chip-bg)",
+        border: "1px solid var(--chip-border)",
         borderRadius: "var(--r-sm)",
         padding: "0 var(--s-1)",
-        color: "rgba(255,255,255,0.9)",
+        color: "var(--chip-text)",
         whiteSpace: "nowrap",
       }}
     >
