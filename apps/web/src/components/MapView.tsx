@@ -101,10 +101,25 @@ function FitViewRegistrar({ registerFitView }: { registerFitView?: (fn: () => vo
   return null;
 }
 
+// Reads RF's internal viewport width from the store and reports it via callback.
+// Used to conditionally show/hide elements (e.g. MiniMap) based on available space.
+function WidthReader({ onWidth }: { onWidth: (w: number) => void }) {
+  const rfWidth = useStore((s) => s.width);
+  useEffect(() => { if (rfWidth) onWidth(rfWidth); }, [rfWidth, onWidth]);
+  return null;
+}
+
+// Minimum map column width below which the minimap is hidden to save space.
+const MINIMAP_MIN_WIDTH = 380;
+
 export function MapView({ nav, api, density, theme, onOpenNode, registerFitView, layoutKey }: { nav: NavigationState; api: TelosApi; density: DensityMode; theme?: string; onOpenNode: (id: string) => void; registerFitView?: (fn: () => void) => void; layoutKey?: string }) {
   // Sync module-level density ref so TelosNode reads it on each render.
   setCurrentDensity(density);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+
+  // Track the RF container width so we can hide the minimap when too narrow.
+  const [mapColumnWidth, setMapColumnWidth] = useState(700);
+  const showMinimap = mapColumnWidth >= MINIMAP_MIN_WIDTH;
 
   // Resolve MiniMap color tokens from CSS custom properties at render time.
   // React Flow's MiniMap accepts literal color strings (SVG fill), not CSS vars,
@@ -316,98 +331,15 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
         </div>
       )}
 
+      {/* Map canvas — all floating controls live inside RF Panels so they clip
+          to the RF boundary and never overlap each other or bleed outside. */}
       <div style={{ position: "relative", flex: 1, background: "var(--bg)" }}>
-        <LayerFilter
-          activeLayers={activeLayers}
-          visibleLayers={effectiveVisible}
-          onToggle={toggleLayer}
-          onShowAll={showAll}
-        />
-
-        {/* Granularity toggle — appears only at file level and when path-finder is idle.
-            Positioned top-left (inside ReactFlow via absolute, clear of PathFinderBar center). */}
-        {hasFileNodes && !pfState.active && pfState.path === null && (
-          <div
-            style={{
-              position: "absolute",
-              top: "var(--s-2)",
-              left: "var(--s-2)",
-              display: "flex",
-              gap: 0,
-              zIndex: 5,
-              pointerEvents: "auto",
-            }}
-          >
-            <button
-              onClick={() => setShowSymbols(false)}
-              aria-pressed={!showSymbols}
-              title="Show file nodes only"
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "var(--t-meta-size)",
-                lineHeight: "var(--t-meta-lh)",
-                padding: "var(--s-1) var(--s-3)",
-                background: !showSymbols ? "var(--accent-soft)" : "var(--surface)",
-                border: `1px solid ${!showSymbols ? "var(--accent)" : "var(--border)"}`,
-                borderRadius: "var(--r-sm) 0 0 var(--r-sm)",
-                color: !showSymbols ? "var(--accent)" : "var(--text-muted)",
-                cursor: "pointer",
-                outline: "none",
-                transition: "background 120ms ease, color 120ms ease, border-color 120ms ease",
-                whiteSpace: "nowrap",
-              }}
-              onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
-              onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
-            >
-              Files
-            </button>
-            <button
-              onClick={() => setShowSymbols(true)}
-              aria-pressed={showSymbols}
-              title="Expand symbols within each file"
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "var(--t-meta-size)",
-                lineHeight: "var(--t-meta-lh)",
-                padding: "var(--s-1) var(--s-3)",
-                background: showSymbols ? "var(--accent-soft)" : "var(--surface)",
-                border: `1px solid ${showSymbols ? "var(--accent)" : "var(--border)"}`,
-                borderLeft: "none",
-                borderRadius: "0 var(--r-sm) var(--r-sm) 0",
-                color: showSymbols ? "var(--accent)" : "var(--text-muted)",
-                cursor: "pointer",
-                outline: "none",
-                transition: "background 120ms ease, color 120ms ease, border-color 120ms ease",
-                whiteSpace: "nowrap",
-              }}
-              onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
-              onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
-            >
-              +Symbols
-            </button>
-          </div>
-        )}
-
-        {/* Path-finder control bar — centered top.
-            When the TourBar is active it occupies the top-right panel (~56px tall);
-            offset PathFinderBar down so the two bars never sit on the same row. */}
-        <PathFinderBar
-          state={pfState}
-          onActivate={() => setPfState({ active: true, sourceId: null, path: null, noPath: false })}
-          onReset={() => setPfState(PATH_FINDER_IDLE)}
-          sourceLabel={sourceLabel}
-          topOffset={tourActive ? 64 : 0}
-        />
-
         <ReactFlow
           key={layoutKey}
           nodes={styledNodes}
           edges={edges}
           nodeTypes={nodeTypes}
           fitViewOptions={{
-            // padding: generous 30% so a single node sits centered in space,
-            // not edge-to-edge. maxZoom 1.2 prevents over-zoom on small clusters
-            // (1–3 nodes). Reference: xyflow.com/docs fitViewOptions.
             padding: 0.30,
             maxZoom: 1.2,
           }}
@@ -418,6 +350,9 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
           onNodeMouseLeave={() => setHoveredNodeId(null)}
         >
           <Background variant={BackgroundVariant.Dots} color="var(--border)" gap={24} size={1} />
+
+          {/* Zoom controls — bottom-center; 16px bottom inset (uniform with
+              the layer filter and mini-map so all three baselines align). */}
           <Controls
             position="bottom-center"
             style={{
@@ -425,28 +360,105 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
               border: "1px solid var(--border)",
               borderRadius: "var(--r-md)",
               boxShadow: "none",
+              marginBottom: "var(--s-4)",
             }}
           />
-          <MiniMap
-            nodeColor={(node) => {
-              const layer = (node.data as { layer?: string }).layer ?? "unknown";
-              return LAYER_HEX[layer] ?? LAYER_HEX.unknown;
-            }}
-            nodeStrokeColor="transparent"
-            nodeStrokeWidth={0}
-            maskColor={minimapMask}
-            bgColor={minimapBg}
-            style={{
-              background: minimapBg,
-              border: "1px solid var(--border)",
-              borderRadius: "var(--r-md)",
-            }}
-            aria-label="Graph mini-map"
-          />
-          {/* Register fitView — parent-triggered and auto on RF viewport resize */}
-          <FitViewRegistrar registerFitView={handleRegisterFitView} />
 
-          {/* Export button — Panel keeps it inside the ReactFlow provider context */}
+          {/* Minimap — bottom-right, hidden when map column is too narrow (<380px) */}
+          {showMinimap && (
+            <MiniMap
+              nodeColor={(node) => {
+                const layer = (node.data as { layer?: string }).layer ?? "unknown";
+                return LAYER_HEX[layer] ?? LAYER_HEX.unknown;
+              }}
+              nodeStrokeColor="transparent"
+              nodeStrokeWidth={0}
+              maskColor={minimapMask}
+              bgColor={minimapBg}
+              style={{
+                background: minimapBg,
+                border: "1px solid var(--border)",
+                borderRadius: "var(--r-md)",
+                margin: "var(--s-4)",
+              }}
+              aria-label="Graph mini-map"
+            />
+          )}
+
+          {/* FitView registrar + width reader — invisible inner components */}
+          <FitViewRegistrar registerFitView={handleRegisterFitView} />
+          <WidthReader onWidth={setMapColumnWidth} />
+
+          {/* ── Top-left panel: Find-path + granularity toggle ─────────────
+              Stacked vertically with consistent 8px gap. Both controls share
+              one Panel so they're anchored together and never overlap the
+              top-right panel regardless of how narrow the map column gets. */}
+          <Panel position="top-left" style={{ margin: "var(--s-2)", display: "flex", flexDirection: "column", gap: "var(--s-2)", alignItems: "flex-start" }}>
+            {/* Path-finder control bar */}
+            <PathFinderBar
+              state={pfState}
+              onActivate={() => setPfState({ active: true, sourceId: null, path: null, noPath: false })}
+              onReset={() => setPfState(PATH_FINDER_IDLE)}
+              sourceLabel={sourceLabel}
+            />
+
+            {/* Granularity toggle — appears only at file level when path-finder is idle */}
+            {hasFileNodes && !pfState.active && pfState.path === null && (
+              <div style={{ display: "flex", gap: 0 }}>
+                <button
+                  onClick={() => setShowSymbols(false)}
+                  aria-pressed={!showSymbols}
+                  title="Show file nodes only"
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "var(--t-meta-size)",
+                    lineHeight: "var(--t-meta-lh)",
+                    padding: "var(--s-1) var(--s-3)",
+                    background: !showSymbols ? "var(--accent-soft)" : "var(--surface)",
+                    border: `1px solid ${!showSymbols ? "var(--accent)" : "var(--border)"}`,
+                    borderRadius: "var(--r-sm) 0 0 var(--r-sm)",
+                    color: !showSymbols ? "var(--accent)" : "var(--text-muted)",
+                    cursor: "pointer",
+                    outline: "none",
+                    transition: "background 120ms ease, color 120ms ease, border-color 120ms ease",
+                    whiteSpace: "nowrap",
+                  }}
+                  onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
+                  onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+                >
+                  Files
+                </button>
+                <button
+                  onClick={() => setShowSymbols(true)}
+                  aria-pressed={showSymbols}
+                  title="Expand symbols within each file"
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "var(--t-meta-size)",
+                    lineHeight: "var(--t-meta-lh)",
+                    padding: "var(--s-1) var(--s-3)",
+                    background: showSymbols ? "var(--accent-soft)" : "var(--surface)",
+                    border: `1px solid ${showSymbols ? "var(--accent)" : "var(--border)"}`,
+                    borderLeft: "none",
+                    borderRadius: "0 var(--r-sm) var(--r-sm) 0",
+                    color: showSymbols ? "var(--accent)" : "var(--text-muted)",
+                    cursor: "pointer",
+                    outline: "none",
+                    transition: "background 120ms ease, color 120ms ease, border-color 120ms ease",
+                    whiteSpace: "nowrap",
+                  }}
+                  onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
+                  onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+                >
+                  +Symbols
+                </button>
+              </div>
+            )}
+          </Panel>
+
+          {/* ── Top-right panel: Tour + Export ─────────────────────────────
+              Anchored to top-right, 8px margin. Never overlaps top-left panel
+              because RF Panels each sit in their own corner. */}
           <Panel position="top-right" style={{ margin: "var(--s-2)", display: "flex", gap: "var(--s-2)", alignItems: "center" }}>
             <TourBar
               nodes={filteredNodes}
@@ -455,6 +467,17 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
               onClose={() => setTourActive(false)}
             />
             <ExportButton graphView={nav.view ?? null} />
+          </Panel>
+
+          {/* ── Bottom-left panel: Layer filter ────────────────────────────
+              Moved inside RF Panel so it clips to the RF boundary. */}
+          <Panel position="bottom-left" style={{ margin: "var(--s-4)" }}>
+            <LayerFilter
+              activeLayers={activeLayers}
+              visibleLayers={effectiveVisible}
+              onToggle={toggleLayer}
+              onShowAll={showAll}
+            />
           </Panel>
         </ReactFlow>
       </div>
