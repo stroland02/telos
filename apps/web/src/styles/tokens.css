@@ -66,6 +66,9 @@
   --r-md: 10px;
   --r-lg: 14px;
 
+  /* Elevation — design direction §4 */
+  --shadow-panel: -8px 0 24px rgba(0,0,0,.35);
+
   /* Typography */
   --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", monospace;
@@ -160,6 +163,9 @@
      Using dark text for unknown and util to guarantee AA at all text sizes. */
   --layer-text-unknown: #0F172A;
   --layer-text-util:    #0F172A;
+
+  /* Elevation — lighter shadow for warm-white canvas */
+  --shadow-panel: -8px 0 20px rgba(0,0,0,.14);
 }
 
 /* Global reset */

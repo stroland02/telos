@@ -118,7 +118,7 @@ export function DetailPanel({ detail, onClose }: { detail: NodeDetail | null; on
         padding: "var(--s-4)",
         overflowY: "auto",
         fontFamily: "var(--font-ui)",
-        boxShadow: "-8px 0 24px rgba(0,0,0,.35)",
+        boxShadow: "var(--shadow-panel)",
         display: "flex",
         flexDirection: "column",
         gap: 0,
