@@ -6,6 +6,26 @@ export function SearchBox({ api, onSelect }: { api: TelosApi; onSelect: (node: T
   const [q, setQ] = useState("");
   const [results, setResults] = useState<TelosNodeDTO[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout>>();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // ⌘K / Ctrl+K — focus the search input from anywhere in the app.
+  // Best practice (devtrium.com): global keydown on window, preventDefault to
+  // suppress browser address-bar shortcut, skip when already in an editable
+  // element to avoid hijacking normal text entry.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        // Don't steal the shortcut when typing in another input/textarea
+        const tag = (e.target as HTMLElement).tagName;
+        if (tag === "TEXTAREA" || (tag === "INPUT" && e.target !== inputRef.current)) return;
+        e.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     clearTimeout(timer.current);
@@ -17,6 +37,7 @@ export function SearchBox({ api, onSelect }: { api: TelosApi; onSelect: (node: T
   return (
     <div style={{ position: "relative", minWidth: 220 }}>
       <input
+        ref={inputRef}
         id="telos-search"
         name="search"
         type="search"
