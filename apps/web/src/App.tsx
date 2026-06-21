@@ -16,9 +16,11 @@ import { CodeViewer } from "./components/CodeViewer";
 const api = createApi();
 
 const SIDEBAR_WIDTH = 260;
-const RIGHT_PANE_DEFAULT = Math.min(Math.round(window.innerWidth * 0.46), 720);
-const RIGHT_PANE_MIN = 360;
+const RIGHT_PANE_DEFAULT = Math.min(Math.round(window.innerWidth * 0.40), 600);
+const RIGHT_PANE_MIN = 340;
 const RIGHT_PANE_MAX = Math.round(window.innerWidth * 0.72);
+// The map must never be squeezed below this — the code pane yields first.
+const MAP_MIN_WIDTH = 320;
 const LS_KEY = "telos:rightPaneWidth";
 
 function loadRightWidth(): number {
@@ -380,7 +382,7 @@ export function App() {
             layoutKey forces RF to remount (and re-fitView) when the pane
             configuration changes (sidebar or viewer toggled). Splitter drags
             are handled by the useStore(s.width) observer inside FitViewRegistrar. */}
-        <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
+        <div style={{ flex: 1, minWidth: MAP_MIN_WIDTH, position: "relative" }}>
           <MapView
             nav={nav}
             api={api}
@@ -419,10 +421,11 @@ export function App() {
         {viewerVisible && (
           <div
             style={{
-              width: rightWidth,
+              flexBasis: rightWidth,
+              flexGrow: 0,
+              flexShrink: 1, /* yield to the map's min width on tight screens */
               minWidth: RIGHT_PANE_MIN,
               maxWidth: RIGHT_PANE_MAX,
-              flexShrink: 0,
               display: "flex",
               flexDirection: "column",
               borderLeft: "none", /* splitter provides visual separation */
