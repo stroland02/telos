@@ -166,6 +166,18 @@
 
   /* Elevation — lighter shadow for warm-white canvas */
   --shadow-panel: -8px 0 20px rgba(0,0,0,.14);
+
+  /* Layer glow — bumped alpha so node elevation is visible on light #F1F5F9 canvas.
+     Dark theme uses 0.28 which reads fine against near-black; on warm white the
+     same alpha is barely perceptible. 0.45–0.50 gives tasteful visible elevation
+     without being heavy. util/unknown kept a touch lower (they're lower-chroma). */
+  --layer-api-glow:     rgba(59, 130, 246, 0.48);
+  --layer-service-glow: rgba(139, 92, 246, 0.48);
+  --layer-data-glow:    rgba(16, 185, 129, 0.48);
+  --layer-ui-glow:      rgba(236, 72, 153, 0.48);
+  --layer-infra-glow:   rgba(245, 158, 11, 0.48);
+  --layer-util-glow:    rgba(107, 114, 128, 0.38);
+  --layer-unknown-glow: rgba(148, 163, 184, 0.35);
 }
 
 /* Global reset */
