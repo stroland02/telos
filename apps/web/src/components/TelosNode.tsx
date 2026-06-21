@@ -10,9 +10,9 @@ import type { DensityMode } from "../graph/useDensity";
 export let currentDensity: DensityMode = "learn";
 export function setCurrentDensity(d: DensityMode) { currentDensity = d; }
 
-// Inject sentinel pulse keyframes once — no CSS module needed, no hard-coded hex.
-// Uses var(--accent-soft) token from tokens.css. The global reduced-motion guard
-// in tokens.css suppresses this animation automatically.
+// Inject sentinel pulse keyframes + node hover style once — no CSS module needed.
+// Uses design-token vars from tokens.css. The global reduced-motion guard
+// in tokens.css suppresses animations automatically.
 if (typeof document !== "undefined" && !document.getElementById("telos-node-keyframes")) {
   const s = document.createElement("style");
   s.id = "telos-node-keyframes";
@@ -20,6 +20,18 @@ if (typeof document !== "undefined" && !document.getElementById("telos-node-keyf
     @keyframes sentinelPulse {
       0%,100% { filter: brightness(1); }
       50%     { filter: brightness(1.18) drop-shadow(0 0 12px var(--accent-soft)); }
+    }
+    /* Hover lift — 90ms per design direction §4. Brightens the node and
+       amplifies the layer glow so the cursor position reads immediately.
+       CSS :hover avoids re-render on every mouse move (React approach would
+       be onMouseEnter/Leave state which triggers full node re-render). */
+    .telos-node:hover {
+      filter: brightness(1.10);
+      transform: translateY(-1px);
+      transition: filter 90ms ease, transform 90ms ease, box-shadow 90ms ease !important;
+    }
+    .telos-node {
+      transition: box-shadow 120ms ease, opacity 120ms ease, filter 90ms ease, transform 90ms ease;
     }
   `;
   document.head.appendChild(s);
@@ -61,6 +73,7 @@ export function TelosNode({ data, selected }: NodeProps) {
 
   return (
     <div
+      className="telos-node"
       style={{
         width: d.width,
         minHeight: d.height,
@@ -73,7 +86,6 @@ export function TelosNode({ data, selected }: NodeProps) {
         border: `1px solid var(--border)`,
         boxShadow: shadow,
         opacity: pathDim ? 0.12 : isLeaf ? 0.85 : 1,
-        transition: "box-shadow 120ms ease, opacity 120ms ease",
         cursor: "pointer",
         outline: "none",
         animation: (selected || pathOn) ? "sentinelPulse var(--sentinel-pulse-duration) ease-in-out 2" : "none",
