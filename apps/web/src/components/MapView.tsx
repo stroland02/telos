@@ -3,13 +3,14 @@ import { ReactFlow, Background, BackgroundVariant, Controls, MiniMap, Panel } fr
 import "@xyflow/react/dist/style.css";
 import { NavigationState } from "../graph/useNavigation";
 import { toFlowGraph } from "../graph/layout";
-import { TelosNode } from "./TelosNode";
+import { TelosNode, setCurrentDensity } from "./TelosNode";
 import { LayerFilter, LAYER_ORDER } from "./LayerFilter";
 import { PathFinderBar, PATH_FINDER_IDLE, bfsPath } from "./PathFinder";
 import type { PathFinderState } from "./PathFinder";
 import { ExportButton } from "./ExportButton";
 import type { Layer, GraphView } from "../api/types";
 import type { TelosApi } from "../api/client";
+import type { DensityMode } from "../graph/useDensity";
 
 const LAYER_HEX: Record<string, string> = {
   api:     "#3B82F6",
@@ -23,7 +24,9 @@ const LAYER_HEX: Record<string, string> = {
 
 const nodeTypes = { telos: TelosNode };
 
-export function MapView({ nav, api, onOpenNode }: { nav: NavigationState; api: TelosApi; onOpenNode: (id: string) => void }) {
+export function MapView({ nav, api, density, onOpenNode }: { nav: NavigationState; api: TelosApi; density: DensityMode; onOpenNode: (id: string) => void }) {
+  // Sync module-level density ref so TelosNode reads it on each render.
+  setCurrentDensity(density);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [pfState, setPfState] = useState<PathFinderState>(PATH_FINDER_IDLE);
 

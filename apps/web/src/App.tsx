@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect } from "react";
 import { createApi } from "./api/client";
 import { NodeDetail, TelosNodeDTO } from "./api/types";
 import { useNavigation } from "./graph/useNavigation";
+import { useDensity } from "./graph/useDensity";
+import type { DensityMode } from "./graph/useDensity";
 import { MapView } from "./components/MapView";
 import { Breadcrumbs } from "./components/Breadcrumbs";
 import { SearchBox } from "./components/SearchBox";
@@ -12,6 +14,7 @@ const api = createApi();
 
 export function App() {
   const nav = useNavigation(api);
+  const { mode: density, setMode: setDensity } = useDensity();
   const [detail, setDetail] = useState<NodeDetail | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
@@ -95,6 +98,38 @@ export function App() {
           <Breadcrumbs crumbs={nav.crumbs} onJump={nav.goToCrumb} />
         </div>
 
+        {/* Density mode toggle — 3-segment control, right of breadcrumb */}
+        <div style={{ flexShrink: 0, display: "flex", gap: 0 }} role="group" aria-label="Detail density">
+          {(["overview", "learn", "deep"] as DensityMode[]).map((m, i) => (
+            <button
+              key={m}
+              onClick={() => setDensity(m)}
+              aria-pressed={density === m}
+              title={m === "overview" ? "Label only" : m === "learn" ? "Label + key metrics" : "All metrics + complexity"}
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "var(--t-meta-size)",
+                lineHeight: "var(--t-meta-lh)",
+                padding: "2px var(--s-2)",
+                background: density === m ? "var(--accent-soft)" : "none",
+                border: `1px solid ${density === m ? "var(--accent)" : "var(--border)"}`,
+                borderLeft: i > 0 ? "none" : undefined,
+                borderRadius: i === 0 ? "var(--r-sm) 0 0 var(--r-sm)" : i === 2 ? "0 var(--r-sm) var(--r-sm) 0" : 0,
+                color: density === m ? "var(--accent)" : "var(--text-faint)",
+                cursor: "pointer",
+                outline: "none",
+                transition: "background 100ms ease, color 100ms ease",
+                textTransform: "capitalize",
+                whiteSpace: "nowrap",
+              }}
+              onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
+              onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+
         {/* Search box — fixed width, right side */}
         <div style={{ flexShrink: 0, width: 240 }}>
           <SearchBox api={api} onSelect={(node: TelosNodeDTO) => openNode(node.id)} />
@@ -140,7 +175,7 @@ export function App() {
 
       {/* Canvas fills remaining height */}
       <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
-        <MapView nav={nav} api={api} onOpenNode={openNode} />
+        <MapView nav={nav} api={api} density={density} onOpenNode={openNode} />
       </div>
 
       <DetailPanel detail={detail} onClose={() => setDetail(null)} />

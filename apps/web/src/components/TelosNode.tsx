@@ -1,5 +1,14 @@
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import { FlowNodeData } from "../graph/layout";
+import type { DensityMode } from "../graph/useDensity";
+
+/**
+ * Module-level density ref — updated by MapView before each render cycle.
+ * React Flow custom node components can't receive extra props, so this is
+ * the standard pattern for passing render-time context to custom nodes.
+ */
+export let currentDensity: DensityMode = "learn";
+export function setCurrentDensity(d: DensityMode) { currentDensity = d; }
 
 // Inject sentinel pulse keyframes once — no CSS module needed, no hard-coded hex.
 // Uses var(--accent-soft) token from tokens.css. The global reduced-motion guard
@@ -37,6 +46,7 @@ function complexityTier(c: number): { label: string; color: string; bg: string }
 export function TelosNode({ data, selected }: NodeProps) {
   const d = data as unknown as FlowNodeData & { _pathOn?: boolean | null; _pathDim?: boolean };
   const isLeaf = d.level === "symbol" || d.level === "file";
+  const density = currentDensity;
   const bg = layerVar(d.layer);
   const glow = layerGlowVar(d.layer);
 
@@ -88,27 +98,33 @@ export function TelosNode({ data, selected }: NodeProps) {
         {d.label}
       </div>
 
-      {/* Mono metric chip row — layer name embedded in chip so color is never
-          the only signal (§6 a11y), but avoids duplicate visible text when
-          label === layer (which breaks getByText uniqueness in tests). */}
-      <div
-        style={{
-          display: "flex",
-          gap: "var(--s-1)",
-          marginTop: "var(--s-1)",
-          flexWrap: "wrap",
-        }}
-      >
-        {/* layer chip — only shown when the label doesn't already read as the
-            layer name; provides text signal so color is never the only signal (§6) */}
-        {d.label !== d.layer && <Chip label={d.layer} />}
-        <Chip label={`${d.symbolCount} sym`} />
-        <Chip label={`in ${d.fanIn} / out ${d.fanOut}`} />
-        {/* Complexity badge — only rendered when complexity is known (>0) */}
-        {complexityTier(d.complexity) && (
-          <ComplexityBadge tier={complexityTier(d.complexity)!} />
-        )}
-      </div>
+      {/* Mono metric chip row — controlled by density mode:
+          overview = no chips (label only, calmest scan)
+          learn    = layer + sym count (default)
+          deep     = all chips including in/out + complexity */}
+      {density !== "overview" && (
+        <div
+          style={{
+            display: "flex",
+            gap: "var(--s-1)",
+            marginTop: "var(--s-1)",
+            flexWrap: "wrap",
+          }}
+        >
+          {/* layer chip — text signal so color is never the only signal (§6 a11y) */}
+          {d.label !== d.layer && <Chip label={d.layer} />}
+          <Chip label={`${d.symbolCount} sym`} />
+          {/* deep mode: show in/out edges and complexity */}
+          {density === "deep" && (
+            <>
+              <Chip label={`in ${d.fanIn} / out ${d.fanOut}`} />
+              {complexityTier(d.complexity) && (
+                <ComplexityBadge tier={complexityTier(d.complexity)!} />
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       <Handle type="source" position={Position.Right} style={{ background: "var(--border)" }} />
     </div>
