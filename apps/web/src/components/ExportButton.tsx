@@ -96,11 +96,15 @@ export function ExportButton({ graphView }: ExportButtonProps) {
     svg.setAttribute("height", String(IMAGE_HEIGHT));
     svg.setAttribute("viewBox", `0 0 ${IMAGE_WIDTH} ${IMAGE_HEIGHT}`);
 
-    // Background rect.
+    // Background rect — theme-aware: light theme uses --bg #F1F5F9, dark uses #0B0F14.
+    // We read the attribute set by useTheme (data-theme="light" on <html>);
+    // absence means dark (dark-first token design).
+    const isLight = document.documentElement.getAttribute("data-theme") === "light";
+    const bgColor = isLight ? "#F1F5F9" : "#0B0F14";
     const bg = document.createElementNS(svgNS, "rect");
     bg.setAttribute("width", "100%");
     bg.setAttribute("height", "100%");
-    bg.setAttribute("fill", "#0B0F14");
+    bg.setAttribute("fill", bgColor);
     svg.appendChild(bg);
 
     // Clone viewport with transform.
