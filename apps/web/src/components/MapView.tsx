@@ -318,6 +318,13 @@ export function MapView({ nav, api, density, theme, onOpenNode }: { nav: Navigat
           edges={edges}
           nodeTypes={nodeTypes}
           fitView
+          fitViewOptions={{
+            // padding: generous 30% so a single node sits centered in space,
+            // not edge-to-edge. maxZoom 1.2 prevents over-zoom on small clusters
+            // (1–3 nodes). Reference: xyflow.com/docs fitViewOptions.
+            padding: 0.30,
+            maxZoom: 1.2,
+          }}
           proOptions={{ hideAttribution: true }}
           style={{ background: "var(--bg)", cursor: pfState.active ? "crosshair" : undefined }}
           onNodeClick={handleNodeClick}
