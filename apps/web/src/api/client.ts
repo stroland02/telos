@@ -1,10 +1,12 @@
-import { GraphView, NodeDetail, TelosNodeDTO } from "./types";
+import { GraphView, NodeDetail, TelosNodeDTO, SourceResult } from "./types";
 
 export interface TelosApi {
   overview(): Promise<GraphView>;
   cluster(id: string): Promise<GraphView | null>;
   node(id: string): Promise<NodeDetail | null>;
   search(q: string): Promise<TelosNodeDTO[]>;
+  files(): Promise<string[]>;
+  source(path: string): Promise<SourceResult | null>;
 }
 
 export function createApi(baseUrl = ""): TelosApi {
@@ -24,5 +26,7 @@ export function createApi(baseUrl = ""): TelosApi {
     cluster: (id) => getOrNull<GraphView>(`/api/cluster/${encodeURIComponent(id)}`),
     node: (id) => getOrNull<NodeDetail>(`/api/node/${encodeURIComponent(id)}`),
     search: async (q) => (await get<{ results: TelosNodeDTO[] }>(`/api/search?q=${encodeURIComponent(q)}`)).results,
+    files: async () => (await get<{ files: string[] }>("/api/files")).files,
+    source: (path) => getOrNull<SourceResult>(`/api/source?path=${encodeURIComponent(path)}`),
   };
 }

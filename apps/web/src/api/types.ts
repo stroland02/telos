@@ -9,3 +9,4 @@ export interface TelosNodeDTO {
   lines: number; complexity: number; summary: string | null;
 }
 export interface NodeDetail { node: TelosNodeDTO; callers: TelosNodeDTO[]; callees: TelosNodeDTO[]; }
+export interface SourceResult { path: string; content: string; lines: number; }

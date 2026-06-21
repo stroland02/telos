@@ -19,6 +19,8 @@ function fakeApi(overrides: Partial<TelosApi> = {}): TelosApi {
     cluster: vi.fn().mockResolvedValue(apiChildren),
     node: vi.fn().mockResolvedValue(null),
     search: vi.fn().mockResolvedValue([]),
+    files: vi.fn().mockResolvedValue([]),
+    source: vi.fn().mockResolvedValue(null),
     ...overrides,
   };
 }

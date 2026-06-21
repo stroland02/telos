@@ -5,9 +5,11 @@ import { App } from "./App";
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn(async (url: string) => ({
     ok: true, status: 200,
-    json: async () => url.includes("/overview")
-      ? { nodes: [{ id: "layer:api", label: "api", level: "layer", layer: "api", symbolCount: 1, fanIn: 0, fanOut: 0, complexity: 0 }], edges: [] }
-      : { results: [] },
+    json: async () => {
+      if (url.includes("/overview")) return { nodes: [{ id: "layer:api", label: "api", level: "layer", layer: "api", symbolCount: 1, fanIn: 0, fanOut: 0, complexity: 0 }], edges: [] };
+      if (url.includes("/files")) return { files: [] };
+      return { results: [] };
+    },
   } as Response)));
 });
 

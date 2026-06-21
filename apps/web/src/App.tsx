@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { createApi } from "./api/client";
-import { NodeDetail, TelosNodeDTO } from "./api/types";
+import { NodeDetail, SourceResult, TelosNodeDTO } from "./api/types";
 import { useNavigation } from "./graph/useNavigation";
 import { useDensity } from "./graph/useDensity";
 import type { DensityMode } from "./graph/useDensity";
@@ -10,8 +10,12 @@ import { Breadcrumbs } from "./components/Breadcrumbs";
 import { SearchBox } from "./components/SearchBox";
 import { DetailPanel } from "./components/DetailPanel";
 import { ShortcutsOverlay } from "./components/ShortcutsOverlay";
+import { FileTree } from "./components/FileTree";
+import { CodeViewer } from "./components/CodeViewer";
 
 const api = createApi();
+
+const SIDEBAR_WIDTH = 260;
 
 export function App() {
   const nav = useNavigation(api);
@@ -19,6 +23,43 @@ export function App() {
   const { theme, toggle: toggleTheme } = useTheme();
   const [detail, setDetail] = useState<NodeDetail | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  // ── File explorer state ──────────────────────────────────────────────────
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [filePaths, setFilePaths] = useState<string[]>([]);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [sourceResult, setSourceResult] = useState<SourceResult | null>(null);
+  const [sourceLoading, setSourceLoading] = useState(false);
+  const [sourceError, setSourceError] = useState<string | null>(null);
+
+  // Load file list once on mount
+  useEffect(() => {
+    api.files().then(setFilePaths).catch(() => {/* non-fatal */});
+  }, []);
+
+  const openFile = useCallback((path: string) => {
+    setSelectedFile(path);
+    setSourceResult(null);
+    setSourceError(null);
+    setSourceLoading(true);
+    api.source(path)
+      .then((r) => {
+        setSourceLoading(false);
+        if (r) setSourceResult(r);
+        else setSourceError("File not found.");
+      })
+      .catch(() => {
+        setSourceLoading(false);
+        setSourceError("Could not load source.");
+      });
+  }, []);
+
+  const closeViewer = useCallback(() => {
+    setSelectedFile(null);
+    setSourceResult(null);
+    setSourceError(null);
+    setSourceLoading(false);
+  }, []);
 
   // "?" key toggles the shortcuts overlay (only when focus is not in an input).
   useEffect(() => {
@@ -37,6 +78,8 @@ export function App() {
     void api.node(id).then((d) => { if (d) setDetail(d); });
   }, []);
 
+  const viewerVisible = sourceLoading || !!sourceResult || !!sourceError;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg)", color: "var(--text)", position: "relative" }}>
       {/* Top bar — 48px, --surface */}
@@ -53,27 +96,37 @@ export function App() {
           zIndex: 10,
         }}
       >
-        {/* Wordmark */}
-        <div
+        {/* Explorer toggle */}
+        <button
+          onClick={() => setSidebarOpen((v) => !v)}
+          aria-label={sidebarOpen ? "Close file explorer" : "Open file explorer"}
+          aria-pressed={sidebarOpen}
+          title="Toggle file explorer"
           style={{
+            flexShrink: 0,
+            background: sidebarOpen ? "var(--accent-soft)" : "none",
+            border: `1px solid ${sidebarOpen ? "var(--accent)" : "var(--border)"}`,
+            borderRadius: "var(--r-sm)",
+            cursor: "pointer",
+            color: sidebarOpen ? "var(--accent)" : "var(--text-faint)",
+            fontSize: 14,
+            lineHeight: 1,
+            width: 28,
+            height: 28,
             display: "flex",
             alignItems: "center",
-            gap: "var(--s-2)",
-            flexShrink: 0,
+            justifyContent: "center",
+            outline: "none",
           }}
+          onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
+          onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
         >
-          {/* ◇ sentinel diamond glyph */}
-          <span
-            aria-hidden="true"
-            style={{
-              color: "var(--accent)",
-              fontSize: 16,
-              lineHeight: 1,
-              fontWeight: 700,
-            }}
-          >
-            ◇
-          </span>
+          ☰
+        </button>
+
+        {/* Wordmark */}
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)", flexShrink: 0 }}>
+          <span aria-hidden="true" style={{ color: "var(--accent)", fontSize: 16, lineHeight: 1, fontWeight: 700 }}>◇</span>
           <h1
             style={{
               margin: 0,
@@ -89,35 +142,13 @@ export function App() {
           </h1>
         </div>
 
-        {/* Separator */}
-        <div
-          aria-hidden="true"
-          style={{ width: 1, height: 20, background: "var(--border)", flexShrink: 0 }}
-        />
+        <div aria-hidden="true" style={{ width: 1, height: 20, background: "var(--border)", flexShrink: 0 }} />
 
-        {/* Breadcrumb trail — grows */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <Breadcrumbs crumbs={nav.crumbs} onJump={nav.goToCrumb} />
         </div>
 
-        {/* ── Right-side control group ────────────────────────────────────────
-             Groups: [density toggle] [theme] | [search] [?]
-             Inner gap --s-2 (8px) for tightly related controls.
-             A hairline divider separates the density cluster from search
-             so the bar reads as two logical zones: nav (left) + tools (right).
-             Reference: VS Code / Linear top-bar grouping patterns.
-             ─────────────────────────────────────────────────────────────── */}
-        <div
-          style={{
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--s-2)",
-          }}
-          role="group"
-          aria-label="View controls"
-        >
-          {/* Density mode toggle — 3-segment control */}
+        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: "var(--s-2)" }} role="group" aria-label="View controls">
           <div style={{ display: "flex", gap: 0 }} role="group" aria-label="Detail density">
             {(["overview", "learn", "deep"] as DensityMode[]).map((m, i) => (
               <button
@@ -137,7 +168,6 @@ export function App() {
                   color: density === m ? "var(--accent)" : "var(--text-faint)",
                   cursor: "pointer",
                   outline: "none",
-                  transition: "background 100ms ease, color 100ms ease",
                   textTransform: "capitalize",
                   whiteSpace: "nowrap",
                 }}
@@ -149,7 +179,6 @@ export function App() {
             ))}
           </div>
 
-          {/* Theme toggle — sun (light) / moon (dark) icon button */}
           <button
             onClick={toggleTheme}
             aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
@@ -169,7 +198,6 @@ export function App() {
               alignItems: "center",
               justifyContent: "center",
               outline: "none",
-              transition: "color 80ms ease, border-color 80ms ease",
             }}
             onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
             onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
@@ -180,27 +208,12 @@ export function App() {
           </button>
         </div>
 
-        {/* Hairline divider — separates density/theme cluster from search zone */}
-        <div
-          aria-hidden="true"
-          style={{ width: 1, height: 20, background: "var(--border)", flexShrink: 0 }}
-        />
+        <div aria-hidden="true" style={{ width: 1, height: 20, background: "var(--border)", flexShrink: 0 }} />
 
-        {/* Search + shortcuts — tightly grouped at --s-2 */}
-        <div
-          style={{
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--s-2)",
-          }}
-        >
-          {/* Search box */}
+        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: "var(--s-2)" }}>
           <div style={{ width: 224 }}>
             <SearchBox api={api} onSelect={(node: TelosNodeDTO) => openNode(node.id)} />
           </div>
-
-          {/* "?" shortcut hint button */}
           <button
             onClick={() => setShortcutsOpen(true)}
             aria-label="Keyboard shortcuts (?)"
@@ -221,27 +234,84 @@ export function App() {
               alignItems: "center",
               justifyContent: "center",
               outline: "none",
-              transition: "color 80ms ease, border-color 80ms ease",
             }}
             onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
             onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
-              (e.currentTarget as HTMLElement).style.borderColor = "var(--text-muted)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.color = "var(--text-faint)";
-              (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
-            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--text-muted)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-faint)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
           >
             ?
           </button>
         </div>
       </header>
 
-      {/* Canvas fills remaining height */}
-      <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
-        <MapView nav={nav} api={api} density={density} theme={theme} onOpenNode={openNode} />
+      {/* Main area: sidebar + canvas */}
+      <div style={{ flex: 1, minHeight: 0, display: "flex", position: "relative" }}>
+
+        {/* Left sidebar — collapsible file explorer */}
+        {sidebarOpen && (
+          <nav
+            aria-label="File explorer"
+            style={{
+              width: SIDEBAR_WIDTH,
+              minWidth: SIDEBAR_WIDTH,
+              maxWidth: SIDEBAR_WIDTH,
+              background: "var(--surface)",
+              borderRight: "1px solid var(--border)",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              flexShrink: 0,
+            }}
+          >
+            {/* Explorer header */}
+            <div
+              style={{
+                height: 36,
+                display: "flex",
+                alignItems: "center",
+                padding: "0 var(--s-3)",
+                borderBottom: "1px solid var(--border)",
+                flexShrink: 0,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "var(--t-meta-size)",
+                  fontWeight: 600,
+                  color: "var(--text-faint)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  fontFamily: "var(--font-ui)",
+                }}
+              >
+                Explorer
+              </span>
+            </div>
+
+            <FileTree
+              paths={filePaths}
+              selectedPath={selectedFile}
+              onSelectFile={openFile}
+            />
+          </nav>
+        )}
+
+        {/* Canvas */}
+        <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
+          <MapView nav={nav} api={api} density={density} theme={theme} onOpenNode={openNode} />
+
+          {/* Code viewer — overlays the canvas from the right when a file is selected */}
+          {viewerVisible && (
+            <CodeViewer
+              source={sourceResult}
+              loading={sourceLoading}
+              error={sourceError}
+              theme={theme}
+              onClose={closeViewer}
+            />
+          )}
+        </div>
       </div>
 
       <DetailPanel detail={detail} onClose={() => setDetail(null)} />
