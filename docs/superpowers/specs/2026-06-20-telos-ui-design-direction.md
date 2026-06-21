@@ -135,6 +135,7 @@ No hero text. Truncate long labels with ellipsis + tooltip; paths wrap or middle
 - **Task 6 (components):** style `TelosNode` / `Breadcrumbs` / `SearchBox` / `DetailPanel` / `MapView` strictly via tokens per §5; implement the metric chips, the active-crumb accent, the focus rings, the panel slide, and the reduced-motion guard. Restyle React Flow `Background` / `Controls` to the dark canvas.
 - **Task 7 (serve):** the hosted build must ship the self-hosted fonts (no external font fetch — local-first).
 - **Optional design QA pass:** after Task 6, run the `ecc:gan-design` or `ecc:make-interfaces-feel-better` loop, and an `ecc:accessibility` audit, against the running app before the final review.
+- **File Explorer (shipped Plan 4):** collapsible sidebar + read-only Shiki viewer implemented. Future IDE phase roadmap: full Monaco editing, IntelliSense, multi-tab editor, git/branches panel, file editing/saving.
 
 ---
 
