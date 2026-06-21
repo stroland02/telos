@@ -94,7 +94,10 @@ export function TelosNode({ data, selected }: NodeProps) {
       role="button"
       aria-label={`${d.label} — ${d.layer} ${d.level}`}
     >
-      <Handle type="target" position={Position.Left} style={{ background: "var(--border)" }} />
+      {/* Handles are structurally required for RF edge routing but invisible
+          in this read-only view — no edge dragging is offered to the user.
+          opacity:0 hides them while keeping RF's internal geometry intact. */}
+      <Handle type="target" position={Position.Left} style={{ opacity: 0, pointerEvents: "none" }} />
 
       {/* Label */}
       <div
@@ -138,7 +141,7 @@ export function TelosNode({ data, selected }: NodeProps) {
         </div>
       )}
 
-      <Handle type="source" position={Position.Right} style={{ background: "var(--border)" }} />
+      <Handle type="source" position={Position.Right} style={{ opacity: 0, pointerEvents: "none" }} />
     </div>
   );
 }
