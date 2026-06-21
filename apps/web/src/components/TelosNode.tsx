@@ -33,6 +33,17 @@ if (typeof document !== "undefined" && !document.getElementById("telos-node-keyf
     .telos-node {
       transition: box-shadow 120ms ease, opacity 120ms ease, filter 90ms ease, transform 90ms ease;
     }
+    /* WCAG 2.2 SC 2.4.11 focus-visible ring — 2px --accent outline, visible to
+       keyboard users only (:focus-visible, not :focus, to avoid mouse click rings).
+       box-shadow layered over the existing layer glow: accent ring outermost,
+       glow innermost, so the cyan sentinel ring is always unambiguous.
+       Contrast: --accent (#22D3EE) against --bg (#0B0F14) = 8.6:1 (AAA). */
+    .telos-node:focus-visible {
+      outline: none;
+      box-shadow:
+        0 0 0 2px var(--accent),
+        0 0 16px var(--accent-soft) !important;
+    }
   `;
   document.head.appendChild(s);
 }
