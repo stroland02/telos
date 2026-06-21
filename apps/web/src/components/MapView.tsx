@@ -8,6 +8,7 @@ import { LayerFilter, LAYER_ORDER } from "./LayerFilter";
 import { PathFinderBar, PATH_FINDER_IDLE, bfsPath } from "./PathFinder";
 import type { PathFinderState } from "./PathFinder";
 import { ExportButton } from "./ExportButton";
+import { TourBar } from "./TourBar";
 import type { Layer, GraphView } from "../api/types";
 import type { TelosApi } from "../api/client";
 import type { DensityMode } from "../graph/useDensity";
@@ -29,6 +30,7 @@ export function MapView({ nav, api, density, onOpenNode }: { nav: NavigationStat
   setCurrentDensity(density);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [pfState, setPfState] = useState<PathFinderState>(PATH_FINDER_IDLE);
+  const [tourActive, setTourActive] = useState(false);
 
   // Granularity toggle: "Files" vs "Files + Symbols"
   // Only active when the current level contains file nodes.
@@ -39,6 +41,8 @@ export function MapView({ nav, api, density, onOpenNode }: { nav: NavigationStat
   const [showSymbols, setShowSymbols] = useState(false);
   // Reset toggle when navigating to a level without file nodes
   useEffect(() => { if (!hasFileNodes) setShowSymbols(false); }, [hasFileNodes]);
+  // Reset tour when the view changes (new level drilled into)
+  useEffect(() => { setTourActive(false); }, [nav.view]);
 
   // When showSymbols is on, fetch symbol children for every file node in the view.
   const [symbolView, setSymbolView] = useState<GraphView | null>(null);
@@ -322,7 +326,13 @@ export function MapView({ nav, api, density, onOpenNode }: { nav: NavigationStat
             aria-label="Graph mini-map"
           />
           {/* Export button — Panel keeps it inside the ReactFlow provider context */}
-          <Panel position="top-right" style={{ margin: "var(--s-2)" }}>
+          <Panel position="top-right" style={{ margin: "var(--s-2)", display: "flex", gap: "var(--s-2)", alignItems: "center" }}>
+            <TourBar
+              nodes={filteredNodes}
+              active={tourActive}
+              onActivate={() => setTourActive(true)}
+              onClose={() => setTourActive(false)}
+            />
             <ExportButton graphView={nav.view ?? null} />
           </Panel>
         </ReactFlow>
