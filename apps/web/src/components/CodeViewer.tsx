@@ -91,18 +91,12 @@ export function CodeViewer({ source, loading, error, theme, onClose }: CodeViewe
       role="complementary"
       aria-label="Source viewer"
       style={{
-        position: "absolute",
-        top: 0,
-        right: 0,
-        bottom: 0,
-        width: "calc(100% - 260px)",
-        minWidth: 320,
+        flex: 1,
+        minHeight: 0,
         background: "var(--surface)",
-        borderLeft: "1px solid var(--border)",
         display: "flex",
         flexDirection: "column",
-        boxShadow: "var(--shadow-panel)",
-        zIndex: 20,
+        overflow: "hidden",
         animation: "codeViewerIn 140ms ease-out",
       }}
     >

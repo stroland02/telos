@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { createApi } from "./api/client";
 import { NodeDetail, SourceResult, TelosNodeDTO } from "./api/types";
 import { useNavigation } from "./graph/useNavigation";
@@ -16,6 +16,21 @@ import { CodeViewer } from "./components/CodeViewer";
 const api = createApi();
 
 const SIDEBAR_WIDTH = 260;
+const RIGHT_PANE_DEFAULT = Math.min(Math.round(window.innerWidth * 0.46), 720);
+const RIGHT_PANE_MIN = 360;
+const RIGHT_PANE_MAX = Math.round(window.innerWidth * 0.72);
+const LS_KEY = "telos:rightPaneWidth";
+
+function loadRightWidth(): number {
+  try {
+    const v = localStorage.getItem(LS_KEY);
+    if (v) {
+      const n = parseInt(v, 10);
+      if (n >= RIGHT_PANE_MIN && n <= RIGHT_PANE_MAX) return n;
+    }
+  } catch { /* ignore */ }
+  return RIGHT_PANE_DEFAULT;
+}
 
 export function App() {
   const nav = useNavigation(api);
@@ -31,6 +46,23 @@ export function App() {
   const [sourceResult, setSourceResult] = useState<SourceResult | null>(null);
   const [sourceLoading, setSourceLoading] = useState(false);
   const [sourceError, setSourceError] = useState<string | null>(null);
+
+  // ── Right pane width (resizable splitter) ───────────────────────────────
+  const [rightWidth, setRightWidth] = useState<number>(loadRightWidth);
+  const isDragging = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartWidth = useRef(0);
+
+  // Persist width changes
+  useEffect(() => {
+    try { localStorage.setItem(LS_KEY, String(rightWidth)); } catch { /* ignore */ }
+  }, [rightWidth]);
+
+  // ── fitView callback: MapView exposes this so we can call it on resize ──
+  const fitViewRef = useRef<(() => void) | null>(null);
+  const registerFitView = useCallback((fn: () => void) => {
+    fitViewRef.current = fn;
+  }, []);
 
   // Load file list once on mount
   useEffect(() => {
@@ -61,6 +93,29 @@ export function App() {
     setSourceLoading(false);
   }, []);
 
+  // Trigger fitView after layout changes (sidebar toggle / viewer open/close).
+  // We fire multiple delayed shots because React Flow processes its own
+  // ResizeObserver asynchronously — the 400ms shot reliably catches it.
+  const viewerVisible = sourceLoading || !!sourceResult || !!sourceError;
+  useEffect(() => {
+    // Use rAF to wait for the browser to paint the new flex layout, then
+    // multiple setTimeouts to catch RF's own resize processing.
+    let t1: ReturnType<typeof setTimeout>;
+    let t2: ReturnType<typeof setTimeout>;
+    let t3: ReturnType<typeof setTimeout>;
+    const raf = requestAnimationFrame(() => {
+      t1 = setTimeout(() => fitViewRef.current?.(), 50);
+      t2 = setTimeout(() => fitViewRef.current?.(), 200);
+      t3 = setTimeout(() => fitViewRef.current?.(), 500);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [sidebarOpen, viewerVisible]);
+
   // "?" key toggles the shortcuts overlay (only when focus is not in an input).
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -78,11 +133,35 @@ export function App() {
     void api.node(id).then((d) => { if (d) setDetail(d); });
   }, []);
 
-  const viewerVisible = sourceLoading || !!sourceResult || !!sourceError;
+  // ── Splitter drag logic ──────────────────────────────────────────────────
+  const onSplitterPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    isDragging.current = true;
+    dragStartX.current = e.clientX;
+    dragStartWidth.current = rightWidth;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }, [rightWidth]);
+
+  const onSplitterPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging.current) return;
+    const delta = dragStartX.current - e.clientX; // dragging left = wider right pane
+    const newW = Math.max(RIGHT_PANE_MIN, Math.min(RIGHT_PANE_MAX, dragStartWidth.current + delta));
+    setRightWidth(newW);
+    // Re-fit after each move (debounced via rAF)
+    requestAnimationFrame(() => fitViewRef.current?.());
+  }, []);
+
+  const onSplitterPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    // Final re-fit once drag ends
+    setTimeout(() => fitViewRef.current?.(), 40);
+  }, []);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg)", color: "var(--text)", position: "relative" }}>
-      {/* Top bar — 48px, --surface */}
+      {/* ── Top bar — 48px, --surface ──────────────────────────────────── */}
       <header
         style={{
           height: 48,
@@ -148,7 +227,7 @@ export function App() {
           <Breadcrumbs crumbs={nav.crumbs} onJump={nav.goToCrumb} />
         </div>
 
-        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: "var(--s-2)" }} role="group" aria-label="View controls">
+        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: "var(--s-3)" }} role="group" aria-label="View controls">
           <div style={{ display: "flex", gap: 0 }} role="group" aria-label="Detail density">
             {(["overview", "learn", "deep"] as DensityMode[]).map((m, i) => (
               <button
@@ -245,8 +324,8 @@ export function App() {
         </div>
       </header>
 
-      {/* Main area: sidebar + canvas */}
-      <div style={{ flex: 1, minHeight: 0, display: "flex", position: "relative" }}>
+      {/* ── Main area: [Explorer | Map | Right pane] ──────────────────── */}
+      <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
 
         {/* Left sidebar — collapsible file explorer */}
         {sidebarOpen && (
@@ -297,12 +376,59 @@ export function App() {
           </nav>
         )}
 
-        {/* Canvas */}
+        {/* Map — always gets the remaining flex space.
+            layoutKey forces RF to remount (and re-fitView) when the pane
+            configuration changes (sidebar or viewer toggled). Splitter drags
+            are handled by the useStore(s.width) observer inside FitViewRegistrar. */}
         <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
-          <MapView nav={nav} api={api} density={density} theme={theme} onOpenNode={openNode} />
+          <MapView
+            nav={nav}
+            api={api}
+            density={density}
+            theme={theme}
+            onOpenNode={openNode}
+            registerFitView={registerFitView}
+            layoutKey={`${sidebarOpen ? "s" : ""}${viewerVisible ? "v" : ""}`}
+          />
+        </div>
 
-          {/* Code viewer — overlays the canvas from the right when a file is selected */}
-          {viewerVisible && (
+        {/* Draggable splitter — only when the right pane is visible */}
+        {viewerVisible && (
+          <div
+            role="separator"
+            aria-label="Resize code viewer"
+            aria-orientation="vertical"
+            style={{
+              width: 5,
+              flexShrink: 0,
+              background: "var(--border)",
+              cursor: "col-resize",
+              zIndex: 15,
+              transition: "background 80ms ease",
+              position: "relative",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--accent)"; }}
+            onMouseLeave={(e) => { if (!isDragging.current) (e.currentTarget as HTMLElement).style.background = "var(--border)"; }}
+            onPointerDown={onSplitterPointerDown}
+            onPointerMove={onSplitterPointerMove}
+            onPointerUp={onSplitterPointerUp}
+          />
+        )}
+
+        {/* Right pane — CodeViewer as a true flex sibling (not an overlay) */}
+        {viewerVisible && (
+          <div
+            style={{
+              width: rightWidth,
+              minWidth: RIGHT_PANE_MIN,
+              maxWidth: RIGHT_PANE_MAX,
+              flexShrink: 0,
+              display: "flex",
+              flexDirection: "column",
+              borderLeft: "none", /* splitter provides visual separation */
+              overflow: "hidden",
+            }}
+          >
             <CodeViewer
               source={sourceResult}
               loading={sourceLoading}
@@ -310,8 +436,8 @@ export function App() {
               theme={theme}
               onClose={closeViewer}
             />
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <DetailPanel detail={detail} onClose={() => setDetail(null)} />

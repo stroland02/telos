@@ -41,6 +41,10 @@
   --chip-border: rgba(255,255,255,0.18);
   --chip-text:   rgba(255,255,255,0.92);
 
+  /* Right pane / splitter */
+  --splitter-w: 5px;
+  --right-pane-min: 360px;
+
   /* Danger */
   --danger: #f87171;
   --danger-soft: rgba(248,113,113,0.12);

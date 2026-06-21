@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import { ReactFlow, Background, BackgroundVariant, Controls, MiniMap, Panel } from "@xyflow/react";
+import { ReactFlow, Background, BackgroundVariant, Controls, MiniMap, Panel, useReactFlow, useStore } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { NavigationState } from "../graph/useNavigation";
 import { toFlowGraph } from "../graph/layout";
@@ -25,7 +25,83 @@ const LAYER_HEX: Record<string, string> = {
 
 const nodeTypes = { telos: TelosNode };
 
-export function MapView({ nav, api, density, theme, onOpenNode }: { nav: NavigationState; api: TelosApi; density: DensityMode; theme?: string; onOpenNode: (id: string) => void }) {
+// Inner component inside <ReactFlow> provider — handles all fitView logic.
+//
+// PROBLEM: RF's built-in fitView() reads its internal store dimensions (s.width,
+// s.height) which are updated by RF's own ResizeObserver. When the CodeViewer
+// opens and the flex layout shrinks the map column, RF's store may still hold
+// the pre-resize dimensions at the moment fitView() fires, producing a stale
+// scale/translate. Even forcing it via timeouts doesn't reliably fix this because
+// RF's ResizeObserver callback and our setTimeout race each other.
+//
+// SOLUTION: Skip fitView() entirely. Instead use setViewport() with dimensions
+// read directly from the DOM via getBoundingClientRect() on the RF container.
+// DOM measurements are always current — they reflect the post-paint layout. We
+// manually compute the correct scale and translate from node bounds + container
+// size and set the viewport directly, bypassing RF's internal measurement path.
+function FitViewRegistrar({ registerFitView }: { registerFitView?: (fn: () => void) => void }) {
+  const { getNodes, setViewport } = useReactFlow();
+
+  const fit = useCallback(() => {
+    // Read actual container size from DOM — always correct, even post-flex-resize.
+    const rfEl = document.querySelector<HTMLElement>('.react-flow');
+    if (!rfEl) return;
+    const { width: containerW, height: containerH } = rfEl.getBoundingClientRect();
+    if (!containerW || !containerH) return;
+
+    const nodes = getNodes();
+    if (!nodes.length) return;
+
+    const PADDING = 0.25; // 25% margin around the graph bounds
+
+    // Compute bounding box of all nodes using their measured dimensions.
+    // RF stores measured width/height on the node object after its layout pass.
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const n of nodes) {
+      const nw = n.measured?.width ?? (n as { width?: number }).width ?? 200;
+      const nh = n.measured?.height ?? (n as { height?: number }).height ?? 80;
+      if (n.position.x < minX) minX = n.position.x;
+      if (n.position.y < minY) minY = n.position.y;
+      if (n.position.x + nw > maxX) maxX = n.position.x + nw;
+      if (n.position.y + nh > maxY) maxY = n.position.y + nh;
+    }
+
+    const graphW = maxX - minX;
+    const graphH = maxY - minY;
+    if (!graphW || !graphH) return;
+
+    // Scale that fits the graph into the container with the requested padding.
+    const scaleX = (containerW * (1 - PADDING * 2)) / graphW;
+    const scaleY = (containerH * (1 - PADDING * 2)) / graphH;
+    const zoom = Math.min(scaleX, scaleY, 1.5); // cap at 1.5× zoom
+
+    // Center the graph in the container at this zoom level.
+    const x = (containerW - graphW * zoom) / 2 - minX * zoom;
+    const y = (containerH - graphH * zoom) / 2 - minY * zoom;
+
+    setViewport({ x, y, zoom }, { duration: 200 });
+  }, [getNodes, setViewport]);
+
+  // Register with parent so App-level layout changes can call fit too.
+  useEffect(() => { registerFitView?.(fit); }, [fit, registerFitView]);
+
+  // Watch RF's internal store dimensions. RF updates these after its own
+  // ResizeObserver fires. When they change we call fit() — but our fit()
+  // reads the DOM directly so it always uses the correct post-resize size.
+  const rfWidth  = useStore((s) => s.width);
+  const rfHeight = useStore((s) => s.height);
+  useEffect(() => {
+    if (!rfWidth || !rfHeight) return;
+    // Tiny delay lets the DOM settle after RF's resize processing
+    const tid = setTimeout(fit, 16);
+    return () => clearTimeout(tid);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rfWidth, rfHeight]);
+
+  return null;
+}
+
+export function MapView({ nav, api, density, theme, onOpenNode, registerFitView, layoutKey }: { nav: NavigationState; api: TelosApi; density: DensityMode; theme?: string; onOpenNode: (id: string) => void; registerFitView?: (fn: () => void) => void; layoutKey?: string }) {
   // Sync module-level density ref so TelosNode reads it on each render.
   setCurrentDensity(density);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -212,6 +288,16 @@ export function MapView({ nav, api, density, theme, onOpenNode }: { nav: Navigat
     [nav, pfState, flow.edges, onOpenNode],
   );
 
+  const fitViewCallbackRef = useRef<(() => void) | null>(null);
+
+  // Store the fit fn when FitViewRegistrar registers it
+  const handleRegisterFitView = useCallback((fn: () => void) => {
+    fitViewCallbackRef.current = fn;
+    registerFitView?.(fn);
+  }, [registerFitView]);
+
+
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {nav.error && (
@@ -314,10 +400,10 @@ export function MapView({ nav, api, density, theme, onOpenNode }: { nav: Navigat
         />
 
         <ReactFlow
+          key={layoutKey}
           nodes={styledNodes}
           edges={edges}
           nodeTypes={nodeTypes}
-          fitView
           fitViewOptions={{
             // padding: generous 30% so a single node sits centered in space,
             // not edge-to-edge. maxZoom 1.2 prevents over-zoom on small clusters
@@ -357,6 +443,9 @@ export function MapView({ nav, api, density, theme, onOpenNode }: { nav: Navigat
             }}
             aria-label="Graph mini-map"
           />
+          {/* Register fitView — parent-triggered and auto on RF viewport resize */}
+          <FitViewRegistrar registerFitView={handleRegisterFitView} />
+
           {/* Export button — Panel keeps it inside the ReactFlow provider context */}
           <Panel position="top-right" style={{ margin: "var(--s-2)", display: "flex", gap: "var(--s-2)", alignItems: "center" }}>
             <TourBar
