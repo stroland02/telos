@@ -27,16 +27,17 @@ function layerGlowVar(layer: string): string {
 }
 
 export function TelosNode({ data, selected }: NodeProps) {
-  const d = data as unknown as FlowNodeData;
+  const d = data as unknown as FlowNodeData & { _pathOn?: boolean | null; _pathDim?: boolean };
   const isLeaf = d.level === "symbol" || d.level === "file";
   const bg = layerVar(d.layer);
   const glow = layerGlowVar(d.layer);
 
-  // Box-shadow composition (design direction §4 elevation):
-  //   Default:  inset 1px border in layer hue + soft ambient glow
-  //   Selected: accent ring (2px) + accent halo + layer ambient
-  // The sentinel pulse (@keyframes) fires only when selected, max 2 cycles.
-  const shadow = selected
+  // Path-finder overlay: _pathOn = this node is ON the found path (accent ring);
+  // _pathDim = path exists but this node is NOT on it (fade out).
+  const pathOn = d._pathOn === true;
+  const pathDim = d._pathDim === true;
+
+  const shadow = (selected || pathOn)
     ? `0 0 0 2px var(--accent), 0 0 20px var(--accent-soft), 0 2px 12px ${glow}`
     : `0 0 0 1px ${glow} inset, 0 2px 12px ${glow}`;
 
@@ -53,12 +54,11 @@ export function TelosNode({ data, selected }: NodeProps) {
         fontFamily: "var(--font-ui)",
         border: `1px solid var(--border)`,
         boxShadow: shadow,
-        opacity: isLeaf ? 0.85 : 1,
+        opacity: pathDim ? 0.12 : isLeaf ? 0.85 : 1,
         transition: "box-shadow 120ms ease, opacity 120ms ease",
         cursor: "pointer",
         outline: "none",
-        // Sentinel pulse only when selected — single slow glow cycle (§4 motion)
-        animation: selected ? "sentinelPulse var(--sentinel-pulse-duration) ease-in-out 2" : "none",
+        animation: (selected || pathOn) ? "sentinelPulse var(--sentinel-pulse-duration) ease-in-out 2" : "none",
       }}
       tabIndex={0}
       role="button"

@@ -5,10 +5,10 @@ import { NavigationState } from "../graph/useNavigation";
 import { toFlowGraph } from "../graph/layout";
 import { TelosNode } from "./TelosNode";
 import { LayerFilter, LAYER_ORDER } from "./LayerFilter";
+import { PathFinderBar, PATH_FINDER_IDLE, bfsPath } from "./PathFinder";
+import type { PathFinderState } from "./PathFinder";
 import type { Layer } from "../api/types";
 
-// Static hex map for MiniMap nodeColor callback (CSS vars not resolvable there).
-// Values mirror tokens.css --layer-* exactly — no hard-coded hex in components.
 const LAYER_HEX: Record<string, string> = {
   api:     "#3B82F6",
   service: "#8B5CF6",
@@ -23,23 +23,20 @@ const nodeTypes = { telos: TelosNode };
 
 export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode: (id: string) => void }) {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [pfState, setPfState] = useState<PathFinderState>(PATH_FINDER_IDLE);
 
   const flow = useMemo(
     () => (nav.view ? toFlowGraph(nav.view) : { nodes: [], edges: [] }),
     [nav.view],
   );
 
-  // Layers present in current view.
   const activeLayers = useMemo(
     () => new Set((nav.view?.nodes ?? []).map((n) => n.layer as Layer)),
     [nav.view],
   );
 
-  // Visible layers — all on by default; reset when view changes.
   const [visibleLayers, setVisibleLayers] = useState<Set<Layer>>(() => new Set(LAYER_ORDER));
 
-  // Keep visibleLayers in sync when the view changes (new drill level).
-  // If a layer appears that wasn't in the previous set, show it by default.
   const effectiveVisible = useMemo(() => {
     const out = new Set<Layer>();
     for (const l of activeLayers) {
@@ -51,50 +48,109 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
   const toggleLayer = useCallback((layer: Layer) => {
     setVisibleLayers((prev) => {
       const next = new Set(prev);
-      if (next.has(layer)) next.delete(layer);
-      else next.add(layer);
+      if (next.has(layer)) next.delete(layer); else next.add(layer);
       return next;
     });
   }, []);
 
-  const showAll = useCallback(() => {
-    setVisibleLayers(new Set(LAYER_ORDER));
-  }, []);
+  const showAll = useCallback(() => setVisibleLayers(new Set(LAYER_ORDER)), []);
 
-  // Filter nodes by visible layers.
   const filteredNodes = useMemo(
     () => flow.nodes.filter((n) => effectiveVisible.has((n.data as { layer: Layer }).layer)),
     [flow.nodes, effectiveVisible],
   );
 
-  // Filter edges — only keep edges where both endpoints are visible.
-  const visibleNodeIds = useMemo(
-    () => new Set(filteredNodes.map((n) => n.id)),
-    [filteredNodes],
-  );
+  const visibleNodeIds = useMemo(() => new Set(filteredNodes.map((n) => n.id)), [filteredNodes]);
 
-  // Edge styling: weight encoding + hover highlight + layer-filter opacity.
+  // Path-finder sets of highlighted node/edge IDs.
+  const pathNodeSet = useMemo(() => new Set(pfState.path ?? []), [pfState.path]);
+  const pathEdgeSet = useMemo(() => {
+    if (!pfState.path || pfState.path.length < 2) return new Set<string>();
+    const s = new Set<string>();
+    for (let i = 0; i < pfState.path.length - 1; i++) {
+      s.add(`${pfState.path[i]}->${pfState.path[i + 1]}`);
+    }
+    return s;
+  }, [pfState.path]);
+
+  const isPathActive = pfState.path !== null && pfState.path.length > 0;
+
   const edges = useMemo(() => {
     const maxW = Math.max(1, ...flow.edges.map((e) => e.data.weight));
     return flow.edges
       .filter((e) => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target))
       .map((e) => {
         const w = 1 + 3 * (e.data.weight / maxW);
+        const onPath = pathEdgeSet.has(e.id);
         const isConnected =
-          hoveredNodeId !== null &&
+          !isPathActive && hoveredNodeId !== null &&
           (e.source === hoveredNodeId || e.target === hoveredNodeId);
-        const isAnyHovered = hoveredNodeId !== null;
+        const isAnyHovered = !isPathActive && hoveredNodeId !== null;
         return {
           ...e,
           style: {
-            stroke: isConnected ? "var(--accent)" : "var(--text-faint)",
-            strokeWidth: isConnected ? Math.max(w, 1.5) : w,
-            opacity: isAnyHovered && !isConnected ? 0.25 : 1,
+            stroke: onPath ? "var(--accent)" : isConnected ? "var(--accent)" : "var(--text-faint)",
+            strokeWidth: onPath ? Math.max(w, 2) : isConnected ? Math.max(w, 1.5) : w,
+            opacity: isPathActive
+              ? onPath ? 1 : 0.1
+              : isAnyHovered && !isConnected ? 0.25 : 1,
             transition: "stroke 120ms ease, opacity 120ms ease",
           },
         };
       });
-  }, [flow.edges, visibleNodeIds, hoveredNodeId]);
+  }, [flow.edges, visibleNodeIds, hoveredNodeId, pathEdgeSet, isPathActive]);
+
+  // Nodes with path-aware styling injected into data.
+  const styledNodes = useMemo(
+    () =>
+      filteredNodes.map((n) => ({
+        ...n,
+        data: {
+          ...n.data,
+          _pathOn: isPathActive ? pathNodeSet.has(n.id) : null,
+          _pathDim: isPathActive ? !pathNodeSet.has(n.id) : false,
+        },
+      })),
+    [filteredNodes, pathNodeSet, isPathActive],
+  );
+
+  // Source node label for PathFinderBar prompt.
+  const sourceLabel = useMemo(() => {
+    if (!pfState.sourceId) return undefined;
+    const n = flow.nodes.find((x) => x.id === pfState.sourceId);
+    return (n?.data as { label?: string })?.label;
+  }, [pfState.sourceId, flow.nodes]);
+
+  const handleNodeClick = useCallback(
+    (_: unknown, node: { id: string }) => {
+      const v = nav.view?.nodes.find((x) => x.id === node.id);
+      if (!v) return;
+
+      // Path-finder intercepts clicks when active.
+      if (pfState.active) {
+        if (!pfState.sourceId) {
+          // Step 1: pick source.
+          setPfState((s) => ({ ...s, sourceId: node.id }));
+          return;
+        }
+        // Step 2: pick target → run BFS.
+        const rawEdges = flow.edges.map((e) => ({ source: e.source, target: e.target }));
+        const path = bfsPath(pfState.sourceId, node.id, rawEdges);
+        setPfState((s) => ({
+          ...s,
+          active: false,
+          path: path ?? null,
+          noPath: path === null,
+        }));
+        return;
+      }
+
+      // Normal navigation.
+      if (v.level === "symbol" || v.level === "file") onOpenNode(v.id);
+      else nav.drillInto({ id: v.id, label: v.label, level: v.level });
+    },
+    [nav, pfState, flow.edges, onOpenNode],
+  );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -115,7 +171,6 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
       )}
 
       <div style={{ position: "relative", flex: 1, background: "var(--bg)" }}>
-        {/* Layer filter — interactive toggles replacing the static legend */}
         <LayerFilter
           activeLayers={activeLayers}
           visibleLayers={effectiveVisible}
@@ -123,20 +178,23 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
           onShowAll={showAll}
         />
 
+        {/* Path-finder control bar — centered top */}
+        <PathFinderBar
+          state={pfState}
+          onActivate={() => setPfState({ active: true, sourceId: null, path: null, noPath: false })}
+          onReset={() => setPfState(PATH_FINDER_IDLE)}
+          sourceLabel={sourceLabel}
+        />
+
         <ReactFlow
-          nodes={filteredNodes}
+          nodes={styledNodes}
           edges={edges}
           nodeTypes={nodeTypes}
           fitView
           proOptions={{ hideAttribution: true }}
-          style={{ background: "var(--bg)" }}
-          onNodeClick={(_, node) => {
-            const v = nav.view?.nodes.find((x) => x.id === node.id);
-            if (!v) return;
-            if (v.level === "symbol" || v.level === "file") onOpenNode(v.id);
-            else nav.drillInto({ id: v.id, label: v.label, level: v.level });
-          }}
-          onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
+          style={{ background: "var(--bg)", cursor: pfState.active ? "crosshair" : undefined }}
+          onNodeClick={handleNodeClick}
+          onNodeMouseEnter={(_, node) => { if (!pfState.active) setHoveredNodeId(node.id); }}
           onNodeMouseLeave={() => setHoveredNodeId(null)}
         >
           <Background variant={BackgroundVariant.Dots} color="var(--border)" gap={24} size={1} />
@@ -194,8 +252,7 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
                 height: 52,
                 borderRadius: "var(--r-md)",
                 background: "var(--surface-2)",
-                backgroundImage:
-                  "linear-gradient(90deg, var(--surface-2) 0%, var(--surface) 50%, var(--surface-2) 100%)",
+                backgroundImage: "linear-gradient(90deg, var(--surface-2) 0%, var(--surface) 50%, var(--surface-2) 100%)",
                 backgroundSize: "800px 100%",
                 animation: "skeletonShimmer 1.4s ease-in-out infinite",
                 opacity: 0.7 - i * 0.15,
