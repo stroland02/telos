@@ -107,22 +107,96 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
         </ReactFlow>
       </div>
 
-      {/* Empty/no-data state */}
-      {!nav.loading && nav.view && nav.view.nodes.length === 0 && (
+      {/* Loading overlay — calm skeleton shimmer while fetching a level.
+          Respects reduced-motion: animation is suppressed by the global guard
+          in tokens.css; the static placeholder remains visible. */}
+      {nav.loading && (
         <div
+          aria-live="polite"
+          aria-label="Loading graph"
           style={{
             position: "absolute",
             inset: 0,
             display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "var(--s-3)",
+            pointerEvents: "none",
+            zIndex: 4,
+          }}
+        >
+          <style>{`
+            @keyframes skeletonShimmer {
+              0%   { background-position: -400px 0; }
+              100% { background-position:  400px 0; }
+            }
+          `}</style>
+          {[180, 240, 200].map((w, i) => (
+            <div
+              key={i}
+              style={{
+                width: w,
+                height: 52,
+                borderRadius: "var(--r-md)",
+                background: "var(--surface-2)",
+                backgroundImage:
+                  "linear-gradient(90deg, var(--surface-2) 0%, var(--surface) 50%, var(--surface-2) 100%)",
+                backgroundSize: "800px 100%",
+                animation: "skeletonShimmer 1.4s ease-in-out infinite",
+                opacity: 0.7 - i * 0.15,
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Empty/no-data state */}
+      {!nav.loading && nav.view && nav.view.nodes.length === 0 && (
+        <div
+          role="status"
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
             pointerEvents: "none",
-            color: "var(--text-faint)",
-            fontSize: "var(--t-body-size)",
-            lineHeight: "var(--t-body-lh)",
+            gap: "var(--s-2)",
           }}
         >
-          Run <code style={{ fontFamily: "var(--font-mono)", margin: "0 var(--s-1)" }}>telos scan</code> to build the map
+          {/* Sentinel diamond — quiet visual anchor */}
+          <span
+            aria-hidden="true"
+            style={{
+              color: "var(--text-faint)",
+              fontSize: 28,
+              lineHeight: 1,
+              marginBottom: "var(--s-1)",
+            }}
+          >
+            ◇
+          </span>
+          <div
+            style={{
+              color: "var(--text-muted)",
+              fontSize: "var(--t-body-size)",
+              lineHeight: "var(--t-body-lh)",
+            }}
+          >
+            No graph data yet
+          </div>
+          <div
+            style={{
+              color: "var(--text-faint)",
+              fontSize: "var(--t-meta-size)",
+              lineHeight: "var(--t-meta-lh)",
+              fontFamily: "var(--font-mono)",
+            }}
+          >
+            Run <code>telos scan</code> to build the map
+          </div>
         </div>
       )}
     </div>
