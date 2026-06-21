@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ReactFlow, Background, BackgroundVariant, Controls } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { NavigationState } from "../graph/useNavigation";
@@ -10,6 +10,10 @@ import type { Layer } from "../api/types";
 const nodeTypes = { telos: TelosNode };
 
 export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode: (id: string) => void }) {
+  // Track the hovered node ID to drive edge highlight/dim effect.
+  // null = no hover (all edges at normal opacity).
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+
   const flow = useMemo(
     () => (nav.view ? toFlowGraph(nav.view) : { nodes: [], edges: [] }),
     [nav.view],
@@ -23,13 +27,30 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
 
   // Edge thickness encodes call-traffic weight (node-link visual-language
   // convention: link "size" ∝ flow magnitude), normalized to a 1–4px range.
+  // On node hover: edges connected to the hovered node become --accent (cyan),
+  // unconnected edges dim to low opacity — instantly revealing the dependency
+  // subgraph. No re-layout; pure style update. (xyflow discussion #4496)
   const edges = useMemo(() => {
     const maxW = Math.max(1, ...flow.edges.map((e) => e.data.weight));
-    return flow.edges.map((e) => ({
-      ...e,
-      style: { stroke: "var(--text-faint)", strokeWidth: 1 + 3 * (e.data.weight / maxW) },
-    }));
-  }, [flow.edges]);
+    return flow.edges.map((e) => {
+      const w = 1 + 3 * (e.data.weight / maxW);
+      const isConnected =
+        hoveredNodeId !== null &&
+        (e.source === hoveredNodeId || e.target === hoveredNodeId);
+      const isAnyHovered = hoveredNodeId !== null;
+      return {
+        ...e,
+        style: {
+          stroke: isConnected
+            ? "var(--accent)"
+            : "var(--text-faint)",
+          strokeWidth: isConnected ? Math.max(w, 1.5) : w,
+          opacity: isAnyHovered && !isConnected ? 0.25 : 1,
+          transition: "stroke 120ms ease, opacity 120ms ease",
+        },
+      };
+    });
+  }, [flow.edges, hoveredNodeId]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -66,6 +87,8 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
             if (v.level === "symbol" || v.level === "file") onOpenNode(v.id);
             else nav.drillInto({ id: v.id, label: v.label, level: v.level });
           }}
+          onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
+          onNodeMouseLeave={() => setHoveredNodeId(null)}
         >
           <Background
             variant={BackgroundVariant.Dots}
