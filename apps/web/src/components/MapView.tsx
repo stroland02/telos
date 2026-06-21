@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback } from "react";
-import { ReactFlow, Background, BackgroundVariant, Controls, MiniMap } from "@xyflow/react";
+import { ReactFlow, Background, BackgroundVariant, Controls, MiniMap, Panel } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { NavigationState } from "../graph/useNavigation";
 import { toFlowGraph } from "../graph/layout";
@@ -7,6 +7,7 @@ import { TelosNode } from "./TelosNode";
 import { LayerFilter, LAYER_ORDER } from "./LayerFilter";
 import { PathFinderBar, PATH_FINDER_IDLE, bfsPath } from "./PathFinder";
 import type { PathFinderState } from "./PathFinder";
+import { ExportButton } from "./ExportButton";
 import type { Layer } from "../api/types";
 
 const LAYER_HEX: Record<string, string> = {
@@ -219,6 +220,10 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
             }}
             aria-label="Graph mini-map"
           />
+          {/* Export button — Panel keeps it inside the ReactFlow provider context */}
+          <Panel position="top-right" style={{ margin: "var(--s-2)" }}>
+            <ExportButton graphView={nav.view ?? null} />
+          </Panel>
         </ReactFlow>
       </div>
 
