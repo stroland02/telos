@@ -42,6 +42,17 @@ function layerVar(layer: string): string {
   return `var(--layer-${layer}, var(--layer-unknown))`;
 }
 
+/**
+ * Per-layer text color — falls through the cascade:
+ *   1. --layer-text-<layer>  (may be overridden in light theme, e.g. unknown/util)
+ *   2. --layer-text           (default white in dark, unchanged in light)
+ * This ensures WCAG AA for low-contrast layers (unknown, util) in light theme
+ * while keeping white text on all layers in the dark theme.
+ */
+function layerTextVar(layer: string): string {
+  return `var(--layer-text-${layer}, var(--layer-text))`;
+}
+
 /** Maps a layer name to its glow token var(--layer-<layer>-glow). */
 function layerGlowVar(layer: string): string {
   return `var(--layer-${layer}-glow, var(--layer-unknown-glow))`;
@@ -61,6 +72,7 @@ export function TelosNode({ data, selected }: NodeProps) {
   const density = currentDensity;
   const bg = layerVar(d.layer);
   const glow = layerGlowVar(d.layer);
+  const nodeTextColor = layerTextVar(d.layer);
 
   // Path-finder overlay: _pathOn = this node is ON the found path (accent ring);
   // _pathDim = path exists but this node is NOT on it (fade out).
@@ -81,7 +93,7 @@ export function TelosNode({ data, selected }: NodeProps) {
         padding: "var(--s-2) var(--s-3)",
         borderRadius: "var(--r-md)",
         background: bg,
-        color: "var(--layer-text)",
+        color: nodeTextColor,
         fontFamily: "var(--font-ui)",
         border: `1px solid var(--border)`,
         boxShadow: shadow,

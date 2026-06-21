@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { ReactFlow, Background, BackgroundVariant, Controls, MiniMap, Panel } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { NavigationState } from "../graph/useNavigation";
@@ -25,10 +25,28 @@ const LAYER_HEX: Record<string, string> = {
 
 const nodeTypes = { telos: TelosNode };
 
-export function MapView({ nav, api, density, onOpenNode }: { nav: NavigationState; api: TelosApi; density: DensityMode; onOpenNode: (id: string) => void }) {
+export function MapView({ nav, api, density, theme, onOpenNode }: { nav: NavigationState; api: TelosApi; density: DensityMode; theme?: string; onOpenNode: (id: string) => void }) {
   // Sync module-level density ref so TelosNode reads it on each render.
   setCurrentDensity(density);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+
+  // Resolve MiniMap color tokens from CSS custom properties at render time.
+  // React Flow's MiniMap accepts literal color strings (SVG fill), not CSS vars,
+  // so we read the computed values off <html> on every render — cheap and ensures
+  // MiniMap responds to theme switches without a separate state update.
+  const minimapBg = useMemo(() => {
+    if (typeof document === "undefined") return "#121822";
+    return getComputedStyle(document.documentElement)
+      .getPropertyValue("--minimap-bg").trim() || "#121822";
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme]); // re-resolve when theme changes
+
+  const minimapMask = useMemo(() => {
+    if (typeof document === "undefined") return "rgba(11,15,20,0.60)";
+    return getComputedStyle(document.documentElement)
+      .getPropertyValue("--minimap-mask").trim() || "rgba(11,15,20,0.60)";
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme]);
   const [pfState, setPfState] = useState<PathFinderState>(PATH_FINDER_IDLE);
   const [tourActive, setTourActive] = useState(false);
 
@@ -323,10 +341,10 @@ export function MapView({ nav, api, density, onOpenNode }: { nav: NavigationStat
             }}
             nodeStrokeColor="transparent"
             nodeStrokeWidth={0}
-            maskColor="rgba(11,15,20,0.6)"
-            bgColor="#121822"
+            maskColor={minimapMask}
+            bgColor={minimapBg}
             style={{
-              background: "#121822",
+              background: minimapBg,
               border: "1px solid var(--border)",
               borderRadius: "var(--r-md)",
             }}

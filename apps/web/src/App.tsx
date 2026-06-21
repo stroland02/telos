@@ -207,7 +207,7 @@ export function App() {
 
       {/* Canvas fills remaining height */}
       <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
-        <MapView nav={nav} api={api} density={density} onOpenNode={openNode} />
+        <MapView nav={nav} api={api} density={density} theme={theme} onOpenNode={openNode} />
       </div>
 
       <DetailPanel detail={detail} onClose={() => setDetail(null)} />

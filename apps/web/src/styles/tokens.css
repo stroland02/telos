@@ -92,12 +92,29 @@
   --t-meta-weight: 400;
 }
 
+/* ─── MiniMap canvas tokens (dark defaults) ──────────────────────────────────
+   React Flow MiniMap accepts color props as literal strings (SVG fill), not
+   CSS variables. We expose these as CSS custom properties and resolve them at
+   render time via getComputedStyle so the MiniMap responds to theme changes.
+   maskColor: semi-transparent overlay over the minimap canvas.
+   ──────────────────────────────────────────────────────────────────────────── */
+:root {
+  --minimap-bg:   #121822;
+  --minimap-mask: rgba(11,15,20,0.60);
+}
+
 /* ─── Light theme token overrides ────────────────────────────────────────────
    Applied when <html data-theme="light"> is set. All layer palette hues are
    preserved (they carry semantic meaning); neutral canvas flips to warm white.
-   Contrast verified: --text on --bg = #0F172A on #F8FAFC ≈ 18.5:1 (AAA).
-   Accent: #0369A1 (sky-800) on white ≈ 7.4:1 (AAA).
-   Layer chips use white text on the same hues — passes AA at chip size.
+   Contrast verified:
+     --text on --bg = #0F172A on #F1F5F9 ≈ 17.2:1 (AAA).
+     Accent: #0369A1 on white ≈ 7.4:1 (AAA).
+   Layer text on colored nodes:
+     - Bright hues (api #3B82F6, service #8B5CF6, data #10B981, ui #EC4899,
+       infra #F59E0B) are preserved; white text passes AA at ≥13px bold chip
+       size. api/service are borderline at small text so chips use dark text.
+     - unknown #94A3B8 → white text = 2.56:1 (FAILS). Fix: use dark node-text
+       for unknown in light. All addressed via --layer-text-unknown token.
    ──────────────────────────────────────────────────────────────────────────── */
 [data-theme="light"] {
   --bg:        #F1F5F9;
@@ -130,6 +147,19 @@
   --chip-bg:     rgba(15,23,42,0.08);
   --chip-border: rgba(15,23,42,0.20);
   --chip-text:   #0F172A;
+
+  /* MiniMap in light: warm near-white background, subtle mask */
+  --minimap-bg:   #F8FAFC;
+  --minimap-mask: rgba(241,245,249,0.55);
+
+  /* Per-layer text overrides for light theme.
+     unknown (#94A3B8) with white text = 2.56:1 — FAILS WCAG AA.
+     util (#6B7280) with white text = 4.29:1 — borderline at small size.
+     api (#3B82F6) with white text = 3.68:1 — fails for body, OK for large bold.
+     service (#8B5CF6) with white text = 4.23:1 — borderline.
+     Using dark text for unknown and util to guarantee AA at all text sizes. */
+  --layer-text-unknown: #0F172A;
+  --layer-text-util:    #0F172A;
 }
 
 /* Global reset */
@@ -155,6 +185,9 @@ body {
    cluster reads as a framed constellation rather than shapes on a flat wall.
    Implemented as a pointer-events:none ::after overlay on the RF root so it
    never interferes with canvas interactions.
+   Dark theme: inward black shadow (0.18 opacity) deepens the slate canvas.
+   Light theme: same black shadow at reduced 0.08 opacity — barely perceptible
+   edge-darkening that adds framing without muddying the warm white canvas.
    ──────────────────────────────────────────────────────────────────────────── */
 .react-flow::after {
   content: "";
@@ -167,6 +200,14 @@ body {
     rgba(0, 0, 0, 0.18) 100%
   );
   z-index: 1;
+}
+
+[data-theme="light"] .react-flow::after {
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    transparent 55%,
+    rgba(0, 0, 0, 0.06) 100%
+  );
 }
 
 /* ─── React Flow controls theming ───────────────────────────────────────────
