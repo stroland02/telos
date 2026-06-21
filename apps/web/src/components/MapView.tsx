@@ -1,11 +1,24 @@
 import { useMemo, useState } from "react";
-import { ReactFlow, Background, BackgroundVariant, Controls } from "@xyflow/react";
+import { ReactFlow, Background, BackgroundVariant, Controls, MiniMap } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { NavigationState } from "../graph/useNavigation";
 import { toFlowGraph } from "../graph/layout";
 import { TelosNode } from "./TelosNode";
 import { LayerLegend } from "./LayerLegend";
 import type { Layer } from "../api/types";
+
+// Maps a layer name to its resolved CSS-variable hex. We keep a static lookup
+// here so the MiniMap nodeColor callback gets a plain string (it can't resolve
+// CSS variables). Values mirror tokens.css --layer-* exactly.
+const LAYER_HEX: Record<string, string> = {
+  api:     "#3B82F6",
+  service: "#8B5CF6",
+  data:    "#10B981",
+  ui:      "#EC4899",
+  infra:   "#F59E0B",
+  util:    "#6B7280",
+  unknown: "#94A3B8",
+};
 
 const nodeTypes = { telos: TelosNode };
 
@@ -103,6 +116,23 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
               borderRadius: "var(--r-md)",
               boxShadow: "none",
             }}
+          />
+          {/* MiniMap — token-styled, node color by layer, bottom-right.
+              nodeColor uses the static LAYER_HEX map (CSS vars can't be
+              resolved in a callback). maskColor uses a semi-transparent
+              --surface so the viewport rect shows through clearly. */}
+          <MiniMap
+            nodeColor={(node) => {
+              const layer = (node.data as { layer?: string }).layer ?? "unknown";
+              return LAYER_HEX[layer] ?? LAYER_HEX.unknown;
+            }}
+            maskColor="rgba(18,24,34,0.7)"
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--r-md)",
+            }}
+            aria-label="Graph mini-map"
           />
         </ReactFlow>
       </div>
