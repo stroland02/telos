@@ -14,7 +14,9 @@ export function TelosNode({ data, selected }: NodeProps) {
   return (
     <div
       style={{
-        width: 180,
+        width: d.width,
+        minHeight: d.height,
+        boxSizing: "border-box",
         padding: "var(--s-2) var(--s-3)",
         borderRadius: "var(--r-md)",
         background: bg,
