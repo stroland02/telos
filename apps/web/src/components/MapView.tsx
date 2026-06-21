@@ -4,12 +4,20 @@ import "@xyflow/react/dist/style.css";
 import { NavigationState } from "../graph/useNavigation";
 import { toFlowGraph } from "../graph/layout";
 import { TelosNode } from "./TelosNode";
+import { LayerLegend } from "./LayerLegend";
+import type { Layer } from "../api/types";
 
 const nodeTypes = { telos: TelosNode };
 
 export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode: (id: string) => void }) {
   const flow = useMemo(
     () => (nav.view ? toFlowGraph(nav.view) : { nodes: [], edges: [] }),
+    [nav.view],
+  );
+
+  // Derive the set of layers actually present in this view for the legend.
+  const activeLayers = useMemo(
+    () => new Set((nav.view?.nodes ?? []).map((n) => n.layer as Layer)),
     [nav.view],
   );
 
@@ -44,6 +52,7 @@ export function MapView({ nav, onOpenNode }: { nav: NavigationState; onOpenNode:
 
       {/* Canvas — full-bleed */}
       <div style={{ position: "relative", flex: 1, background: "var(--bg)" }}>
+        <LayerLegend activeLayers={activeLayers} />
         <ReactFlow
           nodes={flow.nodes}
           edges={edges}
