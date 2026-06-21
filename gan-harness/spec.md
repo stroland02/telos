@@ -25,6 +25,22 @@ v1 (Plans 1-3) is shipped. At THIS stage the loop should verify/secure these and
 - **Appearance goals:** cohesive dark theme with the layer palette as the accent system; depth/elevation; refined typography rhythm; tasteful motion on drill/zoom; the map reads as a calm, premium instrument at first glance.
 - **Out of scope (future phases, do NOT build here):** OTel live monitoring (Phase 2), LLM summaries/semantic layers (Phase 3), visual-first authoring (Phase 4).
 
+## Reference-derived feature backlog (from the Understand-Anything live demo — https://understand-anything.com/demo/)
+Standing practice: study competitor/reference demos in-browser for feature/UX ideas, then **triage against the goals** — implement only what fits v1 (static, no LLM), and route LLM-dependent features to the Phase 3 roadmap below. Match reference *quality*, never clone the look (stay distinctive — rubric Originality).
+
+**v1-feasible (static, no LLM) — add these to the loop, one per iteration, after the current backlog:**
+- **Mini-map** — React Flow `<MiniMap>`, token-styled, for orientation on big graphs.
+- **Layer filter toggles** — show/hide layers (the demo's CODE/CONFIG/DOCS/INFRA/DATA chips); pure UI over existing layer data.
+- **Find path between two nodes** — pick source + target, BFS over edges, highlight the path (the demo's "Path / P"). Static, high "industrial" value.
+- **Keyboard-shortcuts overlay** — `?` opens a token-styled cheat-sheet (⌘K, Esc, drill, etc.).
+- **Export** — download the current view as PNG and/or the graph JSON (the demo's "Export / E").
+- **Persona/density modes** — Overview / Learn / Deep-Dive as a *metadata-density* toggle (how much chip/detail shows); no LLM, just progressive disclosure.
+- **Dependency-ordered tour scaffold** — a structural walk that pans the camera through nodes in topological order with a step list (the demo's "Project Tour"); the per-step PROSE is Phase 3, the ordering + camera + step UI are v1.
+- **Complexity indicator** — surface the existing `node.complexity` metric as a small badge (the demo's simple/moderate/complex tag), static.
+- **Theme toggle** — light/dark via token swap (tokens already support it).
+
+**Phase 3 roadmap (LLM — capture, do NOT build in this loop):** plain-English node summaries, semantic search, guided-tour prose, business-domain view (domains/flows/steps), and a "where does X happen?" chat. These fill the reserved `summary` field and need the LLM brain — they are Telos Phase 3, not v1.
+
 ## Guardrails (every iteration)
 - Keep the full suite green (`pnpm -r build` + package vitest) and `tsc` clean before committing an iteration.
 - No hard-coded hex in components — extend `tokens.css`.
