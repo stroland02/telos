@@ -150,6 +150,25 @@ body {
   line-height: 20px;
 }
 
+/* ─── Canvas vignette — design direction §2 "optional ≤6% vertical vignette"
+   A subtle radial shadow from the edges inward creates depth so the node
+   cluster reads as a framed constellation rather than shapes on a flat wall.
+   Implemented as a pointer-events:none ::after overlay on the RF root so it
+   never interferes with canvas interactions.
+   ──────────────────────────────────────────────────────────────────────────── */
+.react-flow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    transparent 55%,
+    rgba(0, 0, 0, 0.18) 100%
+  );
+  z-index: 1;
+}
+
 /* ─── React Flow controls theming ───────────────────────────────────────────
    The .react-flow__controls wrapper is styled inline in MapView; these rules
    theme the individual buttons to the dark slate palette (design direction §5).
