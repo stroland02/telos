@@ -21,7 +21,7 @@ export async function runEnrich(path: string): Promise<{ enriched: number; dbPat
   }
   const store = GraphStore.open(dbPath);
   try {
-    const enriched = enrichGraph(store.loadGraph(), heuristicEnricher);
+    const enriched = await enrichGraph(store.loadGraph(), heuristicEnricher);
     store.applyEnrichment(enriched.nodes.map((n) => ({ id: n.id, summary: n.summary!, layer: n.layer })));
     return { enriched: enriched.nodes.length, dbPath };
   } finally {
