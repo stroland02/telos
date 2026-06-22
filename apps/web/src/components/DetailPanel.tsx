@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { NodeDetail, TelosNodeDTO } from "../api/types";
+import { NodeDetail, TelosNodeDTO, Recommendation } from "../api/types";
 
 function Divider() {
   return (
@@ -79,7 +79,7 @@ function NodeList({ title, nodes }: { title: string; nodes: TelosNodeDTO[] }) {
   );
 }
 
-export function DetailPanel({ detail, onClose }: { detail: NodeDetail | null; onClose: () => void }) {
+export function DetailPanel({ detail, onClose, recommendations = [] }: { detail: NodeDetail | null; onClose: () => void; recommendations?: Recommendation[] }) {
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   // Close on Esc (§6 a11y); move focus to × on open
@@ -245,6 +245,44 @@ export function DetailPanel({ detail, onClose }: { detail: NodeDetail | null; on
       <Divider />
 
       <NodeList title="Callees" nodes={detail.callees} />
+
+      {recommendations.length > 0 && (
+        <>
+          <Divider />
+          <div>
+            <div
+              style={{
+                fontSize: "var(--t-label-size)",
+                lineHeight: "var(--t-label-lh)",
+                fontWeight: "var(--t-label-weight)" as React.CSSProperties["fontWeight"],
+                color: "var(--text-muted)",
+                marginBottom: "var(--s-1)",
+              }}
+            >
+              Suggested actions <span style={{ color: "var(--text-faint)", fontWeight: 400 }}>({recommendations.length})</span>
+            </div>
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "var(--s-1)" }}>
+              {recommendations.map((r) => (
+                <li
+                  key={r.id}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 1,
+                    padding: "var(--s-1) var(--s-2)",
+                    background: "var(--surface-2)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--r-sm)",
+                  }}
+                >
+                  <span style={{ fontSize: "var(--t-meta-size)", color: "var(--text)", fontWeight: 500 }}>{r.title}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-faint)" }}>{r.id}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </>
+      )}
     </aside>
   );
 }

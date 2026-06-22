@@ -1,4 +1,4 @@
-import { GraphView, NodeDetail, TelosNodeDTO, SourceResult } from "./types";
+import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation } from "./types";
 
 export interface TelosApi {
   overview(): Promise<GraphView>;
@@ -7,6 +7,7 @@ export interface TelosApi {
   search(q: string): Promise<TelosNodeDTO[]>;
   files(): Promise<string[]>;
   source(path: string): Promise<SourceResult | null>;
+  recommendations(id: string): Promise<Recommendation[]>;
 }
 
 export function createApi(baseUrl = ""): TelosApi {
@@ -28,5 +29,7 @@ export function createApi(baseUrl = ""): TelosApi {
     search: async (q) => (await get<{ results: TelosNodeDTO[] }>(`/api/search?q=${encodeURIComponent(q)}`)).results,
     files: async () => (await get<{ files: string[] }>("/api/files")).files,
     source: (path) => getOrNull<SourceResult>(`/api/source?path=${encodeURIComponent(path)}`),
+    recommendations: async (id) =>
+      (await get<{ recommendations: Recommendation[] }>(`/api/node/${encodeURIComponent(id)}/recommend`)).recommendations,
   };
 }

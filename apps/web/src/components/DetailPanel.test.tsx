@@ -21,4 +21,21 @@ describe("DetailPanel", () => {
     expect(screen.getByText("src/services/u.ts")).toBeInTheDocument();
     expect(screen.getByText("userController.ts")).toBeInTheDocument();
   });
+
+  it("renders suggested actions when recommendations are provided", () => {
+    render(
+      <DetailPanel
+        detail={detail}
+        onClose={vi.fn()}
+        recommendations={[{ id: "ecc:typescript-reviewer", title: "TypeScript review" }]}
+      />,
+    );
+    expect(screen.getByText("TypeScript review")).toBeInTheDocument();
+    expect(screen.getByText("ecc:typescript-reviewer")).toBeInTheDocument();
+  });
+
+  it("omits the suggested actions section when there are no recommendations", () => {
+    render(<DetailPanel detail={detail} onClose={vi.fn()} />);
+    expect(screen.queryByText(/Suggested actions/)).not.toBeInTheDocument();
+  });
 });

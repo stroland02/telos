@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { createApi } from "./api/client";
-import { NodeDetail, SourceResult, TelosNodeDTO } from "./api/types";
+import { NodeDetail, SourceResult, TelosNodeDTO, Recommendation } from "./api/types";
 import { useNavigation } from "./graph/useNavigation";
 import { useDensity } from "./graph/useDensity";
 import type { DensityMode } from "./graph/useDensity";
@@ -39,6 +39,7 @@ export function App() {
   const { mode: density, setMode: setDensity } = useDensity();
   const { theme, toggle: toggleTheme } = useTheme();
   const [detail, setDetail] = useState<NodeDetail | null>(null);
+  const [recs, setRecs] = useState<Recommendation[]>([]);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   // ── File explorer state ──────────────────────────────────────────────────
@@ -133,6 +134,7 @@ export function App() {
 
   const openNode = useCallback((id: string) => {
     void api.node(id).then((d) => { if (d) setDetail(d); });
+    void api.recommendations(id).then(setRecs).catch(() => setRecs([]));
   }, []);
 
   // ── Splitter drag logic ──────────────────────────────────────────────────
@@ -443,7 +445,7 @@ export function App() {
         )}
       </div>
 
-      <DetailPanel detail={detail} onClose={() => setDetail(null)} />
+      <DetailPanel detail={detail} recommendations={recs} onClose={() => { setDetail(null); setRecs([]); }} />
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   );

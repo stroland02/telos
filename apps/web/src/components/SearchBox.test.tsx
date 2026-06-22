@@ -5,7 +5,7 @@ import { SearchBox } from "./SearchBox";
 import { TelosApi } from "../api/client";
 
 function api(results: any[]): TelosApi {
-  return { overview: vi.fn(), cluster: vi.fn(), node: vi.fn(), search: vi.fn().mockResolvedValue(results), files: vi.fn().mockResolvedValue([]), source: vi.fn().mockResolvedValue(null) };
+  return { overview: vi.fn(), cluster: vi.fn(), node: vi.fn(), search: vi.fn().mockResolvedValue(results), files: vi.fn().mockResolvedValue([]), source: vi.fn().mockResolvedValue(null), recommendations: vi.fn().mockResolvedValue([]) };
 }
 
 describe("SearchBox", () => {
