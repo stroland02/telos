@@ -49,3 +49,9 @@ describe("telos enrich command", () => {
     expect(names).toContain("enrich");
   });
 });
+
+describe("telos tour command", () => {
+  it("is registered", () => {
+    expect(buildProgram().commands.map((c) => c.name())).toContain("tour");
+  });
+});

@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { resolve, join, dirname } from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { scan, GraphStore, enrichGraph, heuristicEnricher } from "@telos/engine";
+import { scan, GraphStore, enrichGraph, heuristicEnricher, buildTour } from "@telos/engine";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
 import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, buildSetupPlan } from "@telos/harness";
@@ -75,6 +75,17 @@ export function buildProgram(): Command {
     .action(async (path: string | undefined) => {
       const r = await runEnrich(path ?? ".");
       console.log(`Telos: enriched ${r.enriched} nodes -> ${r.dbPath}`);
+    });
+  program.command("tour [path]").description("Print a dependency-ordered walkthrough of the codebase")
+    .option("-n, --limit <n>", "max stops", "20")
+    .action(async (path: string | undefined, opts: { limit: string }) => {
+      const dbPath = join(resolve(path ?? "."), ".telos", "graph.db");
+      if (!existsSync(dbPath)) throw new Error(`No graph at ${dbPath}. Run 'telos scan' first.`);
+      const store = GraphStore.open(dbPath);
+      try {
+        const tour = buildTour(store.loadGraph(), { limit: Number(opts.limit) });
+        for (const s of tour) console.log(`${s.order + 1}. ${s.node.qualifiedName}  ${s.node.summary ?? ""}`.trimEnd());
+      } finally { store.close(); }
     });
   program.command("setup").description("Print harness install commands (ECC/Superpowers/Headroom) and bootstrap .telos/harness.lock")
     .option("--dir <path>", "project dir containing .telos", ".")

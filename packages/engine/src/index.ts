@@ -5,3 +5,4 @@ export * from "./aggregator.js";
 export * from "./query.js";
 export * from "./enrich.js";
 export { heuristicEnricher } from "./enrichers/heuristic.js";
+export * from "./tour.js";

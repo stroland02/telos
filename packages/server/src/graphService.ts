@@ -1,6 +1,6 @@
 // packages/server/src/graphService.ts
 import {
-  GraphStore, aggregate, overview, childrenOf, nodeDetail, resolveNode,
+  GraphStore, aggregate, overview, childrenOf, nodeDetail, resolveNode, buildTour,
   TelosGraph, TelosNode, AggregatedGraph, GraphView, NodeDetail,
 } from "@telos/engine";
 import { recommend } from "@telos/harness";
@@ -27,6 +27,12 @@ export class GraphService implements GraphProvider {
   getOverview(): GraphView { return overview(this.graph, this.agg); }
   getChildren(id: string): GraphView | null { return childrenOf(this.graph, this.agg, id); }
   getNode(id: string): NodeDetail | null { return nodeDetail(this.graph, id); }
+
+  getTour(limit?: number) {
+    return buildTour(this.graph, { limit }).map((s) => ({
+      id: s.node.id, qualifiedName: s.node.qualifiedName, summary: s.node.summary, order: s.order,
+    }));
+  }
 
   getRecommendations(id: string): { id: string; title: string }[] {
     const node = resolveNode(this.graph, id);
