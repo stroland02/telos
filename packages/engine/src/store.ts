@@ -44,6 +44,19 @@ export class GraphStore {
     return { nodes, edges };
   }
 
+  /** Update only summary (and layer when present) for the given ids. Idempotent. */
+  applyEnrichment(updates: { id: string; summary: string; layer?: Layer }[]): void {
+    const withLayer = this.db.prepare("UPDATE nodes SET summary = ?, layer = ? WHERE id = ?");
+    const summaryOnly = this.db.prepare("UPDATE nodes SET summary = ? WHERE id = ?");
+    const tx = this.db.transaction((rows: typeof updates) => {
+      for (const u of rows) {
+        if (u.layer) withLayer.run(u.summary, u.layer, u.id);
+        else summaryOnly.run(u.summary, u.id);
+      }
+    });
+    tx(updates);
+  }
+
   search(term: string): TelosNode[] {
     const tokens = term
       .split(/\s+/)

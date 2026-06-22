@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { resolve, join, dirname } from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { scan } from "@telos/engine";
+import { scan, GraphStore, enrichGraph, heuristicEnricher } from "@telos/engine";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
 import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, buildSetupPlan } from "@telos/harness";
@@ -12,6 +12,21 @@ import open from "open";
 export async function runScan(path: string): Promise<{ nodeCount: number; edgeCount: number; dbPath: string }> {
   const { dbPath, graph } = await scan(resolve(path));
   return { nodeCount: graph.nodes.length, edgeCount: graph.edges.length, dbPath };
+}
+
+export async function runEnrich(path: string): Promise<{ enriched: number; dbPath: string }> {
+  const dbPath = join(resolve(path), ".telos", "graph.db");
+  if (!existsSync(dbPath)) {
+    throw new Error(`No graph found at ${dbPath}. Run 'telos scan ${path}' first.`);
+  }
+  const store = GraphStore.open(dbPath);
+  try {
+    const enriched = enrichGraph(store.loadGraph(), heuristicEnricher);
+    store.applyEnrichment(enriched.nodes.map((n) => ({ id: n.id, summary: n.summary!, layer: n.layer })));
+    return { enriched: enriched.nodes.length, dbPath };
+  } finally {
+    store.close();
+  }
 }
 
 export async function runServe(opts: { path: string; port: number; open?: boolean }): Promise<{ address: string; close: () => Promise<void> }> {
@@ -55,6 +70,11 @@ export function buildProgram(): Command {
         console.error(err instanceof Error ? err.message : err);
         process.exit(1);
       }
+    });
+  program.command("enrich [path]").description("Fill node summaries from the graph (deterministic; no LLM)")
+    .action(async (path: string | undefined) => {
+      const r = await runEnrich(path ?? ".");
+      console.log(`Telos: enriched ${r.enriched} nodes -> ${r.dbPath}`);
     });
   program.command("setup").description("Print harness install commands (ECC/Superpowers/Headroom) and bootstrap .telos/harness.lock")
     .option("--dir <path>", "project dir containing .telos", ".")
