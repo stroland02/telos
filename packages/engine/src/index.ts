@@ -5,5 +5,6 @@ export * from "./aggregator.js";
 export * from "./query.js";
 export * from "./enrich.js";
 export { heuristicEnricher } from "./enrichers/heuristic.js";
+export { createLlmEnricher, DEFAULT_LLM } from "./enrichers/llm.js";
 export * from "./tour.js";
 export * from "./ask.js";

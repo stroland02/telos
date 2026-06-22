@@ -20,8 +20,8 @@ const graph: TelosGraph = {
 };
 
 describe("enrichGraph + heuristicEnricher", () => {
-  it("fills a deterministic structural summary for every node", () => {
-    const out = enrichGraph(graph, heuristicEnricher);
+  it("fills a deterministic structural summary for every node", async () => {
+    const out = await enrichGraph(graph, heuristicEnricher);
     const a = out.nodes.find((n) => n.id === "a")!;
     expect(a.summary).toBe("function authenticate (typescript, api layer) — called by 3, calls 2, spans 18 lines.");
     const b = out.nodes.find((n) => n.id === "b")!;
@@ -29,14 +29,20 @@ describe("enrichGraph + heuristicEnricher", () => {
     expect(out.nodes.every((n) => typeof n.summary === "string" && n.summary.length > 0)).toBe(true);
   });
 
-  it("does not mutate the input graph", () => {
-    enrichGraph(graph, heuristicEnricher);
+  it("does not mutate the input graph", async () => {
+    await enrichGraph(graph, heuristicEnricher);
     expect(graph.nodes.find((n) => n.id === "a")!.summary).toBeNull();
   });
 
-  it("accepts any object implementing Enricher (LlmEnricher drop-in point)", () => {
+  it("accepts any object implementing Enricher (LlmEnricher drop-in point)", async () => {
     const stub: Enricher = { name: "stub", enrich: () => ({ summary: "x" }) };
-    const out = enrichGraph(graph, stub);
+    const out = await enrichGraph(graph, stub);
     expect(out.nodes.every((n) => n.summary === "x")).toBe(true);
+  });
+
+  it("supports async enrichers and preserves node order", async () => {
+    const asyncEnricher: Enricher = { name: "async", enrich: async (n) => ({ summary: `s:${n.id}` }) };
+    const out = await enrichGraph(graph, asyncEnricher, { concurrency: 1 });
+    expect(out.nodes.map((n) => n.summary)).toEqual(["s:a", "s:b"]);
   });
 });
