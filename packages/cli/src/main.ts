@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { scan } from "@telos/engine";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
-import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG } from "@telos/harness";
+import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, buildSetupPlan } from "@telos/harness";
 import { pathToFileURL } from "node:url";
 import open from "open";
 
@@ -55,6 +55,20 @@ export function buildProgram(): Command {
         console.error(err instanceof Error ? err.message : err);
         process.exit(1);
       }
+    });
+  program.command("setup").description("Print harness install commands (ECC/Superpowers/Headroom) and bootstrap .telos/harness.lock")
+    .option("--dir <path>", "project dir containing .telos", ".")
+    .action((opts: { dir: string }) => {
+      console.log("Telos harness fusion — install these (Telos won't run them for you):\n");
+      for (const h of buildSetupPlan()) {
+        console.log(`# ${h.title}  (${h.license}) — ${h.repo}`);
+        for (const cmd of h.install) console.log(`  ${cmd}`);
+        console.log("");
+      }
+      const lockPath = resolve(process.cwd(), opts.dir, ".telos", "harness.lock");
+      const { initialized } = runDoctor(lockPath);
+      console.log(initialized ? `Bootstrapped ${lockPath}.` : `Harness lock already present at ${lockPath}.`);
+      console.log("Run `telos doctor` anytime to check for capability drift.");
     });
   program.command("doctor").description("Check the harness for capability drift (and bootstrap .telos/harness.lock)")
     .option("--dir <path>", "project dir containing .telos", ".")

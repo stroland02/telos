@@ -35,3 +35,10 @@ describe("telos route command", () => {
     expect(names).toContain("route");
   });
 });
+
+describe("telos setup command", () => {
+  it("is registered", () => {
+    const names = buildProgram().commands.map((c) => c.name());
+    expect(names).toContain("setup");
+  });
+});
