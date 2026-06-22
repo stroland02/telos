@@ -10,6 +10,8 @@ export interface GraphProvider {
   search(q: string): unknown[];
   getFiles(): { path: string }[];
   getFilePaths(): Set<string>;
+  /** Optional: harness capability recommendations for a node. Absent on minimal providers. */
+  getRecommendations?(id: string): { id: string; title: string }[];
   repoRoot: string | null;
 }
 
@@ -32,6 +34,11 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
     const detail = provider.getNode(req.params.id);
     if (detail === null) return reply.code(404).send({ error: "node not found" });
     return detail;
+  });
+
+  app.get<{ Params: { id: string } }>("/api/node/:id/recommend", async (req, reply) => {
+    if (!provider.getRecommendations) return reply.code(404).send({ error: "recommendations unavailable" });
+    return { recommendations: provider.getRecommendations(req.params.id) };
   });
 
   app.get<{ Querystring: { q?: string } }>("/api/search", async (req) => {

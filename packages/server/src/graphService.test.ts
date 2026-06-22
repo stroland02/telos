@@ -59,4 +59,12 @@ describe("GraphService.fromDb", () => {
     expect(svc.getNode("nope")).toBeNull();
     svc.close();
   });
+
+  it("recommends harness capabilities for a node by its code context", () => {
+    const svc = GraphService.fromDb(tempDb());
+    const ids = svc.getRecommendations("s2").map((c) => c.id); // typescript service
+    expect(ids).toContain("ecc:typescript-reviewer");
+    expect(svc.getRecommendations("nope")).toEqual([]);
+    svc.close();
+  });
 });

@@ -177,6 +177,9 @@ importers:
       '@telos/engine':
         specifier: workspace:*
         version: link:../engine
+      '@telos/harness':
+        specifier: workspace:*
+        version: link:../harness
       fastify:
         specifier: ^4.28.0
         version: 4.29.1
