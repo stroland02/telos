@@ -1,0 +1,40 @@
+import { CapabilityKind, CapabilitySource } from "./capability.js";
+
+/**
+ * A capability the router can suggest from the *prompt* a developer writes
+ * (authoring/assist mode), as opposed to from a code node's graph context.
+ * Heuristic stage (Phase 1.5b): keyword/phrase triggers. A semantic-embedding
+ * router replaces the matching in Phase 3 without changing this shape.
+ */
+export interface PromptCapability {
+  id: string;
+  kind: CapabilityKind;
+  source: CapabilitySource;
+  title: string;
+  triggers: string[]; // case-insensitive substrings that signal this capability
+}
+
+export interface RoutedCapability { capability: PromptCapability; score: number }
+
+/**
+ * Rank prompt capabilities by how many of their triggers appear in the prompt.
+ * Returns only positive matches, most-relevant first (ties broken by id).
+ */
+export function routePrompt(prompt: string, catalog: PromptCapability[]): RoutedCapability[] {
+  const p = prompt.toLowerCase();
+  return catalog
+    .map((capability) => ({ capability, score: capability.triggers.filter((t) => p.includes(t.toLowerCase())).length }))
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score || a.capability.id.localeCompare(b.capability.id));
+}
+
+/** Built-in prompt-intent catalog (process + cross-cutting capabilities). */
+export const PROMPT_CATALOG: PromptCapability[] = [
+  { id: "superpowers:brainstorming", kind: "skill", source: "superpowers", title: "Brainstorm the design first", triggers: ["build", "create", "new feature", "add a feature", "design a", "implement a"] },
+  { id: "superpowers:writing-plans", kind: "skill", source: "superpowers", title: "Write an implementation plan", triggers: ["implementation plan", "write a plan", "break down", "break this into tasks"] },
+  { id: "superpowers:systematic-debugging", kind: "skill", source: "superpowers", title: "Debug systematically", triggers: ["bug", "error", "failing", "crash", "stack trace", "not working", "broken", "regression"] },
+  { id: "superpowers:test-driven-development", kind: "skill", source: "superpowers", title: "Test-driven development", triggers: ["tdd", "write tests", "test first", "failing test"] },
+  { id: "ecc:security-review", kind: "skill", source: "ecc", title: "Security review", triggers: ["security", "auth", "vulnerab", "injection", "secret", "credential", "xss", "csrf"] },
+  { id: "ecc:code-review", kind: "skill", source: "ecc", title: "Code review", triggers: ["review", "code review", "before merging", "pull request"] },
+  { id: "headroom:compress", kind: "skill", source: "headroom", title: "Compress context to cut tokens", triggers: ["too many tokens", "context too", "too long", "compress", "reduce cost", "token cost"] },
+];

@@ -28,3 +28,10 @@ describe("telos doctor command", () => {
     expect(names).toContain("doctor");
   });
 });
+
+describe("telos route command", () => {
+  it("is registered", () => {
+    const names = buildProgram().commands.map((c) => c.name());
+    expect(names).toContain("route");
+  });
+});

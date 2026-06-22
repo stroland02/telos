@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { scan } from "@telos/engine";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
-import { runDoctor, DEFAULT_CATALOG } from "@telos/harness";
+import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG } from "@telos/harness";
 import { pathToFileURL } from "node:url";
 import open from "open";
 
@@ -72,6 +72,16 @@ export function buildProgram(): Command {
       console.warn("Harness drift detected (recommendations for affected capabilities are hidden, nothing is broken):");
       if (report.missing.length) console.warn(`  removed/renamed (pinned but gone): ${report.missing.join(", ")}`);
       if (report.added.length) console.warn(`  new (not yet pinned): ${report.added.join(", ")}`);
+    });
+  program.command("route <prompt>").description("Suggest harness capabilities for a prompt (authoring mode)")
+    .action((prompt: string) => {
+      const routed = routePrompt(prompt, PROMPT_CATALOG);
+      if (routed.length === 0) {
+        console.log("No harness capability matched this prompt.");
+        return;
+      }
+      console.log("Suggested capabilities:");
+      for (const r of routed) console.log(`  ${r.capability.id} — ${r.capability.title}  (score ${r.score})`);
     });
   return program;
 }
