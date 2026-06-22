@@ -84,14 +84,11 @@ export function PathFinderBar({
   onActivate,
   onReset,
   sourceLabel,
-  topOffset = 0,
 }: {
   state: PathFinderState;
   onActivate: () => void;
   onReset: () => void;
   sourceLabel?: string;
-  /** Additional top offset (px) to avoid overlap with other bars (e.g. TourBar). */
-  topOffset?: number;
 }) {
   const label = state.active
     ? state.sourceId
@@ -102,11 +99,6 @@ export function PathFinderBar({
   return (
     <div
       style={{
-        position: "absolute",
-        top: `calc(var(--s-3) + ${topOffset}px)`,
-        left: "50%",
-        transform: "translateX(-50%)",
-        zIndex: 6,
         display: "flex",
         alignItems: "center",
         gap: "var(--s-2)",

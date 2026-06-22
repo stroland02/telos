@@ -41,10 +41,6 @@ export function LayerFilter({ activeLayers, visibleLayers, onToggle, onShowAll }
     <div
       aria-label="Layer filter"
       style={{
-        position: "absolute",
-        bottom: "calc(var(--s-8) + var(--s-6) + 10px)",
-        left: "var(--s-4)",
-        zIndex: 5,
         background: "var(--surface)",
         border: "1px solid var(--border)",
         borderRadius: "var(--r-md)",
