@@ -34,4 +34,13 @@ describe("askGraph", () => {
   it("returns empty for a question with no overlap", () => {
     expect(askGraph(graph, "kubernetes deployment yaml")).toEqual([]);
   });
+
+  it("matches camelCase identifiers and plurals (saveOrder ~ 'orders')", () => {
+    const g: TelosGraph = {
+      nodes: [node("s", "saveOrder", "src/orderService.ts", null, 3), node("u", "renderChart", "src/ui.ts", null, 1)],
+      edges: [],
+    };
+    const answers = askGraph(g, "where are orders saved");
+    expect(answers[0].node.id).toBe("s");
+  });
 });
