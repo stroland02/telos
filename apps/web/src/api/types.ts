@@ -11,3 +11,5 @@ export interface TelosNodeDTO {
 export interface NodeDetail { node: TelosNodeDTO; callers: TelosNodeDTO[]; callees: TelosNodeDTO[]; }
 export interface SourceResult { path: string; content: string; lines: number; }
 export interface Recommendation { id: string; title: string; }
+export interface TourStop { id: string; qualifiedName: string; summary: string | null; order: number; }
+export interface Answer { id: string; qualifiedName: string; path: string; summary: string | null; score: number; }

@@ -46,4 +46,22 @@ describe("createApi", () => {
     expect(f).toHaveBeenCalledWith("/api/search?q=get");
     expect(hits[0].name).toBe("getUser");
   });
+
+  it("tour(limit) GETs /api/tour with the limit and returns stops", async () => {
+    const f = mockFetch(200, { stops: [{ id: "a", qualifiedName: "m/a", summary: null, order: 0 }] });
+    vi.stubGlobal("fetch", f);
+    const api = createApi();
+    const stops = await api.tour(5);
+    expect(f).toHaveBeenCalledWith("/api/tour?limit=5");
+    expect(stops[0].qualifiedName).toBe("m/a");
+  });
+
+  it("ask(question) encodes the query and returns answers", async () => {
+    const f = mockFetch(200, { answers: [{ id: "a", qualifiedName: "m/a", path: "a.ts", summary: null, score: 2 }] });
+    vi.stubGlobal("fetch", f);
+    const api = createApi();
+    const answers = await api.ask("where is auth");
+    expect(f).toHaveBeenCalledWith("/api/ask?q=where%20is%20auth");
+    expect(answers[0].id).toBe("a");
+  });
 });

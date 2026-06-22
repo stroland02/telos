@@ -12,6 +12,7 @@ import { DetailPanel } from "./components/DetailPanel";
 import { ShortcutsOverlay } from "./components/ShortcutsOverlay";
 import { FileTree } from "./components/FileTree";
 import { CodeViewer } from "./components/CodeViewer";
+import { AskPanel } from "./components/AskPanel";
 
 const api = createApi();
 
@@ -41,6 +42,7 @@ export function App() {
   const [detail, setDetail] = useState<NodeDetail | null>(null);
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [askOpen, setAskOpen] = useState(false);
 
   // ── File explorer state ──────────────────────────────────────────────────
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -294,6 +296,34 @@ export function App() {
         <div aria-hidden="true" style={{ width: 1, height: 20, background: "var(--border)", flexShrink: 0 }} />
 
         <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: "var(--s-2)" }}>
+          <button
+            onClick={() => setAskOpen(true)}
+            aria-label="Ask the codebase"
+            title="Ask where something happens / take a tour"
+            style={{
+              flexShrink: 0,
+              background: askOpen ? "var(--accent-soft)" : "none",
+              border: `1px solid ${askOpen ? "var(--accent)" : "var(--border)"}`,
+              borderRadius: "var(--r-sm)",
+              cursor: "pointer",
+              color: askOpen ? "var(--accent)" : "var(--text-muted)",
+              fontFamily: "var(--font-ui)",
+              fontSize: "var(--t-meta-size)",
+              lineHeight: 1,
+              height: 28,
+              padding: "0 var(--s-3)",
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--s-1)",
+              outline: "none",
+            }}
+            onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
+            onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--accent)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)"; }}
+            onMouseLeave={(e) => { if (!askOpen) { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; } }}
+          >
+            <span aria-hidden="true">✦</span> Ask
+          </button>
           <div style={{ width: 224 }}>
             <SearchBox api={api} onSelect={(node: TelosNodeDTO) => openNode(node.id)} />
           </div>
@@ -446,6 +476,7 @@ export function App() {
       </div>
 
       <DetailPanel detail={detail} recommendations={recs} onClose={() => { setDetail(null); setRecs([]); }} />
+      <AskPanel open={askOpen} api={api} onOpenNode={openNode} onClose={() => setAskOpen(false)} />
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   );

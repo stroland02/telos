@@ -1,4 +1,4 @@
-import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation } from "./types";
+import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer } from "./types";
 
 export interface TelosApi {
   overview(): Promise<GraphView>;
@@ -8,6 +8,8 @@ export interface TelosApi {
   files(): Promise<string[]>;
   source(path: string): Promise<SourceResult | null>;
   recommendations(id: string): Promise<Recommendation[]>;
+  tour(limit?: number): Promise<TourStop[]>;
+  ask(question: string, limit?: number): Promise<Answer[]>;
 }
 
 export function createApi(baseUrl = ""): TelosApi {
@@ -31,5 +33,9 @@ export function createApi(baseUrl = ""): TelosApi {
     source: (path) => getOrNull<SourceResult>(`/api/source?path=${encodeURIComponent(path)}`),
     recommendations: async (id) =>
       (await get<{ recommendations: Recommendation[] }>(`/api/node/${encodeURIComponent(id)}/recommend`)).recommendations,
+    tour: async (limit) =>
+      (await get<{ stops: TourStop[] }>(`/api/tour${limit ? `?limit=${limit}` : ""}`)).stops,
+    ask: async (question, limit) =>
+      (await get<{ answers: Answer[] }>(`/api/ask?q=${encodeURIComponent(question)}${limit ? `&limit=${limit}` : ""}`)).answers,
   };
 }
