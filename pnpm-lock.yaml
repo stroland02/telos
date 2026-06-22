@@ -71,6 +71,9 @@ importers:
       '@telos/engine':
         specifier: workspace:*
         version: link:../engine
+      '@telos/mcp':
+        specifier: workspace:*
+        version: link:../mcp
       '@telos/server':
         specifier: workspace:*
         version: link:../server

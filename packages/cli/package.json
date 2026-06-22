@@ -12,6 +12,7 @@
   "dependencies": {
     "@telos/engine": "workspace:*",
     "@telos/server": "workspace:*",
+    "@telos/mcp": "workspace:*",
     "commander": "^12.0.0",
     "open": "^10.1.0"
   },

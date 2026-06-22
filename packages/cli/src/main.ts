@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { scan } from "@telos/engine";
 import { GraphService, buildServer } from "@telos/server";
+import { loadContext, startStdio } from "@telos/mcp";
 import { pathToFileURL } from "node:url";
 import open from "open";
 
@@ -42,6 +43,17 @@ export function buildProgram(): Command {
     .action(async (path: string | undefined, opts: { port: string; open: boolean }) => {
       const { address } = await runServe({ path: path ?? ".", port: Number(opts.port), open: opts.open });
       console.log(`Telos serving the architecture map at ${address}`);
+    });
+  program.command("mcp").description("Serve the Telos graph to AI agents over MCP (stdio)")
+    .option("--db <path>", "path to graph.db", ".telos/graph.db")
+    .action(async (opts: { db: string }) => {
+      try {
+        const ctx = loadContext(resolve(process.cwd(), opts.db));
+        await startStdio(ctx);
+      } catch (err) {
+        console.error(err instanceof Error ? err.message : err);
+        process.exit(1);
+      }
     });
   return program;
 }
