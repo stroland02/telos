@@ -14,6 +14,8 @@ export interface GraphProvider {
   getRecommendations?(id: string): { id: string; title: string }[];
   /** Optional: dependency-ordered guided tour. Absent on minimal providers. */
   getTour?(limit?: number): unknown[];
+  /** Optional: "where does X happen?" answers. Absent on minimal providers. */
+  getAnswers?(q: string, limit?: number): unknown[];
   repoRoot: string | null;
 }
 
@@ -30,6 +32,13 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
     if (!provider.getTour) return reply.code(404).send({ error: "tour unavailable" });
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
     return { stops: provider.getTour(limit) };
+  });
+
+  app.get<{ Querystring: { q?: string; limit?: string } }>("/api/ask", async (req, reply) => {
+    if (!provider.getAnswers) return reply.code(404).send({ error: "ask unavailable" });
+    const q = (req.query.q ?? "").trim();
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    return { answers: q.length === 0 ? [] : provider.getAnswers(q, limit) };
   });
 
   app.get<{ Params: { id: string } }>("/api/cluster/:id", async (req, reply) => {

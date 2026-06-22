@@ -55,3 +55,9 @@ describe("telos tour command", () => {
     expect(buildProgram().commands.map((c) => c.name())).toContain("tour");
   });
 });
+
+describe("telos ask command", () => {
+  it("is registered", () => {
+    expect(buildProgram().commands.map((c) => c.name())).toContain("ask");
+  });
+});

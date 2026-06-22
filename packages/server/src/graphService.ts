@@ -1,6 +1,6 @@
 // packages/server/src/graphService.ts
 import {
-  GraphStore, aggregate, overview, childrenOf, nodeDetail, resolveNode, buildTour,
+  GraphStore, aggregate, overview, childrenOf, nodeDetail, resolveNode, buildTour, askGraph,
   TelosGraph, TelosNode, AggregatedGraph, GraphView, NodeDetail,
 } from "@telos/engine";
 import { recommend } from "@telos/harness";
@@ -31,6 +31,13 @@ export class GraphService implements GraphProvider {
   getTour(limit?: number) {
     return buildTour(this.graph, { limit }).map((s) => ({
       id: s.node.id, qualifiedName: s.node.qualifiedName, summary: s.node.summary, order: s.order,
+    }));
+  }
+
+  getAnswers(q: string, limit?: number) {
+    return askGraph(this.graph, q, { limit }).map((a) => ({
+      id: a.node.id, qualifiedName: a.node.qualifiedName, path: a.node.path,
+      summary: a.node.summary, score: a.score,
     }));
   }
 
