@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { TelosGraph, TelosNode } from "@telos/engine";
-import { runExplore, runCallers, runImpact, runRecommend, ToolContext } from "./tools.js";
+import { runExplore, runCallers, runImpact, runRecommend, runTour, runAsk, ToolContext } from "./tools.js";
 
 function node(id: string): TelosNode {
   return {
@@ -38,5 +38,14 @@ describe("tool handlers", () => {
   });
   it("runRecommend returns empty for an unknown symbol", () => {
     expect(runRecommend(ctx(), { symbol: "nope" })).toEqual({ node: null, capabilities: [] });
+  });
+  it("runTour returns dependency-ordered stops (alpha depends on beta -> beta first)", () => {
+    const { stops } = runTour(ctx(), {});
+    const order = stops.map((s) => s.qualifiedName);
+    expect(order.indexOf("m/beta")).toBeLessThan(order.indexOf("m/alpha"));
+  });
+  it("runAsk ranks a relevant symbol for a question", () => {
+    const answers = runAsk(ctx(), { question: "where is alpha" }).answers;
+    expect(answers[0].qualifiedName).toBe("m/alpha");
   });
 });

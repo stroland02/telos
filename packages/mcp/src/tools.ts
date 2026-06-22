@@ -1,6 +1,7 @@
 import {
   GraphStore, TelosGraph, TelosNode,
   callersOf, calleesOf, impactOf, affectedBy, explore, ExploreHit, resolveNode,
+  buildTour, askGraph,
 } from "@telos/engine";
 import { recommend } from "@telos/harness";
 
@@ -33,4 +34,18 @@ export function runRecommend(ctx: ToolContext, args: { symbol: string }): { node
   const node = resolveNode(ctx.graph, args.symbol);
   if (!node) return { node: null, capabilities: [] };
   return { node: node.qualifiedName, capabilities: recommend(node).map((c) => ({ id: c.id, title: c.title })) };
+}
+export function runTour(ctx: ToolContext, args: { limit?: number }): { stops: { qualifiedName: string; summary: string | null; order: number }[] } {
+  return {
+    stops: buildTour(ctx.graph, { limit: args.limit }).map((s) => ({
+      qualifiedName: s.node.qualifiedName, summary: s.node.summary, order: s.order,
+    })),
+  };
+}
+export function runAsk(ctx: ToolContext, args: { question: string; limit?: number }): { answers: { qualifiedName: string; path: string; summary: string | null; score: number }[] } {
+  return {
+    answers: askGraph(ctx.graph, args.question, { limit: args.limit }).map((a) => ({
+      qualifiedName: a.node.qualifiedName, path: a.node.path, summary: a.node.summary, score: a.score,
+    })),
+  };
 }

@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { ToolContext, runExplore, runCallers, runCallees, runImpact, runAffected, runRecommend } from "./tools.js";
+import { ToolContext, runExplore, runCallers, runCallees, runImpact, runAffected, runRecommend, runTour, runAsk } from "./tools.js";
 
 const asText = (result: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
@@ -62,6 +62,24 @@ export function buildMcpServer(ctx: ToolContext): McpServer {
       inputSchema: { symbol: z.string() },
     },
     async (args) => asText(runRecommend(ctx, args)),
+  );
+
+  server.registerTool(
+    "telos_tour",
+    {
+      description: "A dependency-ordered walkthrough of the codebase (dependencies before dependents), each stop with its summary.",
+      inputSchema: { limit: z.number().optional() },
+    },
+    async (args) => asText(runTour(ctx, args)),
+  );
+
+  server.registerTool(
+    "telos_ask",
+    {
+      description: "Where does X happen? Ranks the most relevant symbols for a natural-language question over the graph.",
+      inputSchema: { question: z.string(), limit: z.number().optional() },
+    },
+    async (args) => asText(runAsk(ctx, args)),
   );
 
   return server;
