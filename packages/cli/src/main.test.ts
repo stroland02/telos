@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runScan, buildProgram } from "./main.js";
+import { runScan, runEnrich, buildProgram } from "./main.js";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -47,6 +47,15 @@ describe("telos enrich command", () => {
   it("is registered", () => {
     const names = buildProgram().commands.map((c) => c.name());
     expect(names).toContain("enrich");
+  });
+});
+
+describe("runEnrich enricher selection", () => {
+  it("completes via fallback on the LLM path when no server is running", async () => {
+    await runScan(repo); // ensure a graph.db exists
+    const r = await runEnrich(repo, { llm: true, concurrency: 2 });
+    expect(r.enriched).toBeGreaterThan(0); // fallback guarantees completion
+    expect(r.enricher).toBe("llm");
   });
 });
 

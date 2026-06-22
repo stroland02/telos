@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { resolve, join, dirname } from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { scan, GraphStore, enrichGraph, heuristicEnricher, buildTour, askGraph } from "@telos/engine";
+import { scan, GraphStore, enrichGraph, heuristicEnricher, createLlmEnricher, buildTour, askGraph } from "@telos/engine";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
 import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, buildSetupPlan } from "@telos/harness";
@@ -14,16 +14,22 @@ export async function runScan(path: string): Promise<{ nodeCount: number; edgeCo
   return { nodeCount: graph.nodes.length, edgeCount: graph.edges.length, dbPath };
 }
 
-export async function runEnrich(path: string): Promise<{ enriched: number; dbPath: string }> {
+export async function runEnrich(
+  path: string,
+  opts: { llm?: boolean; model?: string; baseUrl?: string; concurrency?: number } = {},
+): Promise<{ enriched: number; dbPath: string; enricher: string }> {
   const dbPath = join(resolve(path), ".telos", "graph.db");
   if (!existsSync(dbPath)) {
     throw new Error(`No graph found at ${dbPath}. Run 'telos scan ${path}' first.`);
   }
+  const enricher = opts.llm
+    ? createLlmEnricher({ model: opts.model, baseUrl: opts.baseUrl })
+    : heuristicEnricher;
   const store = GraphStore.open(dbPath);
   try {
-    const enriched = await enrichGraph(store.loadGraph(), heuristicEnricher);
+    const enriched = await enrichGraph(store.loadGraph(), enricher, { concurrency: opts.concurrency });
     store.applyEnrichment(enriched.nodes.map((n) => ({ id: n.id, summary: n.summary!, layer: n.layer })));
-    return { enriched: enriched.nodes.length, dbPath };
+    return { enriched: enriched.nodes.length, dbPath, enricher: enricher.name };
   } finally {
     store.close();
   }
@@ -71,10 +77,16 @@ export function buildProgram(): Command {
         process.exit(1);
       }
     });
-  program.command("enrich [path]").description("Fill node summaries from the graph (deterministic; no LLM)")
-    .action(async (path: string | undefined) => {
-      const r = await runEnrich(path ?? ".");
-      console.log(`Telos: enriched ${r.enriched} nodes -> ${r.dbPath}`);
+  program.command("enrich [path]").description("Fill node summaries (heuristic by default; --llm for a local model)")
+    .option("--llm", "use a local OpenAI-compatible model (e.g. Ollama)", false)
+    .option("--model <name>", "model id", "qwen2.5-coder:7b")
+    .option("--base-url <url>", "OpenAI-compatible base URL", "http://localhost:11434/v1")
+    .option("-c, --concurrency <n>", "parallel enrichment requests", "8")
+    .action(async (path: string | undefined, opts: { llm: boolean; model: string; baseUrl: string; concurrency: string }) => {
+      const r = await runEnrich(path ?? ".", {
+        llm: opts.llm, model: opts.model, baseUrl: opts.baseUrl, concurrency: Number(opts.concurrency),
+      });
+      console.log(`Telos: enriched ${r.enriched} nodes via ${r.enricher} -> ${r.dbPath}`);
     });
   program.command("tour [path]").description("Print a dependency-ordered walkthrough of the codebase")
     .option("-n, --limit <n>", "max stops", "20")
