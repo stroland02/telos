@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { ToolContext, runExplore, runCallers, runCallees, runImpact, runAffected } from "./tools.js";
+import { ToolContext, runExplore, runCallers, runCallees, runImpact, runAffected, runRecommend } from "./tools.js";
 
 const asText = (result: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
@@ -53,6 +53,15 @@ export function buildMcpServer(ctx: ToolContext): McpServer {
       inputSchema: { paths: z.array(z.string()) },
     },
     async (args) => asText(runAffected(ctx, args)),
+  );
+
+  server.registerTool(
+    "telos_recommend",
+    {
+      description: "Recommend relevant harness capabilities (review agents/skills) for a symbol based on its code context.",
+      inputSchema: { symbol: z.string() },
+    },
+    async (args) => asText(runRecommend(ctx, args)),
   );
 
   return server;

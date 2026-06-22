@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { TelosGraph, TelosNode } from "@telos/engine";
-import { runExplore, runCallers, runImpact, ToolContext } from "./tools.js";
+import { runExplore, runCallers, runImpact, runRecommend, ToolContext } from "./tools.js";
 
 function node(id: string): TelosNode {
   return {
@@ -28,5 +28,15 @@ describe("tool handlers", () => {
   });
   it("runImpact returns reverse closure", () => {
     expect(runImpact(ctx(), { symbol: "beta" }).map((n) => n.id)).toEqual(["alpha"]);
+  });
+  it("runRecommend suggests capabilities for the resolved node", () => {
+    const c = ctx();
+    c.graph.nodes[0].path = "src/components/Button.tsx"; // make alpha a React component
+    const out = runRecommend(c, { symbol: "alpha" });
+    expect(out.node).toBe("m/alpha");
+    expect(out.capabilities.map((x) => x.id)).toContain("ecc:react-reviewer");
+  });
+  it("runRecommend returns empty for an unknown symbol", () => {
+    expect(runRecommend(ctx(), { symbol: "nope" })).toEqual({ node: null, capabilities: [] });
   });
 });

@@ -1,7 +1,8 @@
 import {
   GraphStore, TelosGraph, TelosNode,
-  callersOf, calleesOf, impactOf, affectedBy, explore, ExploreHit,
+  callersOf, calleesOf, impactOf, affectedBy, explore, ExploreHit, resolveNode,
 } from "@telos/engine";
+import { recommend } from "@telos/harness";
 
 export interface ToolContext { graph: TelosGraph; store: GraphStore | null }
 
@@ -27,4 +28,9 @@ export function runImpact(ctx: ToolContext, args: { symbol: string }): TelosNode
 }
 export function runAffected(ctx: ToolContext, args: { paths: string[] }): { symbols: TelosNode[]; files: string[] } {
   return affectedBy(ctx.graph, args.paths);
+}
+export function runRecommend(ctx: ToolContext, args: { symbol: string }): { node: string | null; capabilities: { id: string; title: string }[] } {
+  const node = resolveNode(ctx.graph, args.symbol);
+  if (!node) return { node: null, capabilities: [] };
+  return { node: node.qualifiedName, capabilities: recommend(node).map((c) => ({ id: c.id, title: c.title })) };
 }
