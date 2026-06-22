@@ -243,8 +243,10 @@ Rust, Java, C#, Ruby, PHP, C/C++, Swift, Kotlin) — covering ~95% of real repos
 | Phase | Scope | Enabled by v1 design |
 |---|---|---|
 | **v1 (this spec)** | Universal static graph + sleek semantic-zoom map, CLI + local web | — |
+| **Phase 1.5 — Telos for Agents (MCP) + Harness Fusion** | Expose `graph.db` as an MCP server (`explore`/`callers`/`callees`/`impact`/`affected`) so AI agents stop blindly grepping — the *measurable* cost-saving pillar. Plus the orchestrate-and-curate harness fusion that bundles ECC + Superpowers for the installing developer. **Full design: [`2026-06-21-telos-agent-layer-and-harness-fusion-design.md`](./2026-06-21-telos-agent-layer-and-harness-fusion-design.md).** | Same `graph.db` artifact CodeGraph serves; thin adapter, zero new engine work |
 | **Phase 2 — Sentinel goes live** | OpenTelemetry ingest → animate real traffic/latency/errors on the map; process-level monitoring (see §8.1) | API server + node IDs map cleanly to OTel span names |
-| **Phase 3 — Semantic brain** | LLM pass fills `summary`, accurate layers/domains, guided tours, Q&A | `layer`/`summary` fields already in schema |
+| **Phase 3 — Semantic brain** | LLM pass fills `summary`, accurate layers/domains, dependency-ordered guided tours, business-domain view, "where does X happen?" Q&A (features named from Understand-Anything) | `layer`/`summary` fields already in schema |
+| **Phase 3-lite (optional, near-term)** | Non-LLM human-value wins: dependency-order tour scaffold, diff/impact view, shareable graph export | Aggregator already computes dependency order + metrics |
 | **Phase 4 — Telos Forge (beta vision)** | Visual-first construction: build software by composing the architecture map; round-trip to code (see §8.2) | Universal bidirectional graph is the same model; nodes/edges become editable authoring primitives |
 
 ### 8.1 Phase 2 Deep-Dive — Live Monitoring Strategy (reference capture)
@@ -280,7 +282,14 @@ telemetry, modeled on:
 - **Sysinternals Process Monitor** — real-time file/registry/process/thread activity with
   full thread stacks and non-destructive filtering.
 - **System Informer** (ex-Process Hacker) — live CPU/memory/I/O/GPU, thread & handle
-  detail, open-source reference implementation.
+  detail, **open-source** (BSD/MIT components) — the **reference implementation Telos
+  should learn from / interop with** for the advanced process overlay.
+- **Process Lasso** — process priority/affinity control, ProBalance, watchdog (free for
+  personal use; closed source — design inspiration only).
+- **Task Manager DeLuxe** — CPU/disk/RAM/GPU graphs, Autoruns, I/O tracking (free).
+
+Of these, **System Informer is the only fully open-source option**, so it is the primary
+OSS opportunity for the Phase 2 process overlay; the others are design references.
 
 **Windows-native instrumentation worth implementing** (for deep local monitoring on
 Windows hosts):
@@ -344,8 +353,17 @@ so the eventual design starts from an honest problem statement.
 
 ## 10. References
 
+### Telos sub-specs (later phases)
+
+- Phase 1.5 — Agent layer (MCP) + Harness fusion — [`2026-06-21-telos-agent-layer-and-harness-fusion-design.md`](./2026-06-21-telos-agent-layer-and-harness-fusion-design.md)
+- Industry-standard OSS adoption sweep — [`2026-06-21-telos-industry-standard-oss-adoption.md`](./2026-06-21-telos-industry-standard-oss-adoption.md)
+
+### External
+
 - CodeGraph — https://github.com/colbymchenry/codegraph
 - Understand-Anything — https://github.com/Egonex-AI/Understand-Anything
+- CodeViz — https://www.codeviz.ai/
+- ECC harness — https://github.com/affaan-m/ECC · Superpowers — https://github.com/obra/superpowers · Headroom — https://github.com/chopratejas/headroom
 - tree-sitter-language-pack (306 langs) — https://github.com/kreuzberg-dev/tree-sitter-language-pack
 - Codebase-Memory (arXiv) — https://arxiv.org/html/2603.27277v1
 - YASA Unified AST (arXiv) — https://arxiv.org/html/2601.17390v2
