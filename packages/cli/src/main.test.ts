@@ -21,3 +21,10 @@ describe("telos mcp command", () => {
     expect(names).toContain("mcp");
   });
 });
+
+describe("telos doctor command", () => {
+  it("is registered", () => {
+    const names = buildProgram().commands.map((c) => c.name());
+    expect(names).toContain("doctor");
+  });
+});

@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { scan } from "@telos/engine";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
+import { runDoctor, DEFAULT_CATALOG } from "@telos/harness";
 import { pathToFileURL } from "node:url";
 import open from "open";
 
@@ -54,6 +55,23 @@ export function buildProgram(): Command {
         console.error(err instanceof Error ? err.message : err);
         process.exit(1);
       }
+    });
+  program.command("doctor").description("Check the harness for capability drift (and bootstrap .telos/harness.lock)")
+    .option("--dir <path>", "project dir containing .telos", ".")
+    .action((opts: { dir: string }) => {
+      const lockPath = resolve(process.cwd(), opts.dir, ".telos", "harness.lock");
+      const { initialized, report } = runDoctor(lockPath);
+      if (initialized) {
+        console.log(`Initialized ${lockPath} with ${DEFAULT_CATALOG.length} pinned capabilities.`);
+        return;
+      }
+      if (report.status === "ok") {
+        console.log(`Harness OK — no capability drift (${DEFAULT_CATALOG.length} capabilities).`);
+        return;
+      }
+      console.warn("Harness drift detected (recommendations for affected capabilities are hidden, nothing is broken):");
+      if (report.missing.length) console.warn(`  removed/renamed (pinned but gone): ${report.missing.join(", ")}`);
+      if (report.added.length) console.warn(`  new (not yet pinned): ${report.added.join(", ")}`);
     });
   return program;
 }
