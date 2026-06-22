@@ -238,6 +238,28 @@ export function DetailPanel({ detail, onClose, recommendations = [] }: { detail:
         {complexityStr && <MetaChip label={complexityStr} />}
       </div>
 
+      {n.summary && (
+        <>
+          <Divider />
+          <div>
+            <div
+              style={{
+                fontSize: "var(--t-label-size)",
+                lineHeight: "var(--t-label-lh)",
+                fontWeight: "var(--t-label-weight)" as React.CSSProperties["fontWeight"],
+                color: "var(--text-muted)",
+                marginBottom: "var(--s-1)",
+              }}
+            >
+              Summary
+            </div>
+            <p style={{ margin: 0, fontSize: "var(--t-meta-size)", lineHeight: "var(--t-meta-lh)", color: "var(--text)" }}>
+              {n.summary}
+            </p>
+          </div>
+        </>
+      )}
+
       <Divider />
 
       <NodeList title="Callers" nodes={detail.callers} />
