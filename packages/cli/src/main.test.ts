@@ -42,3 +42,22 @@ describe("telos setup command", () => {
     expect(names).toContain("setup");
   });
 });
+
+describe("telos enrich command", () => {
+  it("is registered", () => {
+    const names = buildProgram().commands.map((c) => c.name());
+    expect(names).toContain("enrich");
+  });
+});
+
+describe("telos tour command", () => {
+  it("is registered", () => {
+    expect(buildProgram().commands.map((c) => c.name())).toContain("tour");
+  });
+});
+
+describe("telos ask command", () => {
+  it("is registered", () => {
+    expect(buildProgram().commands.map((c) => c.name())).toContain("ask");
+  });
+});
