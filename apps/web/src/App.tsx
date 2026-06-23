@@ -16,6 +16,7 @@ import { ShortcutsOverlay } from "./components/ShortcutsOverlay";
 import { FileTree } from "./components/FileTree";
 import { CodeViewer } from "./components/CodeViewer";
 import { AskPanel } from "./components/AskPanel";
+import { ProcessPanel } from "./components/ProcessPanel";
 
 const api = createApi();
 
@@ -48,6 +49,7 @@ export function App() {
   const [metrics, setMetrics] = useState<MetricSeries[]>([]);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
+  const [procsOpen, setProcsOpen] = useState(false);
   const [liveOn, setLiveOn] = useState(false);
   const trace = useTraceOverlay(api, liveOn);
   const playback = useTracePlayback(api);
@@ -401,6 +403,33 @@ export function App() {
             {hotOn && profile.snapshot ? `Hot · ${profile.totalSamples}` : "Hot"}
           </button>
           <button
+            onClick={() => setProcsOpen(true)}
+            aria-label="Show local processes"
+            aria-pressed={procsOpen}
+            title="Local processes (CPU/memory), mapped to code"
+            style={{
+              flexShrink: 0,
+              background: procsOpen ? "var(--accent-soft)" : "none",
+              border: `1px solid ${procsOpen ? "var(--accent)" : "var(--border)"}`,
+              borderRadius: "var(--r-sm)",
+              cursor: "pointer",
+              color: procsOpen ? "var(--accent)" : "var(--text-muted)",
+              fontFamily: "var(--font-ui)",
+              fontSize: "var(--t-meta-size)",
+              lineHeight: 1,
+              height: 28,
+              padding: "0 var(--s-3)",
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--s-1)",
+              outline: "none",
+            }}
+            onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
+            onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+          >
+            <span aria-hidden="true">▤</span> Procs
+          </button>
+          <button
             onClick={() => setAskOpen(true)}
             aria-label="Ask the codebase"
             title="Ask where something happens / take a tour"
@@ -584,6 +613,7 @@ export function App() {
 
       <DetailPanel detail={detail} recommendations={recs} logs={logs} metrics={metrics} onClose={() => { setDetail(null); setRecs([]); setLogs([]); setMetrics([]); }} />
       <AskPanel open={askOpen} api={api} onOpenNode={openNode} onClose={() => setAskOpen(false)} />
+      <ProcessPanel open={procsOpen} api={api} onOpenNode={openNode} onClose={() => setProcsOpen(false)} />
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   );

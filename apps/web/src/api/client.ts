@@ -1,4 +1,4 @@
-import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot } from "./types";
+import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot, ProcessSample } from "./types";
 
 export interface TelosApi {
   overview(): Promise<GraphView>;
@@ -24,6 +24,8 @@ export interface TelosApi {
   nodeMetrics(nodeId: string, limit?: number): Promise<MetricSeries[]>;
   /** Hot-path profile snapshot (self/total samples per node). */
   profile(limit?: number): Promise<ProfileSnapshot>;
+  /** Latest local process snapshot (CPU-sorted, node-tagged). */
+  processes(limit?: number): Promise<ProcessSample[]>;
 }
 
 export function createApi(baseUrl = ""): TelosApi {
@@ -74,5 +76,7 @@ export function createApi(baseUrl = ""): TelosApi {
     nodeMetrics: async (nodeId, limit) =>
       (await get<{ series: MetricSeries[] }>(`/api/metrics?node=${encodeURIComponent(nodeId)}${limit ? `&limit=${limit}` : ""}`)).series,
     profile: (limit) => get<ProfileSnapshot>(`/api/profile${limit ? `?limit=${limit}` : ""}`),
+    processes: async (limit) =>
+      (await get<{ processes: ProcessSample[] }>(`/api/processes${limit ? `?limit=${limit}` : ""}`)).processes,
   };
 }

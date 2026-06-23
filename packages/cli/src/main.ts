@@ -2,7 +2,9 @@ import { Command } from "commander";
 import { resolve, join, dirname } from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { scan, GraphStore, enrichGraph, heuristicEnricher, createLlmEnricher, buildTour, askGraph } from "@telos/engine";
+import { scan, GraphStore, enrichGraph, heuristicEnricher, createLlmEnricher, buildTour, askGraph, ProcessSample } from "@telos/engine";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
 import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, buildSetupPlan } from "@telos/harness";
@@ -141,6 +143,68 @@ export async function runTraceDemo(
   return { spans, logs, metrics, profileLines, url };
 }
 
+const pexecFile = promisify(execFile);
+
+/** Enumerate local processes via the OS. Windows uses Win32_Process (gives the
+ *  command line, which powers the node join); unix uses ps. CPU% is best-effort
+ *  (0 on Windows where it needs sampling). */
+export async function collectProcesses(): Promise<ProcessSample[]> {
+  if (process.platform === "win32") {
+    const { stdout } = await pexecFile("powershell", [
+      "-NoProfile", "-Command",
+      "Get-CimInstance Win32_Process | Select-Object ProcessId,Name,CommandLine,WorkingSetSize | ConvertTo-Json -Compress",
+    ], { maxBuffer: 32 * 1024 * 1024 });
+    const raw = JSON.parse(stdout);
+    const arr = Array.isArray(raw) ? raw : [raw];
+    return arr.map((p: { ProcessId?: number; Name?: string; CommandLine?: string; WorkingSetSize?: number }) => ({
+      pid: Number(p.ProcessId ?? 0), name: String(p.Name ?? ""), cmd: p.CommandLine ?? "",
+      cpu: 0, memMb: Number(p.WorkingSetSize ?? 0) / 1048576,
+    })).filter((p) => p.pid > 0);
+  }
+  const { stdout } = await pexecFile("ps", ["-axo", "pid=,%cpu=,rss=,comm=,args="], { maxBuffer: 32 * 1024 * 1024 });
+  return stdout.split("\n").map((l) => l.trim()).filter(Boolean).map((line) => {
+    const m = line.match(/^(\d+)\s+([\d.]+)\s+(\d+)\s+(\S+)\s+(.*)$/);
+    if (!m) return null;
+    return { pid: Number(m[1]), name: m[4], cmd: m[5], cpu: Number(m[2]), memMb: Number(m[3]) / 1024 } as ProcessSample;
+  }).filter((p): p is ProcessSample => p !== null);
+}
+
+/** Synthetic processes whose cmd references real file paths (so they tag to nodes). */
+export function buildDemoProcesses(paths: string[]): ProcessSample[] {
+  const out: ProcessSample[] = [
+    { pid: 9001, name: "chrome", cmd: "chrome.exe", cpu: 28.4, memMb: 720 },
+    { pid: 4242, name: "node", cmd: `node ${paths[0] ?? "app.js"} --watch`, cpu: 14.2, memMb: 210 },
+    { pid: 5310, name: "telos", cmd: "node telos serve", cpu: 2.1, memMb: 90 },
+  ];
+  if (paths[1]) out.push({ pid: 7777, name: "worker", cmd: `node ${paths[1]}`, cpu: 6.0, memMb: 140 });
+  return out;
+}
+
+export async function runTop(opts: {
+  url?: string; path?: string; demo?: boolean;
+  fetchImpl?: typeof fetch; collectImpl?: () => Promise<ProcessSample[]>;
+} = {}): Promise<{ count: number; url: string }> {
+  const url = (opts.url ?? "http://localhost:5180").replace(/\/$/, "");
+  const doFetch = opts.fetchImpl ?? fetch;
+  let processes: ProcessSample[];
+  if (opts.demo) {
+    let paths: string[] = [];
+    const dbPath = join(resolve(opts.path ?? "."), ".telos", "graph.db");
+    if (existsSync(dbPath)) {
+      const store = GraphStore.open(dbPath);
+      try { paths = store.loadGraph().nodes.filter((n) => n.kind === "file").slice(0, 3).map((n) => n.path); } finally { store.close(); }
+    }
+    processes = buildDemoProcesses(paths);
+  } else {
+    processes = await (opts.collectImpl ?? collectProcesses)();
+  }
+  const res = await doFetch(`${url}/v1/processes`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ processes }),
+  });
+  if (!res.ok) throw new Error(`processes POST failed: ${res.status}`);
+  return { count: processes.length, url };
+}
+
 export async function runServe(opts: { path: string; port: number; open?: boolean }): Promise<{ address: string; close: () => Promise<void> }> {
   const repo = resolve(opts.path);
   const dbPath = join(repo, ".telos", "graph.db");
@@ -226,6 +290,14 @@ export function buildProgram(): Command {
       if (!opts.demo) { console.log("Nothing to do. Use `telos trace --demo` to emit synthetic traffic."); return; }
       const r = await runTraceDemo({ url: opts.url, path: opts.path });
       console.log(`Telos: emitted ${r.spans} spans + ${r.logs} logs + ${r.metrics} metrics + ${r.profileLines} profile stacks -> ${r.url} (toggle "● Live", "▷ Replay", "🔥 Hot", or open a node)`);
+    });
+  program.command("top").description("Push a local process snapshot to a running server (process overlay)")
+    .option("--demo", "push synthetic processes instead of enumerating the OS", false)
+    .option("--url <url>", "running Telos server base URL", "http://localhost:5180")
+    .option("-p, --path <path>", "repo path (to map demo processes onto real files)", ".")
+    .action(async (opts: { demo: boolean; url: string; path: string }) => {
+      const r = await runTop({ url: opts.url, path: opts.path, demo: opts.demo });
+      console.log(`Telos: pushed ${r.count} processes -> ${r.url}/v1/processes (open "▤ Procs" in the map)`);
     });
   program.command("setup").description("Print harness install commands (ECC/Superpowers/Headroom) and bootstrap .telos/harness.lock")
     .option("--dir <path>", "project dir containing .telos", ".")

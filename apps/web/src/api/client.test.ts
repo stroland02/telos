@@ -114,6 +114,14 @@ describe("createApi", () => {
     expect(snap.nodes[0].total).toBe(9);
   });
 
+  it("processes() returns the process array", async () => {
+    const f = mockFetch(200, { processes: [{ pid: 1, name: "node", cpu: 2, memMb: 50, nodeId: null }] });
+    vi.stubGlobal("fetch", f);
+    const procs = await createApi().processes(100);
+    expect(f).toHaveBeenCalledWith("/api/processes?limit=100");
+    expect(procs[0].name).toBe("node");
+  });
+
   it("subscribeTrace() parses SSE frames and unsubscribes by closing", () => {
     let last: FakeES | null = null;
     class FakeES {
