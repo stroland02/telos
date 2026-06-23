@@ -1,4 +1,4 @@
-import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries } from "./types";
+import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot } from "./types";
 
 export interface TelosApi {
   overview(): Promise<GraphView>;
@@ -22,6 +22,8 @@ export interface TelosApi {
   nodeLogs(nodeId?: string, limit?: number): Promise<LogLine[]>;
   /** Per-node metric series (latest + recent points). */
   nodeMetrics(nodeId: string, limit?: number): Promise<MetricSeries[]>;
+  /** Hot-path profile snapshot (self/total samples per node). */
+  profile(limit?: number): Promise<ProfileSnapshot>;
 }
 
 export function createApi(baseUrl = ""): TelosApi {
@@ -71,5 +73,6 @@ export function createApi(baseUrl = ""): TelosApi {
     },
     nodeMetrics: async (nodeId, limit) =>
       (await get<{ series: MetricSeries[] }>(`/api/metrics?node=${encodeURIComponent(nodeId)}${limit ? `&limit=${limit}` : ""}`)).series,
+    profile: (limit) => get<ProfileSnapshot>(`/api/profile${limit ? `?limit=${limit}` : ""}`),
   };
 }

@@ -106,6 +106,14 @@ describe("createApi", () => {
     expect(series[0].latest).toBe(14);
   });
 
+  it("profile() GETs /api/profile", async () => {
+    const f = mockFetch(200, { nodes: [{ nodeId: "A", self: 2, total: 9 }], totalSamples: 9, unmatched: 0 });
+    vi.stubGlobal("fetch", f);
+    const snap = await createApi().profile();
+    expect(f).toHaveBeenCalledWith("/api/profile");
+    expect(snap.nodes[0].total).toBe(9);
+  });
+
   it("subscribeTrace() parses SSE frames and unsubscribes by closing", () => {
     let last: FakeES | null = null;
     class FakeES {

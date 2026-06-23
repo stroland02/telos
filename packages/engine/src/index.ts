@@ -14,3 +14,4 @@ export * from "./trace/aggregator.js";
 export * from "./trace/buffer.js";
 export * from "./trace/logs.js";
 export * from "./trace/metrics.js";
+export * from "./trace/profile.js";
