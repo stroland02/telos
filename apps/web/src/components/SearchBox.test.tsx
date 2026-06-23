@@ -5,7 +5,7 @@ import { SearchBox } from "./SearchBox";
 import { TelosApi } from "../api/client";
 
 function api(results: any[]): TelosApi {
-  return { overview: vi.fn(), cluster: vi.fn(), node: vi.fn(), search: vi.fn().mockResolvedValue(results), files: vi.fn().mockResolvedValue([]), source: vi.fn().mockResolvedValue(null), recommendations: vi.fn().mockResolvedValue([]), tour: vi.fn().mockResolvedValue([]), ask: vi.fn().mockResolvedValue([]), traceState: vi.fn().mockResolvedValue({ nodes: [], edges: [], unmapped: 0, unmappedEdges: 0, windowMs: 30000 }), subscribeTrace: vi.fn().mockReturnValue(() => {}), recentTraces: vi.fn().mockResolvedValue([]), traceReplay: vi.fn().mockResolvedValue([]), nodeLogs: vi.fn().mockResolvedValue([]) };
+  return { overview: vi.fn(), cluster: vi.fn(), node: vi.fn(), search: vi.fn().mockResolvedValue(results), files: vi.fn().mockResolvedValue([]), source: vi.fn().mockResolvedValue(null), recommendations: vi.fn().mockResolvedValue([]), tour: vi.fn().mockResolvedValue([]), ask: vi.fn().mockResolvedValue([]), traceState: vi.fn().mockResolvedValue({ nodes: [], edges: [], unmapped: 0, unmappedEdges: 0, windowMs: 30000 }), subscribeTrace: vi.fn().mockReturnValue(() => {}), recentTraces: vi.fn().mockResolvedValue([]), traceReplay: vi.fn().mockResolvedValue([]), nodeLogs: vi.fn().mockResolvedValue([]), nodeMetrics: vi.fn().mockResolvedValue([]) };
 }
 
 describe("SearchBox", () => {

@@ -27,3 +27,4 @@ export interface TraceState {
 export interface TraceSummary { traceId: string; rootName: string; spanCount: number; durationMs: number; hasError: boolean; }
 export interface TracePathStep { order: number; spanId: string; name: string; nodeId: string | null; durationMs: number; isError: boolean; depth: number; }
 export interface LogLine { ts: number; severity: string; body: string; attrs: Record<string, string>; traceId?: string; spanId?: string; nodeId: string | null; }
+export interface MetricSeries { name: string; unit: string; latest: number; points: number[]; }

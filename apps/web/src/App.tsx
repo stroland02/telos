@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { createApi } from "./api/client";
-import { NodeDetail, SourceResult, TelosNodeDTO, Recommendation, LogLine } from "./api/types";
+import { NodeDetail, SourceResult, TelosNodeDTO, Recommendation, LogLine, MetricSeries } from "./api/types";
 import { useNavigation } from "./graph/useNavigation";
 import { useTraceOverlay } from "./graph/useTraceOverlay";
 import { useTracePlayback } from "./graph/useTracePlayback";
@@ -44,6 +44,7 @@ export function App() {
   const [detail, setDetail] = useState<NodeDetail | null>(null);
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [logs, setLogs] = useState<LogLine[]>([]);
+  const [metrics, setMetrics] = useState<MetricSeries[]>([]);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
   const [liveOn, setLiveOn] = useState(false);
@@ -152,6 +153,7 @@ export function App() {
     void api.node(id).then((d) => { if (d) setDetail(d); });
     void api.recommendations(id).then(setRecs).catch(() => setRecs([]));
     void api.nodeLogs(id, 20).then(setLogs).catch(() => setLogs([]));
+    void api.nodeMetrics(id).then(setMetrics).catch(() => setMetrics([]));
   }, []);
 
   // ── Splitter drag logic ──────────────────────────────────────────────────
@@ -548,7 +550,7 @@ export function App() {
         )}
       </div>
 
-      <DetailPanel detail={detail} recommendations={recs} logs={logs} onClose={() => { setDetail(null); setRecs([]); setLogs([]); }} />
+      <DetailPanel detail={detail} recommendations={recs} logs={logs} metrics={metrics} onClose={() => { setDetail(null); setRecs([]); setLogs([]); setMetrics([]); }} />
       <AskPanel open={askOpen} api={api} onOpenNode={openNode} onClose={() => setAskOpen(false)} />
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>

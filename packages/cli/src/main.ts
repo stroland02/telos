@@ -71,9 +71,22 @@ export function buildDemoLogs(names: string[]): { resourceLogs: unknown[] } {
   return { resourceLogs: [{ scopeLogs: [{ logRecords }] }] };
 }
 
+/** Synthetic OTLP/HTTP JSON metrics (gauge points) whose code.* attrs map to nodes. */
+export function buildDemoMetrics(names: string[]): { resourceMetrics: unknown[] } {
+  const metrics = names.slice(0, 3).map((n, i) => ({
+    name: i === 0 ? "latency_ms" : i === 1 ? "calls_total" : "errors_total",
+    unit: i === 0 ? "ms" : "1",
+    gauge: { dataPoints: [
+      { timeUnixNano: "1000000", asDouble: (i + 1) * 7, attributes: [{ key: "code.function", value: { stringValue: n } }] },
+      { timeUnixNano: "2000000", asDouble: (i + 1) * 11, attributes: [{ key: "code.function", value: { stringValue: n } }] },
+    ] },
+  }));
+  return { resourceMetrics: [{ scopeMetrics: [{ metrics }] }] };
+}
+
 export async function runTraceDemo(
   opts: { url?: string; path?: string; fetchImpl?: typeof fetch } = {},
-): Promise<{ spans: number; logs: number; url: string }> {
+): Promise<{ spans: number; logs: number; metrics: number; url: string }> {
   const url = (opts.url ?? "http://localhost:5180").replace(/\/$/, "");
   const doFetch = opts.fetchImpl ?? fetch;
   // Prefer real qualifiedNames from the scanned graph so demo traffic lands on
@@ -103,7 +116,14 @@ export async function runTraceDemo(
   });
   if (!logRes.ok) throw new Error(`logs demo POST failed: ${logRes.status}`);
 
-  return { spans, logs, url };
+  const metricsBody = buildDemoMetrics(names);
+  const metrics = (metricsBody.resourceMetrics[0] as { scopeMetrics: { metrics: unknown[] }[] }).scopeMetrics[0].metrics.length;
+  const metricRes = await doFetch(`${url}/v1/metrics`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(metricsBody),
+  });
+  if (!metricRes.ok) throw new Error(`metrics demo POST failed: ${metricRes.status}`);
+
+  return { spans, logs, metrics, url };
 }
 
 export async function runServe(opts: { path: string; port: number; open?: boolean }): Promise<{ address: string; close: () => Promise<void> }> {
@@ -190,7 +210,7 @@ export function buildProgram(): Command {
     .action(async (opts: { demo: boolean; url: string; path: string }) => {
       if (!opts.demo) { console.log("Nothing to do. Use `telos trace --demo` to emit synthetic traffic."); return; }
       const r = await runTraceDemo({ url: opts.url, path: opts.path });
-      console.log(`Telos: emitted ${r.spans} demo spans + ${r.logs} logs -> ${r.url} (toggle "● Live", "▷ Replay", or open a node for logs)`);
+      console.log(`Telos: emitted ${r.spans} spans + ${r.logs} logs + ${r.metrics} metrics -> ${r.url} (toggle "● Live", "▷ Replay", or open a node for logs/metrics)`);
     });
   program.command("setup").description("Print harness install commands (ECC/Superpowers/Headroom) and bootstrap .telos/harness.lock")
     .option("--dir <path>", "project dir containing .telos", ".")

@@ -86,6 +86,35 @@ describe("trace overlay routes", () => {
     await app.close();
   });
 
+  it("ingests metrics and serves per-node series", async () => {
+    const svc = GraphService.fromGraph(graph);
+    const app = buildServer(svc);
+    const attrs = [
+      { key: "code.namespace", value: { stringValue: "auth" } },
+      { key: "code.function", value: { stringValue: "authenticate" } },
+    ];
+    const metricsBody = {
+      resourceMetrics: [{ scopeMetrics: [{ metrics: [
+        { name: "latency_ms", unit: "ms", gauge: { dataPoints: [
+          { timeUnixNano: "1", asDouble: 10, attributes: attrs },
+          { timeUnixNano: "2", asDouble: 14, attributes: attrs },
+        ] } },
+      ] }] }],
+    };
+    const post = await app.inject({ method: "POST", url: "/v1/metrics", payload: metricsBody });
+    expect(post.statusCode).toBe(200);
+
+    const series = await app.inject({ method: "GET", url: "/api/metrics?node=A" });
+    expect(series.statusCode).toBe(200);
+    const s = series.json().series;
+    expect(s).toHaveLength(1);
+    expect(s[0]).toMatchObject({ name: "latency_ms", unit: "ms", latest: 14, points: [10, 14] });
+
+    const none = await app.inject({ method: "GET", url: "/api/metrics" });
+    expect(none.json()).toEqual({ series: [] });
+    await app.close();
+  });
+
   it("returns 404 when the provider has no trace hub", async () => {
     const minimal: GraphProvider = {
       getOverview: () => ({}), getChildren: () => null, getNode: () => null,
