@@ -11,3 +11,4 @@ export * from "./ask.js";
 export * from "./trace/otlp.js";
 export * from "./trace/match.js";
 export * from "./trace/aggregator.js";
+export * from "./trace/buffer.js";

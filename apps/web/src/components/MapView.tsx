@@ -113,7 +113,7 @@ function WidthReader({ onWidth }: { onWidth: (w: number) => void }) {
 // Minimum map column width below which the minimap is hidden to save space.
 const MINIMAP_MIN_WIDTH = 380;
 
-export function MapView({ nav, api, density, theme, onOpenNode, registerFitView, layoutKey, trace }: { nav: NavigationState; api: TelosApi; density: DensityMode; theme?: string; onOpenNode: (id: string) => void; registerFitView?: (fn: () => void) => void; layoutKey?: string; trace?: TraceOverlay }) {
+export function MapView({ nav, api, density, theme, onOpenNode, registerFitView, layoutKey, trace, replayNodeId }: { nav: NavigationState; api: TelosApi; density: DensityMode; theme?: string; onOpenNode: (id: string) => void; registerFitView?: (fn: () => void) => void; layoutKey?: string; trace?: TraceOverlay; replayNodeId?: string | null }) {
   // Sync module-level density ref so TelosNode reads it on each render.
   setCurrentDensity(density);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -271,10 +271,11 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
             _pathDim: isPathActive ? !pathNodeSet.has(n.id) : false,
             _liveCalls: sig?.calls ?? 0,
             _liveErr: (sig?.errors ?? 0) > 0,
+            _replayOn: replayNodeId != null && n.id === replayNodeId,
           },
         };
       }),
-    [filteredNodes, pathNodeSet, isPathActive, trace],
+    [filteredNodes, pathNodeSet, isPathActive, trace, replayNodeId],
   );
 
   // Source node label for PathFinderBar prompt.

@@ -36,6 +36,7 @@ describe("parseOtlpTraces", () => {
 
     const a = spans.find((s) => s.spanId === "s1")!;
     expect(a.name).toBe("auth.authenticate");
+    expect(a.startNs).toBe(1000000);
     expect(a.durationMs).toBe(15);
     expect(a.isError).toBe(false);
     expect(a.parentSpanId).toBeUndefined();
