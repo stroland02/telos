@@ -2,10 +2,10 @@ import Fastify, { FastifyInstance } from "fastify";
 import fastifyStatic from "@fastify/static";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
-import { TraceAggregator, TraceBuffer, NodeIndex, parseOtlpTraces } from "@telos/engine";
+import { TraceAggregator, TraceBuffer, LogBuffer, NodeIndex, parseOtlpTraces, parseOtlpLogs } from "@telos/engine";
 
 /** Live trace state shared by the OTLP receiver, SSE stream, and replay routes. */
-export interface TraceHub { aggregator: TraceAggregator; buffer: TraceBuffer; index: NodeIndex }
+export interface TraceHub { aggregator: TraceAggregator; buffer: TraceBuffer; logs: LogBuffer; index: NodeIndex }
 
 export interface GraphProvider {
   getOverview(): unknown;
@@ -68,6 +68,26 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
     const hub = provider.getTraceHub?.();
     if (!hub) return reply.code(404).send({ error: "trace unavailable" });
     return hub.aggregator.snapshot();
+  });
+
+  // OTLP/HTTP JSON logs receiver.
+  app.post("/v1/logs", async (req, reply) => {
+    const hub = provider.getTraceHub?.();
+    if (!hub) return reply.code(404).send({ error: "log ingest unavailable" });
+    try {
+      hub.logs.record(parseOtlpLogs(req.body), hub.index);
+    } catch {
+      return reply.code(400).send({ error: "malformed OTLP body" });
+    }
+    return { partialSuccess: {} };
+  });
+
+  // Recent logs, optionally scoped to one node — "click a node to see its logs".
+  app.get<{ Querystring: { node?: string; limit?: string } }>("/api/logs", async (req, reply) => {
+    const hub = provider.getTraceHub?.();
+    if (!hub) return reply.code(404).send({ error: "logs unavailable" });
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    return { logs: hub.logs.recent({ nodeId: req.query.node || undefined, limit }) };
   });
 
   // Recent traces (newest first) — the playback picker.
