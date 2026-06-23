@@ -2,6 +2,10 @@ import Fastify, { FastifyInstance } from "fastify";
 import fastifyStatic from "@fastify/static";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
+import { TraceAggregator, NodeIndex, parseOtlpTraces } from "@telos/engine";
+
+/** Live trace state shared by the OTLP receiver and the SSE stream. */
+export interface TraceHub { aggregator: TraceAggregator; index: NodeIndex }
 
 export interface GraphProvider {
   getOverview(): unknown;
@@ -16,6 +20,8 @@ export interface GraphProvider {
   getTour?(limit?: number): unknown[];
   /** Optional: "where does X happen?" answers. Absent on minimal providers. */
   getAnswers?(q: string, limit?: number): unknown[];
+  /** Optional: live OTel trace hub. Absent on minimal providers. */
+  getTraceHub?(): TraceHub;
   repoRoot: string | null;
 }
 
@@ -39,6 +45,45 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
     const q = (req.query.q ?? "").trim();
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
     return { answers: q.length === 0 ? [] : provider.getAnswers(q, limit) };
+  });
+
+  // ── Live OTel trace overlay (Phase 2 A1) ───────────────────────────────────
+  // OTLP/HTTP JSON receiver. Standards path so a real OTel SDK exporter can
+  // point straight at Telos. Tolerant: bad body → 400, bad spans skipped.
+  app.post("/v1/traces", async (req, reply) => {
+    const hub = provider.getTraceHub?.();
+    if (!hub) return reply.code(404).send({ error: "trace ingest unavailable" });
+    try {
+      const spans = parseOtlpTraces(req.body);
+      hub.aggregator.ingest(spans, hub.index);
+    } catch {
+      return reply.code(400).send({ error: "malformed OTLP body" });
+    }
+    return { partialSuccess: {} };
+  });
+
+  // One-shot snapshot — poll fallback and test surface.
+  app.get("/api/trace/state", async (_req, reply) => {
+    const hub = provider.getTraceHub?.();
+    if (!hub) return reply.code(404).send({ error: "trace unavailable" });
+    return hub.aggregator.snapshot();
+  });
+
+  // SSE live stream — pushes a TraceState snapshot ~every second.
+  app.get("/api/trace/stream", async (req, reply) => {
+    const hub = provider.getTraceHub?.();
+    if (!hub) return reply.code(404).send({ error: "trace unavailable" });
+    reply.hijack();
+    reply.raw.writeHead(200, {
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache",
+      connection: "keep-alive",
+    });
+    const send = () => reply.raw.write(`data: ${JSON.stringify(hub.aggregator.snapshot())}\n\n`);
+    send();
+    const tick = setInterval(send, 1000);
+    const beat = setInterval(() => reply.raw.write(": heartbeat\n\n"), 15000);
+    req.raw.on("close", () => { clearInterval(tick); clearInterval(beat); reply.raw.end(); });
   });
 
   app.get<{ Params: { id: string } }>("/api/cluster/:id", async (req, reply) => {
