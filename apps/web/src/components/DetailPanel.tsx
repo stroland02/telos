@@ -1,5 +1,47 @@
 import { useEffect, useRef } from "react";
-import { NodeDetail, TelosNodeDTO, Recommendation } from "../api/types";
+import { NodeDetail, TelosNodeDTO, Recommendation, LogLine } from "../api/types";
+
+function sevColor(sev: string): string {
+  const s = sev.toUpperCase();
+  if (s.startsWith("ERR") || s === "FATAL" || s === "CRITICAL") return "var(--danger)";
+  if (s.startsWith("WARN")) return "var(--complexity-moderate, var(--accent))";
+  return "var(--text-faint)";
+}
+
+function LogList({ logs }: { logs: LogLine[] }) {
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: "var(--t-label-size)", lineHeight: "var(--t-label-lh)",
+          fontWeight: "var(--t-label-weight)" as React.CSSProperties["fontWeight"],
+          color: "var(--text-muted)", marginBottom: "var(--s-1)",
+        }}
+      >
+        Recent logs <span style={{ color: "var(--text-faint)", fontWeight: 400 }}>({logs.length})</span>
+      </div>
+      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+        {logs.map((l, i) => (
+          <li
+            key={i}
+            style={{
+              display: "flex", gap: "var(--s-2)", padding: "var(--s-1) 0",
+              borderBottom: "1px solid var(--border)", fontFamily: "var(--font-mono)",
+              fontSize: "11px", lineHeight: "var(--t-meta-lh)",
+            }}
+          >
+            <span style={{ color: sevColor(l.severity), fontWeight: 600, flexShrink: 0, minWidth: 38 }}>
+              {l.severity || "LOG"}
+            </span>
+            <span style={{ color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={l.body}>
+              {l.body}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 function Divider() {
   return (
@@ -79,7 +121,7 @@ function NodeList({ title, nodes }: { title: string; nodes: TelosNodeDTO[] }) {
   );
 }
 
-export function DetailPanel({ detail, onClose, recommendations = [] }: { detail: NodeDetail | null; onClose: () => void; recommendations?: Recommendation[] }) {
+export function DetailPanel({ detail, onClose, recommendations = [], logs = [] }: { detail: NodeDetail | null; onClose: () => void; recommendations?: Recommendation[]; logs?: LogLine[] }) {
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   // Close on Esc (§6 a11y); move focus to × on open
@@ -267,6 +309,13 @@ export function DetailPanel({ detail, onClose, recommendations = [] }: { detail:
       <Divider />
 
       <NodeList title="Callees" nodes={detail.callees} />
+
+      {logs.length > 0 && (
+        <>
+          <Divider />
+          <LogList logs={logs} />
+        </>
+      )}
 
       {recommendations.length > 0 && (
         <>

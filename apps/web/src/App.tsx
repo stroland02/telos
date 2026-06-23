@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { createApi } from "./api/client";
-import { NodeDetail, SourceResult, TelosNodeDTO, Recommendation } from "./api/types";
+import { NodeDetail, SourceResult, TelosNodeDTO, Recommendation, LogLine } from "./api/types";
 import { useNavigation } from "./graph/useNavigation";
 import { useTraceOverlay } from "./graph/useTraceOverlay";
 import { useTracePlayback } from "./graph/useTracePlayback";
@@ -43,6 +43,7 @@ export function App() {
   const { theme, toggle: toggleTheme } = useTheme();
   const [detail, setDetail] = useState<NodeDetail | null>(null);
   const [recs, setRecs] = useState<Recommendation[]>([]);
+  const [logs, setLogs] = useState<LogLine[]>([]);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
   const [liveOn, setLiveOn] = useState(false);
@@ -150,6 +151,7 @@ export function App() {
   const openNode = useCallback((id: string) => {
     void api.node(id).then((d) => { if (d) setDetail(d); });
     void api.recommendations(id).then(setRecs).catch(() => setRecs([]));
+    void api.nodeLogs(id, 20).then(setLogs).catch(() => setLogs([]));
   }, []);
 
   // ── Splitter drag logic ──────────────────────────────────────────────────
@@ -546,7 +548,7 @@ export function App() {
         )}
       </div>
 
-      <DetailPanel detail={detail} recommendations={recs} onClose={() => { setDetail(null); setRecs([]); }} />
+      <DetailPanel detail={detail} recommendations={recs} logs={logs} onClose={() => { setDetail(null); setRecs([]); setLogs([]); }} />
       <AskPanel open={askOpen} api={api} onOpenNode={openNode} onClose={() => setAskOpen(false)} />
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>

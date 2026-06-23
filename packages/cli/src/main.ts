@@ -57,9 +57,21 @@ export function buildDemoOtlp(names: string[]): { resourceSpans: unknown[] } {
   return { resourceSpans: [{ scopeSpans: [{ spans }] }] };
 }
 
+/** Synthetic OTLP/HTTP JSON logs whose code.* attrs map to the given names. */
+export function buildDemoLogs(names: string[]): { resourceLogs: unknown[] } {
+  const sev = ["INFO", "ERROR", "WARN"];
+  const logRecords = names.slice(0, 3).map((n, i) => ({
+    timeUnixNano: `${(i + 1) * 1000000}`,
+    severityText: sev[i % sev.length],
+    body: { stringValue: `${sev[i % sev.length]} from ${n}` },
+    attributes: [{ key: "code.function", value: { stringValue: n.split(/[.:]/).pop() } }],
+  }));
+  return { resourceLogs: [{ scopeLogs: [{ logRecords }] }] };
+}
+
 export async function runTraceDemo(
   opts: { url?: string; path?: string; fetchImpl?: typeof fetch } = {},
-): Promise<{ spans: number; url: string }> {
+): Promise<{ spans: number; logs: number; url: string }> {
   const url = (opts.url ?? "http://localhost:5180").replace(/\/$/, "");
   const doFetch = opts.fetchImpl ?? fetch;
   // Prefer real qualifiedNames from the scanned graph so demo traffic lands on
@@ -81,7 +93,15 @@ export async function runTraceDemo(
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`trace demo POST failed: ${res.status}`);
-  return { spans, url };
+
+  const logsBody = buildDemoLogs(names);
+  const logs = (logsBody.resourceLogs[0] as { scopeLogs: { logRecords: unknown[] }[] }).scopeLogs[0].logRecords.length;
+  const logRes = await doFetch(`${url}/v1/logs`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(logsBody),
+  });
+  if (!logRes.ok) throw new Error(`logs demo POST failed: ${logRes.status}`);
+
+  return { spans, logs, url };
 }
 
 export async function runServe(opts: { path: string; port: number; open?: boolean }): Promise<{ address: string; close: () => Promise<void> }> {
@@ -168,7 +188,7 @@ export function buildProgram(): Command {
     .action(async (opts: { demo: boolean; url: string; path: string }) => {
       if (!opts.demo) { console.log("Nothing to do. Use `telos trace --demo` to emit synthetic traffic."); return; }
       const r = await runTraceDemo({ url: opts.url, path: opts.path });
-      console.log(`Telos: emitted ${r.spans} demo spans -> ${r.url}/v1/traces (toggle "● Live" in the map)`);
+      console.log(`Telos: emitted ${r.spans} demo spans + ${r.logs} logs -> ${r.url} (toggle "● Live", "▷ Replay", or open a node for logs)`);
     });
   program.command("setup").description("Print harness install commands (ECC/Superpowers/Headroom) and bootstrap .telos/harness.lock")
     .option("--dir <path>", "project dir containing .telos", ".")
