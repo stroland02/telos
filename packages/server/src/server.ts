@@ -2,10 +2,10 @@ import Fastify, { FastifyInstance } from "fastify";
 import fastifyStatic from "@fastify/static";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
-import { TraceAggregator, NodeIndex, parseOtlpTraces } from "@telos/engine";
+import { TraceAggregator, TraceBuffer, NodeIndex, parseOtlpTraces } from "@telos/engine";
 
-/** Live trace state shared by the OTLP receiver and the SSE stream. */
-export interface TraceHub { aggregator: TraceAggregator; index: NodeIndex }
+/** Live trace state shared by the OTLP receiver, SSE stream, and replay routes. */
+export interface TraceHub { aggregator: TraceAggregator; buffer: TraceBuffer; index: NodeIndex }
 
 export interface GraphProvider {
   getOverview(): unknown;
@@ -56,6 +56,7 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
     try {
       const spans = parseOtlpTraces(req.body);
       hub.aggregator.ingest(spans, hub.index);
+      hub.buffer.record(spans);
     } catch {
       return reply.code(400).send({ error: "malformed OTLP body" });
     }
@@ -67,6 +68,23 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
     const hub = provider.getTraceHub?.();
     if (!hub) return reply.code(404).send({ error: "trace unavailable" });
     return hub.aggregator.snapshot();
+  });
+
+  // Recent traces (newest first) — the playback picker.
+  app.get<{ Querystring: { limit?: string } }>("/api/trace/recent", async (req, reply) => {
+    const hub = provider.getTraceHub?.();
+    if (!hub) return reply.code(404).send({ error: "trace unavailable" });
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    return { traces: hub.buffer.recent(limit) };
+  });
+
+  // One trace's chronological node path — drives playback animation.
+  app.get<{ Params: { id: string } }>("/api/trace/replay/:id", async (req, reply) => {
+    const hub = provider.getTraceHub?.();
+    if (!hub) return reply.code(404).send({ error: "trace unavailable" });
+    const steps = hub.buffer.path(req.params.id, hub.index);
+    if (steps === null) return reply.code(404).send({ error: "trace not found" });
+    return { steps };
   });
 
   // SSE live stream — pushes a TraceState snapshot ~every second.

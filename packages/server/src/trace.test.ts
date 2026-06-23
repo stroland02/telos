@@ -43,6 +43,27 @@ describe("trace overlay routes", () => {
     await app.close();
   });
 
+  it("lists recent traces and replays one by id", async () => {
+    const svc = GraphService.fromGraph(graph);
+    const app = buildServer(svc);
+    await app.inject({ method: "POST", url: "/v1/traces", payload: otlpBody });
+
+    const recent = await app.inject({ method: "GET", url: "/api/trace/recent" });
+    expect(recent.statusCode).toBe(200);
+    const traces = recent.json().traces;
+    expect(traces).toHaveLength(1);
+    expect(traces[0]).toMatchObject({ traceId: "t", spanCount: 2 });
+
+    const replay = await app.inject({ method: "GET", url: "/api/trace/replay/t" });
+    expect(replay.statusCode).toBe(200);
+    const steps = replay.json().steps;
+    expect(steps.map((s: any) => s.nodeId)).toEqual(["A", "B"]);
+
+    const missing = await app.inject({ method: "GET", url: "/api/trace/replay/nope" });
+    expect(missing.statusCode).toBe(404);
+    await app.close();
+  });
+
   it("returns 404 when the provider has no trace hub", async () => {
     const minimal: GraphProvider = {
       getOverview: () => ({}), getChildren: () => null, getNode: () => null,
