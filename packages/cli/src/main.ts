@@ -148,35 +148,46 @@ const pexecFile = promisify(execFile);
 /** Enumerate local processes via the OS. Windows uses Win32_Process (gives the
  *  command line, which powers the node join); unix uses ps. CPU% is best-effort
  *  (0 on Windows where it needs sampling). */
+// Windows: join Win32_Process (pid/name/cmd/mem/ppid) with the perf-counter
+// class (instantaneous CPU%, normalized by logical core count) by PID.
+const WIN_PROC_SCRIPT = `
+$cpu = @{}
+Get-CimInstance Win32_PerfFormattedData_PerfProc_Process | ForEach-Object { $cpu[[int]$_.IDProcess] = [int]$_.PercentProcessorTime }
+$cores = [Math]::Max(1, (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors)
+Get-CimInstance Win32_Process | ForEach-Object {
+  [pscustomobject]@{ pid=$_.ProcessId; ppid=$_.ParentProcessId; name=$_.Name; cmd=$_.CommandLine; mem=$_.WorkingSetSize; cpu=[Math]::Round((($cpu[[int]$_.ProcessId]) / $cores),1) }
+} | ConvertTo-Json -Compress
+`.trim();
+
 export async function collectProcesses(): Promise<ProcessSample[]> {
   if (process.platform === "win32") {
-    const { stdout } = await pexecFile("powershell", [
-      "-NoProfile", "-Command",
-      "Get-CimInstance Win32_Process | Select-Object ProcessId,Name,CommandLine,WorkingSetSize | ConvertTo-Json -Compress",
-    ], { maxBuffer: 32 * 1024 * 1024 });
+    const { stdout } = await pexecFile("powershell", ["-NoProfile", "-Command", WIN_PROC_SCRIPT], { maxBuffer: 32 * 1024 * 1024 });
     const raw = JSON.parse(stdout);
     const arr = Array.isArray(raw) ? raw : [raw];
-    return arr.map((p: { ProcessId?: number; Name?: string; CommandLine?: string; WorkingSetSize?: number }) => ({
-      pid: Number(p.ProcessId ?? 0), name: String(p.Name ?? ""), cmd: p.CommandLine ?? "",
-      cpu: 0, memMb: Number(p.WorkingSetSize ?? 0) / 1048576,
+    return arr.map((p: { pid?: number; ppid?: number; name?: string; cmd?: string; mem?: number; cpu?: number }) => ({
+      pid: Number(p.pid ?? 0), ppid: p.ppid != null ? Number(p.ppid) : undefined,
+      name: String(p.name ?? ""), cmd: p.cmd ?? "",
+      cpu: Number(p.cpu ?? 0), memMb: Number(p.mem ?? 0) / 1048576,
     })).filter((p) => p.pid > 0);
   }
-  const { stdout } = await pexecFile("ps", ["-axo", "pid=,%cpu=,rss=,comm=,args="], { maxBuffer: 32 * 1024 * 1024 });
+  const { stdout } = await pexecFile("ps", ["-axo", "pid=,ppid=,%cpu=,rss=,comm=,args="], { maxBuffer: 32 * 1024 * 1024 });
   return stdout.split("\n").map((l) => l.trim()).filter(Boolean).map((line) => {
-    const m = line.match(/^(\d+)\s+([\d.]+)\s+(\d+)\s+(\S+)\s+(.*)$/);
+    const m = line.match(/^(\d+)\s+(\d+)\s+([\d.]+)\s+(\d+)\s+(\S+)\s+(.*)$/);
     if (!m) return null;
-    return { pid: Number(m[1]), name: m[4], cmd: m[5], cpu: Number(m[2]), memMb: Number(m[3]) / 1024 } as ProcessSample;
+    return { pid: Number(m[1]), ppid: Number(m[2]), cpu: Number(m[3]), memMb: Number(m[4]) / 1024, name: m[5], cmd: m[6] } as ProcessSample;
   }).filter((p): p is ProcessSample => p !== null);
 }
 
 /** Synthetic processes whose cmd references real file paths (so they tag to nodes). */
 export function buildDemoProcesses(paths: string[]): ProcessSample[] {
+  // A small hierarchy: a shell spawns node, which spawns a worker + telos serve.
   const out: ProcessSample[] = [
+    { pid: 1000, name: "pwsh", cmd: "pwsh", cpu: 0.4, memMb: 60 },
     { pid: 9001, name: "chrome", cmd: "chrome.exe", cpu: 28.4, memMb: 720 },
-    { pid: 4242, name: "node", cmd: `node ${paths[0] ?? "app.js"} --watch`, cpu: 14.2, memMb: 210 },
-    { pid: 5310, name: "telos", cmd: "node telos serve", cpu: 2.1, memMb: 90 },
+    { pid: 4242, ppid: 1000, name: "node", cmd: `node ${paths[0] ?? "app.js"} --watch`, cpu: 14.2, memMb: 210 },
+    { pid: 5310, ppid: 4242, name: "telos", cmd: "node telos serve", cpu: 2.1, memMb: 90 },
   ];
-  if (paths[1]) out.push({ pid: 7777, name: "worker", cmd: `node ${paths[1]}`, cpu: 6.0, memMb: 140 });
+  if (paths[1]) out.push({ pid: 7777, ppid: 4242, name: "worker", cmd: `node ${paths[1]}`, cpu: 6.0, memMb: 140 });
   return out;
 }
 
