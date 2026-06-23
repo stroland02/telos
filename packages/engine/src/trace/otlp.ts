@@ -7,6 +7,7 @@ export interface SpanRecord {
   spanId: string;
   parentSpanId?: string;
   name: string;
+  startNs: number;
   durationMs: number;
   isError: boolean;
   attrs: Record<string, string>;
@@ -47,11 +48,14 @@ function parseSpan(raw: unknown): SpanRecord {
     throw new Error("span missing spanId/name");
   }
   const status = s.status as { code?: unknown } | undefined;
+  const startNs = typeof s.startTimeUnixNano === "string" || typeof s.startTimeUnixNano === "number"
+    ? Number(s.startTimeUnixNano) : NaN;
   return {
     traceId: typeof s.traceId === "string" ? s.traceId : "",
     spanId: s.spanId,
     parentSpanId: typeof s.parentSpanId === "string" && s.parentSpanId.length > 0 ? s.parentSpanId : undefined,
     name: s.name,
+    startNs: Number.isFinite(startNs) ? startNs : 0,
     durationMs: nanoToMs(s.startTimeUnixNano, s.endTimeUnixNano),
     isError: status?.code === 2,
     attrs: flattenAttrs(s.attributes),

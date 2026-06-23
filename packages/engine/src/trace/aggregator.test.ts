@@ -17,7 +17,7 @@ const graph: TelosGraph = {
 const index = buildNodeIndex(graph);
 
 function span(p: Partial<SpanRecord>): SpanRecord {
-  return { traceId: "t", spanId: "s", name: "", durationMs: 1, isError: false, attrs: {}, ...p };
+  return { traceId: "t", spanId: "s", name: "", startNs: 0, durationMs: 1, isError: false, attrs: {}, ...p };
 }
 
 describe("TraceAggregator", () => {
