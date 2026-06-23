@@ -2,10 +2,10 @@ import Fastify, { FastifyInstance } from "fastify";
 import fastifyStatic from "@fastify/static";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
-import { TraceAggregator, TraceBuffer, LogBuffer, NodeIndex, parseOtlpTraces, parseOtlpLogs } from "@telos/engine";
+import { TraceAggregator, TraceBuffer, LogBuffer, MetricBuffer, NodeIndex, parseOtlpTraces, parseOtlpLogs, parseOtlpMetrics } from "@telos/engine";
 
 /** Live trace state shared by the OTLP receiver, SSE stream, and replay routes. */
-export interface TraceHub { aggregator: TraceAggregator; buffer: TraceBuffer; logs: LogBuffer; index: NodeIndex }
+export interface TraceHub { aggregator: TraceAggregator; buffer: TraceBuffer; logs: LogBuffer; metrics: MetricBuffer; index: NodeIndex }
 
 export interface GraphProvider {
   getOverview(): unknown;
@@ -88,6 +88,28 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
     if (!hub) return reply.code(404).send({ error: "logs unavailable" });
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
     return { logs: hub.logs.recent({ nodeId: req.query.node || undefined, limit }) };
+  });
+
+  // OTLP/HTTP JSON metrics receiver.
+  app.post("/v1/metrics", async (req, reply) => {
+    const hub = provider.getTraceHub?.();
+    if (!hub) return reply.code(404).send({ error: "metric ingest unavailable" });
+    try {
+      hub.metrics.record(parseOtlpMetrics(req.body), hub.index);
+    } catch {
+      return reply.code(400).send({ error: "malformed OTLP body" });
+    }
+    return { partialSuccess: {} };
+  });
+
+  // Per-node metric series — drives the detail-panel sparklines.
+  app.get<{ Querystring: { node?: string; limit?: string } }>("/api/metrics", async (req, reply) => {
+    const hub = provider.getTraceHub?.();
+    if (!hub) return reply.code(404).send({ error: "metrics unavailable" });
+    const node = req.query.node;
+    if (!node) return { series: [] };
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    return { series: hub.metrics.series(node, { limit }) };
   });
 
   // Recent traces (newest first) — the playback picker.
