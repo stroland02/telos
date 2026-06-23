@@ -1,5 +1,52 @@
 import { useEffect, useRef } from "react";
-import { NodeDetail, TelosNodeDTO, Recommendation, LogLine } from "../api/types";
+import { NodeDetail, TelosNodeDTO, Recommendation, LogLine, MetricSeries } from "../api/types";
+
+/** Minimal inline SVG sparkline — no chart lib. Flat line if all values equal. */
+function Sparkline({ points, width = 96, height = 20 }: { points: number[]; width?: number; height?: number }) {
+  if (points.length === 0) return null;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const span = max - min || 1;
+  const stepX = points.length > 1 ? width / (points.length - 1) : 0;
+  const coords = points.map((v, i) => {
+    const x = i * stepX;
+    const y = height - ((v - min) / span) * (height - 2) - 1;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  return (
+    <svg width={width} height={height} role="img" aria-label="trend" style={{ display: "block" }}>
+      <polyline points={coords} fill="none" stroke="var(--accent)" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function MetricList({ series }: { series: MetricSeries[] }) {
+  const fmt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2));
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: "var(--t-label-size)", lineHeight: "var(--t-label-lh)",
+          fontWeight: "var(--t-label-weight)" as React.CSSProperties["fontWeight"],
+          color: "var(--text-muted)", marginBottom: "var(--s-1)",
+        }}
+      >
+        Metrics <span style={{ color: "var(--text-faint)", fontWeight: 400 }}>({series.length})</span>
+      </div>
+      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "var(--s-1)" }}>
+        {series.map((s) => (
+          <li key={s.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--s-2)", padding: "var(--s-1) 0", borderBottom: "1px solid var(--border)" }}>
+            <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={s.name}>{s.name}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-faint)" }}>{fmt(s.latest)}{s.unit && s.unit !== "1" ? ` ${s.unit}` : ""}</span>
+            </div>
+            <Sparkline points={s.points} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 function sevColor(sev: string): string {
   const s = sev.toUpperCase();
@@ -121,7 +168,7 @@ function NodeList({ title, nodes }: { title: string; nodes: TelosNodeDTO[] }) {
   );
 }
 
-export function DetailPanel({ detail, onClose, recommendations = [], logs = [] }: { detail: NodeDetail | null; onClose: () => void; recommendations?: Recommendation[]; logs?: LogLine[] }) {
+export function DetailPanel({ detail, onClose, recommendations = [], logs = [], metrics = [] }: { detail: NodeDetail | null; onClose: () => void; recommendations?: Recommendation[]; logs?: LogLine[]; metrics?: MetricSeries[] }) {
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   // Close on Esc (§6 a11y); move focus to × on open
@@ -309,6 +356,13 @@ export function DetailPanel({ detail, onClose, recommendations = [], logs = [] }
       <Divider />
 
       <NodeList title="Callees" nodes={detail.callees} />
+
+      {metrics.length > 0 && (
+        <>
+          <Divider />
+          <MetricList series={metrics} />
+        </>
+      )}
 
       {logs.length > 0 && (
         <>

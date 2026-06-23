@@ -102,5 +102,9 @@ describe("runTraceDemo", () => {
     const [logUrl, logInit] = fetchImpl.mock.calls[1];
     expect(logUrl).toBe("http://x:1/v1/logs");
     expect(JSON.parse((logInit as RequestInit).body as string).resourceLogs[0].scopeLogs[0].logRecords).toHaveLength(r.logs);
+
+    const [metricUrl, metricInit] = fetchImpl.mock.calls[2];
+    expect(metricUrl).toBe("http://x:1/v1/metrics");
+    expect(JSON.parse((metricInit as RequestInit).body as string).resourceMetrics[0].scopeMetrics[0].metrics).toHaveLength(r.metrics);
   });
 });

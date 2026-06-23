@@ -11,7 +11,7 @@ function stubApi(over: Partial<TelosApi> = {}): TelosApi {
     traceState: vi.fn().mockResolvedValue({ nodes: [], edges: [], unmapped: 0, unmappedEdges: 0, windowMs: 30000 }),
     subscribeTrace: vi.fn().mockReturnValue(() => {}),
     recentTraces: vi.fn().mockResolvedValue([]), traceReplay: vi.fn().mockResolvedValue([]),
-    nodeLogs: vi.fn().mockResolvedValue([]),
+    nodeLogs: vi.fn().mockResolvedValue([]), nodeMetrics: vi.fn().mockResolvedValue([]),
     ...over,
   } as TelosApi;
 }

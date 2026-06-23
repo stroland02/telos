@@ -37,4 +37,19 @@ describe("DetailPanel summary", () => {
     expect(screen.getByText(/Recent logs/)).toBeTruthy();
     expect(screen.getByText("login failed")).toBeTruthy();
   });
+
+  it("renders metric series with a sparkline when present", () => {
+    const { rerender } = render(<DetailPanel detail={detail(null)} onClose={() => {}} />);
+    expect(screen.queryByText(/Metrics/)).toBeNull();
+    rerender(
+      <DetailPanel
+        detail={detail(null)}
+        onClose={() => {}}
+        metrics={[{ name: "latency_ms", unit: "ms", latest: 14, points: [10, 14] }]}
+      />,
+    );
+    expect(screen.getByText(/Metrics/)).toBeTruthy();
+    expect(screen.getByText("latency_ms")).toBeTruthy();
+    expect(screen.getByText("14 ms")).toBeTruthy();
+  });
 });

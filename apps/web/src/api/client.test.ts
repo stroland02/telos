@@ -98,6 +98,14 @@ describe("createApi", () => {
     expect(logs[0].body).toBe("boom");
   });
 
+  it("nodeMetrics(id) requests per-node series", async () => {
+    const f = mockFetch(200, { series: [{ name: "latency_ms", unit: "ms", latest: 14, points: [10, 14] }] });
+    vi.stubGlobal("fetch", f);
+    const series = await createApi().nodeMetrics("n1", 60);
+    expect(f).toHaveBeenCalledWith("/api/metrics?node=n1&limit=60");
+    expect(series[0].latest).toBe(14);
+  });
+
   it("subscribeTrace() parses SSE frames and unsubscribes by closing", () => {
     let last: FakeES | null = null;
     class FakeES {
