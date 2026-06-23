@@ -60,11 +60,13 @@ export function buildDemoOtlp(names: string[]): { resourceSpans: unknown[] } {
 /** Synthetic OTLP/HTTP JSON logs whose code.* attrs map to the given names. */
 export function buildDemoLogs(names: string[]): { resourceLogs: unknown[] } {
   const sev = ["INFO", "ERROR", "WARN"];
+  // code.function carries the full qualifiedName so the matcher (which has no
+  // name fallback for logs) resolves the record to a real node.
   const logRecords = names.slice(0, 3).map((n, i) => ({
     timeUnixNano: `${(i + 1) * 1000000}`,
     severityText: sev[i % sev.length],
     body: { stringValue: `${sev[i % sev.length]} from ${n}` },
-    attributes: [{ key: "code.function", value: { stringValue: n.split(/[.:]/).pop() } }],
+    attributes: [{ key: "code.function", value: { stringValue: n } }],
   }));
   return { resourceLogs: [{ scopeLogs: [{ logRecords }] }] };
 }
