@@ -106,5 +106,10 @@ describe("runTraceDemo", () => {
     const [metricUrl, metricInit] = fetchImpl.mock.calls[2];
     expect(metricUrl).toBe("http://x:1/v1/metrics");
     expect(JSON.parse((metricInit as RequestInit).body as string).resourceMetrics[0].scopeMetrics[0].metrics).toHaveLength(r.metrics);
+
+    const [profUrl, profInit] = fetchImpl.mock.calls[3];
+    expect(profUrl).toBe("http://x:1/v1/profile");
+    expect(typeof JSON.parse((profInit as RequestInit).body as string).folded).toBe("string");
+    expect(r.profileLines).toBeGreaterThanOrEqual(1);
   });
 });

@@ -30,6 +30,7 @@ function fakeApi(overrides: Partial<TelosApi> = {}): TelosApi {
     traceReplay: vi.fn().mockResolvedValue([]),
     nodeLogs: vi.fn().mockResolvedValue([]),
     nodeMetrics: vi.fn().mockResolvedValue([]),
+    profile: vi.fn().mockResolvedValue({ nodes: [], totalSamples: 0, unmatched: 0 }),
     ...overrides,
   };
 }

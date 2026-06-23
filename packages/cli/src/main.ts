@@ -84,9 +84,17 @@ export function buildDemoMetrics(names: string[]): { resourceMetrics: unknown[] 
   return { resourceMetrics: [{ scopeMetrics: [{ metrics }] }] };
 }
 
+/** Synthetic folded/collapsed stacks whose frames are real qualifiedNames. */
+export function buildDemoProfile(names: string[]): string {
+  const [root, ...rest] = names;
+  const lines = rest.slice(0, 3).map((n, i) => `${root};${n} ${(i + 2) * 4}`);
+  lines.push(`${root} 3`);
+  return lines.join("\n");
+}
+
 export async function runTraceDemo(
   opts: { url?: string; path?: string; fetchImpl?: typeof fetch } = {},
-): Promise<{ spans: number; logs: number; metrics: number; url: string }> {
+): Promise<{ spans: number; logs: number; metrics: number; profileLines: number; url: string }> {
   const url = (opts.url ?? "http://localhost:5180").replace(/\/$/, "");
   const doFetch = opts.fetchImpl ?? fetch;
   // Prefer real qualifiedNames from the scanned graph so demo traffic lands on
@@ -123,7 +131,14 @@ export async function runTraceDemo(
   });
   if (!metricRes.ok) throw new Error(`metrics demo POST failed: ${metricRes.status}`);
 
-  return { spans, logs, metrics, url };
+  const folded = buildDemoProfile(names);
+  const profileLines = folded.split("\n").length;
+  const profRes = await doFetch(`${url}/v1/profile`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ folded }),
+  });
+  if (!profRes.ok) throw new Error(`profile demo POST failed: ${profRes.status}`);
+
+  return { spans, logs, metrics, profileLines, url };
 }
 
 export async function runServe(opts: { path: string; port: number; open?: boolean }): Promise<{ address: string; close: () => Promise<void> }> {
@@ -210,7 +225,7 @@ export function buildProgram(): Command {
     .action(async (opts: { demo: boolean; url: string; path: string }) => {
       if (!opts.demo) { console.log("Nothing to do. Use `telos trace --demo` to emit synthetic traffic."); return; }
       const r = await runTraceDemo({ url: opts.url, path: opts.path });
-      console.log(`Telos: emitted ${r.spans} spans + ${r.logs} logs + ${r.metrics} metrics -> ${r.url} (toggle "● Live", "▷ Replay", or open a node for logs/metrics)`);
+      console.log(`Telos: emitted ${r.spans} spans + ${r.logs} logs + ${r.metrics} metrics + ${r.profileLines} profile stacks -> ${r.url} (toggle "● Live", "▷ Replay", "🔥 Hot", or open a node)`);
     });
   program.command("setup").description("Print harness install commands (ECC/Superpowers/Headroom) and bootstrap .telos/harness.lock")
     .option("--dir <path>", "project dir containing .telos", ".")
