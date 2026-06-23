@@ -12,6 +12,7 @@ import { TourBar } from "./TourBar";
 import type { Layer, GraphView } from "../api/types";
 import type { TelosApi } from "../api/client";
 import type { DensityMode } from "../graph/useDensity";
+import type { TraceOverlay } from "../graph/useTraceOverlay";
 
 const LAYER_HEX: Record<string, string> = {
   api:     "#3B82F6",
@@ -112,7 +113,7 @@ function WidthReader({ onWidth }: { onWidth: (w: number) => void }) {
 // Minimum map column width below which the minimap is hidden to save space.
 const MINIMAP_MIN_WIDTH = 380;
 
-export function MapView({ nav, api, density, theme, onOpenNode, registerFitView, layoutKey }: { nav: NavigationState; api: TelosApi; density: DensityMode; theme?: string; onOpenNode: (id: string) => void; registerFitView?: (fn: () => void) => void; layoutKey?: string }) {
+export function MapView({ nav, api, density, theme, onOpenNode, registerFitView, layoutKey, trace }: { nav: NavigationState; api: TelosApi; density: DensityMode; theme?: string; onOpenNode: (id: string) => void; registerFitView?: (fn: () => void) => void; layoutKey?: string; trace?: TraceOverlay }) {
   // Sync module-level density ref so TelosNode reads it on each render.
   setCurrentDensity(density);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -237,11 +238,17 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
           !isPathActive && hoveredNodeId !== null &&
           (e.source === hoveredNodeId || e.target === hoveredNodeId);
         const isAnyHovered = !isPathActive && hoveredNodeId !== null;
+        // Live trace overlay: edges carrying recent traffic pulse and glow.
+        const live = trace?.edgeSignal(e.source, e.target);
+        const isLive = !!live && live.calls > 0;
+        const liveErr = !!live && live.errors > 0;
+        const liveStroke = liveErr ? "var(--danger)" : "var(--accent)";
         return {
           ...e,
+          animated: isLive && !isPathActive,
           style: {
-            stroke: onPath ? "var(--accent)" : isConnected ? "var(--accent)" : "var(--text-faint)",
-            strokeWidth: onPath ? Math.max(w, 2) : isConnected ? Math.max(w, 1.5) : w,
+            stroke: onPath ? "var(--accent)" : isConnected ? "var(--accent)" : isLive ? liveStroke : "var(--text-faint)",
+            strokeWidth: onPath ? Math.max(w, 2) : isConnected ? Math.max(w, 1.5) : isLive ? Math.max(w, 2) : w,
             opacity: isPathActive
               ? onPath ? 1 : 0.1
               : isAnyHovered && !isConnected ? 0.25 : 1,
@@ -249,20 +256,25 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
           },
         };
       });
-  }, [flow.edges, visibleNodeIds, hoveredNodeId, pathEdgeSet, isPathActive]);
+  }, [flow.edges, visibleNodeIds, hoveredNodeId, pathEdgeSet, isPathActive, trace]);
 
   // Nodes with path-aware styling injected into data.
   const styledNodes = useMemo(
     () =>
-      filteredNodes.map((n) => ({
-        ...n,
-        data: {
-          ...n.data,
-          _pathOn: isPathActive ? pathNodeSet.has(n.id) : null,
-          _pathDim: isPathActive ? !pathNodeSet.has(n.id) : false,
-        },
-      })),
-    [filteredNodes, pathNodeSet, isPathActive],
+      filteredNodes.map((n) => {
+        const sig = trace?.nodeSignal(n.id);
+        return {
+          ...n,
+          data: {
+            ...n.data,
+            _pathOn: isPathActive ? pathNodeSet.has(n.id) : null,
+            _pathDim: isPathActive ? !pathNodeSet.has(n.id) : false,
+            _liveCalls: sig?.calls ?? 0,
+            _liveErr: (sig?.errors ?? 0) > 0,
+          },
+        };
+      }),
+    [filteredNodes, pathNodeSet, isPathActive, trace],
   );
 
   // Source node label for PathFinderBar prompt.

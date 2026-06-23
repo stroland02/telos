@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { createApi } from "./api/client";
 import { NodeDetail, SourceResult, TelosNodeDTO, Recommendation } from "./api/types";
 import { useNavigation } from "./graph/useNavigation";
+import { useTraceOverlay } from "./graph/useTraceOverlay";
 import { useDensity } from "./graph/useDensity";
 import type { DensityMode } from "./graph/useDensity";
 import { useTheme } from "./graph/useTheme";
@@ -43,6 +44,8 @@ export function App() {
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
+  const [liveOn, setLiveOn] = useState(false);
+  const trace = useTraceOverlay(api, liveOn);
 
   // ── File explorer state ──────────────────────────────────────────────────
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -297,6 +300,34 @@ export function App() {
 
         <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: "var(--s-2)" }}>
           <button
+            onClick={() => setLiveOn((v) => !v)}
+            aria-label="Toggle live trace overlay"
+            aria-pressed={liveOn}
+            title={liveOn ? `Live trace on${trace.state ? ` — ${trace.totalCalls} calls / ${Math.round(trace.state.windowMs / 1000)}s, ${trace.state.unmapped} unmapped` : ""}` : "Animate live OpenTelemetry traffic on the map"}
+            style={{
+              flexShrink: 0,
+              background: liveOn ? "var(--danger-soft, var(--accent-soft))" : "none",
+              border: `1px solid ${liveOn ? "var(--danger, var(--accent))" : "var(--border)"}`,
+              borderRadius: "var(--r-sm)",
+              cursor: "pointer",
+              color: liveOn ? "var(--danger, var(--accent))" : "var(--text-muted)",
+              fontFamily: "var(--font-ui)",
+              fontSize: "var(--t-meta-size)",
+              lineHeight: 1,
+              height: 28,
+              padding: "0 var(--s-3)",
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--s-1)",
+              outline: "none",
+            }}
+            onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
+            onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+          >
+            <span aria-hidden="true" style={{ animation: liveOn ? "sentinelPulse 1.6s ease-in-out infinite" : "none" }}>●</span>
+            {liveOn && trace.state ? `Live · ${trace.totalCalls}` : "Live"}
+          </button>
+          <button
             onClick={() => setAskOpen(true)}
             aria-label="Ask the codebase"
             title="Ask where something happens / take a tour"
@@ -423,6 +454,7 @@ export function App() {
             onOpenNode={openNode}
             registerFitView={registerFitView}
             layoutKey={`${sidebarOpen ? "s" : ""}${viewerVisible ? "v" : ""}`}
+            trace={trace}
           />
         </div>
 
