@@ -115,6 +115,24 @@ describe("trace overlay routes", () => {
     await app.close();
   });
 
+  it("ingests folded profile stacks and serves hot nodes", async () => {
+    const svc = GraphService.fromGraph(graph);
+    const app = buildServer(svc);
+    // graph node A = qualifiedName "auth.authenticate", B = "hashPassword"
+    const folded = "auth.authenticate;hashPassword 5\nauth.authenticate 2";
+    const post = await app.inject({ method: "POST", url: "/v1/profile", payload: { folded } });
+    expect(post.statusCode).toBe(200);
+
+    const snap = await app.inject({ method: "GET", url: "/api/profile" });
+    expect(snap.statusCode).toBe(200);
+    const body = snap.json();
+    expect(body.totalSamples).toBe(7);
+    const byId = Object.fromEntries(body.nodes.map((n: any) => [n.nodeId, n]));
+    expect(byId["A"]).toMatchObject({ self: 2, total: 7 });
+    expect(byId["B"]).toMatchObject({ self: 5, total: 5 });
+    await app.close();
+  });
+
   it("returns 404 when the provider has no trace hub", async () => {
     const minimal: GraphProvider = {
       getOverview: () => ({}), getChildren: () => null, getNode: () => null,
