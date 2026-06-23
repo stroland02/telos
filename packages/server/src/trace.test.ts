@@ -133,6 +133,32 @@ describe("trace overlay routes", () => {
     await app.close();
   });
 
+  it("ingests a process snapshot, tags by file path, and serves it CPU-sorted", async () => {
+    // graph node "auth.ts" is a file node at path auth.ts
+    const fileGraph: TelosGraph = {
+      nodes: [
+        { id: "F", kind: "file", name: "auth.ts", qualifiedName: "auth.ts", language: "ts", path: "auth.ts", lineStart: 1, lineEnd: 1, layer: "api", fanIn: 0, fanOut: 0, lines: 1, complexity: 0, summary: null },
+      ],
+      edges: [],
+    };
+    const svc = GraphService.fromGraph(fileGraph);
+    const app = buildServer(svc);
+    const body = { processes: [
+      { pid: 1, name: "node", cmd: "node auth.ts", cpu: 3, memMb: 50 },
+      { pid: 2, name: "chrome", cmd: "chrome", cpu: 30, memMb: 800 },
+    ] };
+    const post = await app.inject({ method: "POST", url: "/v1/processes", payload: body });
+    expect(post.statusCode).toBe(200);
+
+    const res = await app.inject({ method: "GET", url: "/api/processes" });
+    expect(res.statusCode).toBe(200);
+    const procs = res.json().processes;
+    expect(procs.map((p: any) => p.pid)).toEqual([2, 1]); // CPU desc
+    expect(procs.find((p: any) => p.pid === 1).nodeId).toBe("F"); // cmd matched the file path
+    expect(procs.find((p: any) => p.pid === 2).nodeId).toBeNull();
+    await app.close();
+  });
+
   it("returns 404 when the provider has no trace hub", async () => {
     const minimal: GraphProvider = {
       getOverview: () => ({}), getChildren: () => null, getNode: () => null,

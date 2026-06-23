@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, buildProgram } from "./main.js";
+import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, runTop, buildDemoProcesses, buildProgram } from "./main.js";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -111,5 +111,29 @@ describe("runTraceDemo", () => {
     expect(profUrl).toBe("http://x:1/v1/profile");
     expect(typeof JSON.parse((profInit as RequestInit).body as string).folded).toBe("string");
     expect(r.profileLines).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("telos top command", () => {
+  it("is registered", () => {
+    expect(buildProgram().commands.map((c) => c.name())).toContain("top");
+  });
+});
+
+describe("runTop", () => {
+  it("POSTs collected processes to <url>/v1/processes", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, status: 200 } as Response);
+    const collectImpl = vi.fn().mockResolvedValue([{ pid: 1, name: "node", cmd: "node a.ts", cpu: 1, memMb: 2 }]);
+    const r = await runTop({ url: "http://x:1/", collectImpl, fetchImpl });
+    expect(r.count).toBe(1);
+    const [url, init] = fetchImpl.mock.calls[0];
+    expect(url).toBe("http://x:1/v1/processes");
+    expect(JSON.parse((init as RequestInit).body as string).processes).toHaveLength(1);
+  });
+
+  it("buildDemoProcesses references the given file paths", () => {
+    const procs = buildDemoProcesses(["src/app.ts", "src/worker.ts"]);
+    expect(procs.length).toBeGreaterThanOrEqual(3);
+    expect(procs.some((p) => (p.cmd ?? "").includes("src/app.ts"))).toBe(true);
   });
 });
