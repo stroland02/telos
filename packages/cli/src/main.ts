@@ -35,6 +35,55 @@ export async function runEnrich(
   }
 }
 
+/** Build a small synthetic OTLP/HTTP JSON payload whose span names map to the
+ *  given qualifiedNames (root → children), with one error span, so the live
+ *  overlay lights up without instrumenting a real app. */
+export function buildDemoOtlp(names: string[]): { resourceSpans: unknown[] } {
+  const [root, ...children] = names;
+  const spans: unknown[] = [{
+    traceId: "demo0000000000000000000000000001", spanId: "demaa00000000001",
+    name: root, startTimeUnixNano: "1000000", endTimeUnixNano: "26000000", // 25ms
+    attributes: [{ key: "code.function", value: { stringValue: root.split(/[.:]/).pop() } }],
+  }];
+  children.forEach((n, i) => {
+    spans.push({
+      traceId: "demo0000000000000000000000000001", spanId: `demab0000000000${i + 1}`,
+      parentSpanId: "demaa00000000001", name: n,
+      startTimeUnixNano: "2000000", endTimeUnixNano: `${(i + 2) * 3}000000`,
+      status: i === 0 ? { code: 2 } : undefined, // first child errors
+      attributes: [{ key: "code.function", value: { stringValue: n.split(/[.:]/).pop() } }],
+    });
+  });
+  return { resourceSpans: [{ scopeSpans: [{ spans }] }] };
+}
+
+export async function runTraceDemo(
+  opts: { url?: string; path?: string; fetchImpl?: typeof fetch } = {},
+): Promise<{ spans: number; url: string }> {
+  const url = (opts.url ?? "http://localhost:5180").replace(/\/$/, "");
+  const doFetch = opts.fetchImpl ?? fetch;
+  // Prefer real qualifiedNames from the scanned graph so demo traffic lands on
+  // actual nodes; fall back to placeholders when no graph is present.
+  let names: string[] = [];
+  const dbPath = join(resolve(opts.path ?? "."), ".telos", "graph.db");
+  if (existsSync(dbPath)) {
+    const store = GraphStore.open(dbPath);
+    try {
+      names = store.loadGraph().nodes
+        .filter((n) => n.kind === "function" || n.kind === "method")
+        .slice(0, 5).map((n) => n.qualifiedName);
+    } finally { store.close(); }
+  }
+  if (names.length < 2) names = ["app.main", "app.handleRequest", "db.query"];
+  const body = buildDemoOtlp(names);
+  const spans = (body.resourceSpans[0] as { scopeSpans: { spans: unknown[] }[] }).scopeSpans[0].spans.length;
+  const res = await doFetch(`${url}/v1/traces`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`trace demo POST failed: ${res.status}`);
+  return { spans, url };
+}
+
 export async function runServe(opts: { path: string; port: number; open?: boolean }): Promise<{ address: string; close: () => Promise<void> }> {
   const repo = resolve(opts.path);
   const dbPath = join(repo, ".telos", "graph.db");
@@ -111,6 +160,15 @@ export function buildProgram(): Command {
         if (answers.length === 0) { console.log("No matching code found."); return; }
         for (const a of answers) console.log(`${a.node.qualifiedName}  (${a.node.path})  ${a.node.summary ?? ""}`.trimEnd());
       } finally { store.close(); }
+    });
+  program.command("trace").description("Emit synthetic OTel traffic to a running server (demo the live overlay)")
+    .option("--demo", "send a synthetic OTLP trace", false)
+    .option("--url <url>", "running Telos server base URL", "http://localhost:5180")
+    .option("-p, --path <path>", "repo path (to map demo spans onto real nodes)", ".")
+    .action(async (opts: { demo: boolean; url: string; path: string }) => {
+      if (!opts.demo) { console.log("Nothing to do. Use `telos trace --demo` to emit synthetic traffic."); return; }
+      const r = await runTraceDemo({ url: opts.url, path: opts.path });
+      console.log(`Telos: emitted ${r.spans} demo spans -> ${r.url}/v1/traces (toggle "● Live" in the map)`);
     });
   program.command("setup").description("Print harness install commands (ECC/Superpowers/Headroom) and bootstrap .telos/harness.lock")
     .option("--dir <path>", "project dir containing .telos", ".")
