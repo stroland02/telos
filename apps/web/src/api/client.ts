@@ -1,4 +1,4 @@
-import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer } from "./types";
+import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState } from "./types";
 
 export interface TelosApi {
   overview(): Promise<GraphView>;
@@ -10,6 +10,10 @@ export interface TelosApi {
   recommendations(id: string): Promise<Recommendation[]>;
   tour(limit?: number): Promise<TourStop[]>;
   ask(question: string, limit?: number): Promise<Answer[]>;
+  /** One-shot live trace snapshot (poll fallback). */
+  traceState(): Promise<TraceState>;
+  /** Subscribe to the live trace SSE stream; returns an unsubscribe fn. */
+  subscribeTrace(onState: (s: TraceState) => void, onError?: () => void): () => void;
 }
 
 export function createApi(baseUrl = ""): TelosApi {
@@ -37,5 +41,14 @@ export function createApi(baseUrl = ""): TelosApi {
       (await get<{ stops: TourStop[] }>(`/api/tour${limit ? `?limit=${limit}` : ""}`)).stops,
     ask: async (question, limit) =>
       (await get<{ answers: Answer[] }>(`/api/ask?q=${encodeURIComponent(question)}${limit ? `&limit=${limit}` : ""}`)).answers,
+    traceState: () => get<TraceState>("/api/trace/state"),
+    subscribeTrace: (onState, onError) => {
+      const es = new EventSource(`${baseUrl}/api/trace/stream`);
+      es.onmessage = (ev) => {
+        try { onState(JSON.parse(ev.data) as TraceState); } catch { /* ignore bad frame */ }
+      };
+      es.onerror = () => onError?.();
+      return () => es.close();
+    },
   };
 }

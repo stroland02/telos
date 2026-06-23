@@ -78,8 +78,18 @@ function complexityTier(c: number): { label: string; color: string; bg: string }
 }
 
 export function TelosNode({ data, selected }: NodeProps) {
-  const d = data as unknown as FlowNodeData & { _pathOn?: boolean | null; _pathDim?: boolean };
+  const d = data as unknown as FlowNodeData & {
+    _pathOn?: boolean | null; _pathDim?: boolean;
+    _liveCalls?: number; _liveErr?: boolean;
+  };
   const isLeaf = d.level === "symbol" || d.level === "file";
+
+  // Live trace overlay: a node carrying recent traffic gets an accent ring and
+  // a continuous pulse; errors flash in the danger color. Purely additive.
+  const liveCalls = d._liveCalls ?? 0;
+  const isLive = liveCalls > 0;
+  const liveErr = d._liveErr === true;
+  const liveColor = liveErr ? "var(--danger)" : "var(--accent)";
   const density = currentDensity;
   const bg = layerVar(d.layer);
   const glow = layerGlowVar(d.layer);
@@ -92,6 +102,8 @@ export function TelosNode({ data, selected }: NodeProps) {
 
   const shadow = (selected || pathOn)
     ? `0 0 0 2px var(--accent), 0 0 20px var(--accent-soft), 0 2px 12px ${glow}`
+    : isLive
+    ? `0 0 0 2px ${liveColor}, 0 0 18px ${liveColor}, 0 2px 12px ${glow}`
     : `0 0 0 1px ${glow} inset, 0 2px 12px ${glow}`;
 
   return (
@@ -111,11 +123,15 @@ export function TelosNode({ data, selected }: NodeProps) {
         opacity: pathDim ? 0.12 : isLeaf ? 0.85 : 1,
         cursor: "pointer",
         outline: "none",
-        animation: (selected || pathOn) ? "sentinelPulse var(--sentinel-pulse-duration) ease-in-out 2" : "none",
+        animation: (selected || pathOn)
+          ? "sentinelPulse var(--sentinel-pulse-duration) ease-in-out 2"
+          : isLive
+          ? "sentinelPulse var(--sentinel-pulse-duration) ease-in-out infinite"
+          : "none",
       }}
       tabIndex={0}
       role="button"
-      aria-label={`${d.label} — ${d.layer} ${d.level}`}
+      aria-label={`${d.label} — ${d.layer} ${d.level}${isLive ? ` — live: ${liveCalls} calls` : ""}`}
     >
       {/* Handles are structurally required for RF edge routing but invisible
           in this read-only view — no edge dragging is offered to the user.

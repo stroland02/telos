@@ -1,10 +1,11 @@
 // packages/server/src/graphService.ts
 import {
   GraphStore, aggregate, overview, childrenOf, nodeDetail, resolveNode, buildTour, askGraph,
+  TraceAggregator, buildNodeIndex,
   TelosGraph, TelosNode, AggregatedGraph, GraphView, NodeDetail,
 } from "@telos/engine";
 import { recommend } from "@telos/harness";
-import { GraphProvider } from "./server.js";
+import { GraphProvider, TraceHub } from "./server.js";
 
 export class GraphService implements GraphProvider {
   private constructor(
@@ -13,6 +14,15 @@ export class GraphService implements GraphProvider {
     private readonly store: GraphStore | null,
     readonly repoRoot: string | null,
   ) {}
+
+  /** Lazily-built live trace hub: one aggregator + node index per service. */
+  private hub: TraceHub | null = null;
+  getTraceHub(): TraceHub {
+    if (!this.hub) {
+      this.hub = { aggregator: new TraceAggregator(), index: buildNodeIndex(this.graph) };
+    }
+    return this.hub;
+  }
 
   static fromDb(dbPath: string, repoRoot?: string): GraphService {
     const store = GraphStore.open(dbPath);

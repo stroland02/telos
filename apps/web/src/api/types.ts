@@ -13,3 +13,14 @@ export interface SourceResult { path: string; content: string; lines: number; }
 export interface Recommendation { id: string; title: string; }
 export interface TourStop { id: string; qualifiedName: string; summary: string | null; order: number; }
 export interface Answer { id: string; qualifiedName: string; path: string; summary: string | null; score: number; }
+
+// ── Phase 2 A1: live OTel trace overlay ──────────────────────────────────────
+export interface TraceNodeSignal { id: string; calls: number; p95Ms: number; errors: number; }
+export interface TraceEdgeSignal { sourceId: string; targetId: string; calls: number; errors: number; }
+export interface TraceState {
+  nodes: TraceNodeSignal[];
+  edges: TraceEdgeSignal[];
+  unmapped: number;
+  unmappedEdges: number;
+  windowMs: number;
+}

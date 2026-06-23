@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { runScan, runEnrich, buildProgram } from "./main.js";
+import { describe, it, expect, vi } from "vitest";
+import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, buildProgram } from "./main.js";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -68,5 +68,34 @@ describe("telos tour command", () => {
 describe("telos ask command", () => {
   it("is registered", () => {
     expect(buildProgram().commands.map((c) => c.name())).toContain("ask");
+  });
+});
+
+describe("telos trace command", () => {
+  it("is registered", () => {
+    expect(buildProgram().commands.map((c) => c.name())).toContain("trace");
+  });
+});
+
+describe("buildDemoOtlp", () => {
+  it("builds a root span with children and one error", () => {
+    const body = buildDemoOtlp(["app.main", "app.handle", "db.query"]);
+    const spans = (body.resourceSpans[0] as any).scopeSpans[0].spans;
+    expect(spans).toHaveLength(3);
+    expect(spans[0].name).toBe("app.main");
+    expect(spans[1].parentSpanId).toBe(spans[0].spanId);
+    expect(spans[1].status.code).toBe(2); // first child errors
+  });
+});
+
+describe("runTraceDemo", () => {
+  it("POSTs a synthetic OTLP payload to <url>/v1/traces", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, status: 200 } as Response);
+    const r = await runTraceDemo({ url: "http://x:1/", path: "Z:/no/such/repo", fetchImpl });
+    expect(r.spans).toBeGreaterThanOrEqual(2);
+    const [url, init] = fetchImpl.mock.calls[0];
+    expect(url).toBe("http://x:1/v1/traces");
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body.resourceSpans[0].scopeSpans[0].spans).toHaveLength(r.spans);
   });
 });

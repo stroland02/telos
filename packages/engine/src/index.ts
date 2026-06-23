@@ -8,3 +8,6 @@ export { heuristicEnricher } from "./enrichers/heuristic.js";
 export { createLlmEnricher, DEFAULT_LLM } from "./enrichers/llm.js";
 export * from "./tour.js";
 export * from "./ask.js";
+export * from "./trace/otlp.js";
+export * from "./trace/match.js";
+export * from "./trace/aggregator.js";

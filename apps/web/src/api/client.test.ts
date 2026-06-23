@@ -64,4 +64,37 @@ describe("createApi", () => {
     expect(f).toHaveBeenCalledWith("/api/ask?q=where%20is%20auth");
     expect(answers[0].id).toBe("a");
   });
+
+  it("traceState() GETs /api/trace/state", async () => {
+    const state = { nodes: [{ id: "A", calls: 2, p95Ms: 10, errors: 0 }], edges: [], unmapped: 0, unmappedEdges: 0, windowMs: 30000 };
+    const f = mockFetch(200, state);
+    vi.stubGlobal("fetch", f);
+    const api = createApi();
+    expect(await api.traceState()).toEqual(state);
+    expect(f).toHaveBeenCalledWith("/api/trace/state");
+  });
+
+  it("subscribeTrace() parses SSE frames and unsubscribes by closing", () => {
+    let last: FakeES | null = null;
+    class FakeES {
+      onmessage: ((ev: { data: string }) => void) | null = null;
+      onerror: (() => void) | null = null;
+      closed = false;
+      constructor(public url: string) { last = this; }
+      close() { this.closed = true; }
+    }
+    vi.stubGlobal("EventSource", FakeES as unknown as typeof EventSource);
+    const api = createApi();
+    const received: unknown[] = [];
+    const unsubscribe = api.subscribeTrace((s) => received.push(s));
+
+    expect(last!.url).toBe("/api/trace/stream");
+    last!.onmessage!({ data: JSON.stringify({ nodes: [{ id: "A", calls: 1, p95Ms: 5, errors: 0 }], edges: [], unmapped: 0, unmappedEdges: 0, windowMs: 30000 }) });
+    last!.onmessage!({ data: "not json" }); // bad frame ignored, no throw
+    expect(received).toHaveLength(1);
+    expect((received[0] as { nodes: unknown[] }).nodes).toHaveLength(1);
+
+    unsubscribe();
+    expect(last!.closed).toBe(true);
+  });
 });

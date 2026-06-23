@@ -8,6 +8,8 @@ function stubApi(over: Partial<TelosApi> = {}): TelosApi {
     overview: vi.fn(), cluster: vi.fn(), node: vi.fn(), search: vi.fn().mockResolvedValue([]),
     files: vi.fn().mockResolvedValue([]), source: vi.fn(), recommendations: vi.fn().mockResolvedValue([]),
     tour: vi.fn().mockResolvedValue([]), ask: vi.fn().mockResolvedValue([]),
+    traceState: vi.fn().mockResolvedValue({ nodes: [], edges: [], unmapped: 0, unmappedEdges: 0, windowMs: 30000 }),
+    subscribeTrace: vi.fn().mockReturnValue(() => {}),
     ...over,
   } as TelosApi;
 }
