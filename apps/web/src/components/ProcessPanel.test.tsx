@@ -10,6 +10,7 @@ function api(procs: any[]): TelosApi {
 const sample = [
   { pid: 2, name: "chrome", cmd: "chrome", cpu: 30, memMb: 800, nodeId: null },
   { pid: 1, name: "node", cmd: "node auth.ts", cpu: 3, memMb: 50, nodeId: "F" },
+  { pid: 7, ppid: 1, name: "worker", cmd: "node worker.ts", cpu: 1, memMb: 20, nodeId: null },
 ];
 
 describe("ProcessPanel", () => {
@@ -25,6 +26,8 @@ describe("ProcessPanel", () => {
 
     await waitFor(() => expect(screen.getByText("chrome")).toBeTruthy());
     expect(screen.getByText("node")).toBeTruthy();
+    // child process is rendered as a tree row under its parent
+    expect(screen.getByText("worker")).toBeTruthy();
 
     // The node-tagged process exposes an "open" affordance.
     fireEvent.click(screen.getByTitle("Open this process's code node"));
