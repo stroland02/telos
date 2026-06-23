@@ -13,6 +13,35 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { TelosApi } from "../api/client";
 import { ProcessSample } from "../api/types";
 
+interface TreeRow extends ProcessSample { depth: number }
+
+/** Build a CPU-sorted, depth-annotated, pre-order row list from a flat snapshot.
+ *  A process is a root when its ppid is absent or outside the set (orphan).
+ *  Cycle-safe. Kept local so the web bundle never imports the node-only engine. */
+function toTreeRows(samples: ProcessSample[]): TreeRow[] {
+  const kids = new Map<number, ProcessSample[]>();
+  const pids = new Set(samples.map((p) => p.pid));
+  const roots: ProcessSample[] = [];
+  for (const p of samples) {
+    if (p.ppid != null && p.ppid !== p.pid && pids.has(p.ppid)) {
+      (kids.get(p.ppid) ?? kids.set(p.ppid, []).get(p.ppid)!).push(p);
+    } else {
+      roots.push(p);
+    }
+  }
+  const byCpu = (a: ProcessSample, b: ProcessSample) => b.cpu - a.cpu || b.memMb - a.memMb || a.pid - b.pid;
+  const rows: TreeRow[] = [];
+  const seen = new Set<number>();
+  const walk = (p: ProcessSample, depth: number) => {
+    if (seen.has(p.pid)) return; // cycle guard
+    seen.add(p.pid);
+    rows.push({ ...p, depth });
+    (kids.get(p.pid) ?? []).sort(byCpu).forEach((c) => walk(c, depth + 1));
+  };
+  roots.sort(byCpu).forEach((r) => walk(r, 0));
+  return rows;
+}
+
 export function ProcessPanel({
   open, api, onOpenNode, onClose,
 }: { open: boolean; api: TelosApi; onOpenNode: (id: string) => void; onClose: () => void }) {
@@ -81,10 +110,15 @@ export function ProcessPanel({
                 </tr>
               </thead>
               <tbody>
-                {procs.map((p) => (
+                {toTreeRows(procs).map((p) => (
                   <tr key={p.pid} style={{ borderTop: "1px solid var(--border)", color: "var(--text)" }}>
                     <Td>{p.pid}</Td>
-                    <Td title={p.cmd ?? p.name}>{p.name}</Td>
+                    <Td title={p.cmd ?? p.name}>
+                      <span style={{ paddingLeft: p.depth * 14, color: p.depth > 0 ? "var(--text-muted)" : "var(--text)" }}>
+                        {p.depth > 0 && <span aria-hidden="true" style={{ color: "var(--text-faint)" }}>└ </span>}
+                        {p.name}
+                      </span>
+                    </Td>
                     <Td right>{p.cpu.toFixed(1)}</Td>
                     <Td right>{Math.round(p.memMb)}</Td>
                     <Td>

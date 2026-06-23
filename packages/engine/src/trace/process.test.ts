@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ProcessBuffer, tagProcesses, ProcessSample } from "./process.js";
+import { ProcessBuffer, tagProcesses, buildProcessTree, flattenProcessTree, ProcessSample } from "./process.js";
 
 function proc(p: Partial<ProcessSample> & { pid: number }): ProcessSample {
   return { name: "p", cpu: 0, memMb: 0, ...p };
@@ -45,5 +45,37 @@ describe("ProcessBuffer", () => {
     const buf = new ProcessBuffer();
     buf.set([proc({ pid: 1, cpu: 5 }), proc({ pid: 2, cpu: 9 }), proc({ pid: 3, cpu: 1 })]);
     expect(buf.latest(2).map((p) => p.pid)).toEqual([2, 1]);
+  });
+});
+
+describe("buildProcessTree", () => {
+  it("nests children under parents and orders by CPU", () => {
+    const roots = buildProcessTree([
+      proc({ pid: 1, cpu: 1 }),                 // root
+      proc({ pid: 2, ppid: 1, cpu: 5 }),        // child of 1
+      proc({ pid: 3, ppid: 1, cpu: 9 }),        // child of 1 (higher cpu → first)
+      proc({ pid: 4, ppid: 2, cpu: 2 }),        // grandchild
+      proc({ pid: 99, ppid: 555, cpu: 3 }),     // orphan ppid → root
+    ]);
+    expect(roots.map((r) => r.pid).sort()).toEqual([1, 99]);
+    const one = roots.find((r) => r.pid === 1)!;
+    expect(one.children.map((c) => c.pid)).toEqual([3, 2]); // cpu desc
+    expect(one.children.find((c) => c.pid === 2)!.children[0].pid).toBe(4);
+    expect(one.depth).toBe(0);
+    expect(one.children[0].depth).toBe(1);
+  });
+
+  it("is cycle-safe", () => {
+    const roots = buildProcessTree([
+      proc({ pid: 1, ppid: 2 }),
+      proc({ pid: 2, ppid: 1 }),
+    ]);
+    // a cycle resolves to at least one root, no infinite recursion
+    expect(flattenProcessTree(roots)).toHaveLength(2);
+  });
+
+  it("flattens pre-order for table rows", () => {
+    const roots = buildProcessTree([proc({ pid: 1 }), proc({ pid: 2, ppid: 1 })]);
+    expect(flattenProcessTree(roots).map((n) => n.pid)).toEqual([1, 2]);
   });
 });

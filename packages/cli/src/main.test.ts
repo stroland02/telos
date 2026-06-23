@@ -131,9 +131,10 @@ describe("runTop", () => {
     expect(JSON.parse((init as RequestInit).body as string).processes).toHaveLength(1);
   });
 
-  it("buildDemoProcesses references the given file paths", () => {
+  it("buildDemoProcesses references the given file paths and forms a hierarchy", () => {
     const procs = buildDemoProcesses(["src/app.ts", "src/worker.ts"]);
     expect(procs.length).toBeGreaterThanOrEqual(3);
     expect(procs.some((p) => (p.cmd ?? "").includes("src/app.ts"))).toBe(true);
+    expect(procs.some((p) => p.ppid != null)).toBe(true); // has parent/child links
   });
 });

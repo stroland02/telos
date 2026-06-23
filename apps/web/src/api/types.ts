@@ -30,4 +30,4 @@ export interface LogLine { ts: number; severity: string; body: string; attrs: Re
 export interface MetricSeries { name: string; unit: string; latest: number; points: number[]; }
 export interface HotNode { nodeId: string; self: number; total: number; }
 export interface ProfileSnapshot { nodes: HotNode[]; totalSamples: number; unmatched: number; }
-export interface ProcessSample { pid: number; name: string; cmd?: string; cpu: number; memMb: number; nodeId?: string | null; }
+export interface ProcessSample { pid: number; ppid?: number; name: string; cmd?: string; cpu: number; memMb: number; nodeId?: string | null; }
