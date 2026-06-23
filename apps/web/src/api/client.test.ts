@@ -74,6 +74,21 @@ describe("createApi", () => {
     expect(f).toHaveBeenCalledWith("/api/trace/state");
   });
 
+  it("recentTraces() and traceReplay() hit the right endpoints", async () => {
+    const f = mockFetch(200, { traces: [{ traceId: "t1", rootName: "A", spanCount: 2, durationMs: 9, hasError: false }] });
+    vi.stubGlobal("fetch", f);
+    const api = createApi();
+    const traces = await api.recentTraces(5);
+    expect(f).toHaveBeenCalledWith("/api/trace/recent?limit=5");
+    expect(traces[0].traceId).toBe("t1");
+
+    const f2 = mockFetch(200, { steps: [{ order: 0, spanId: "s0", name: "A", nodeId: "A", durationMs: 5, isError: false, depth: 0 }] });
+    vi.stubGlobal("fetch", f2);
+    const steps = await createApi().traceReplay("t1");
+    expect(f2).toHaveBeenCalledWith("/api/trace/replay/t1");
+    expect(steps[0].nodeId).toBe("A");
+  });
+
   it("subscribeTrace() parses SSE frames and unsubscribes by closing", () => {
     let last: FakeES | null = null;
     class FakeES {

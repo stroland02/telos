@@ -80,7 +80,7 @@ function complexityTier(c: number): { label: string; color: string; bg: string }
 export function TelosNode({ data, selected }: NodeProps) {
   const d = data as unknown as FlowNodeData & {
     _pathOn?: boolean | null; _pathDim?: boolean;
-    _liveCalls?: number; _liveErr?: boolean;
+    _liveCalls?: number; _liveErr?: boolean; _replayOn?: boolean;
   };
   const isLeaf = d.level === "symbol" || d.level === "file";
 
@@ -90,6 +90,9 @@ export function TelosNode({ data, selected }: NodeProps) {
   const isLive = liveCalls > 0;
   const liveErr = d._liveErr === true;
   const liveColor = liveErr ? "var(--danger)" : "var(--accent)";
+
+  // Trace playback: the node currently being replayed gets the strongest ring.
+  const replayOn = d._replayOn === true;
   const density = currentDensity;
   const bg = layerVar(d.layer);
   const glow = layerGlowVar(d.layer);
@@ -100,7 +103,9 @@ export function TelosNode({ data, selected }: NodeProps) {
   const pathOn = d._pathOn === true;
   const pathDim = d._pathDim === true;
 
-  const shadow = (selected || pathOn)
+  const shadow = replayOn
+    ? `0 0 0 3px var(--accent), 0 0 28px var(--accent), 0 2px 12px ${glow}`
+    : (selected || pathOn)
     ? `0 0 0 2px var(--accent), 0 0 20px var(--accent-soft), 0 2px 12px ${glow}`
     : isLive
     ? `0 0 0 2px ${liveColor}, 0 0 18px ${liveColor}, 0 2px 12px ${glow}`
@@ -123,7 +128,7 @@ export function TelosNode({ data, selected }: NodeProps) {
         opacity: pathDim ? 0.12 : isLeaf ? 0.85 : 1,
         cursor: "pointer",
         outline: "none",
-        animation: (selected || pathOn)
+        animation: (selected || pathOn || replayOn)
           ? "sentinelPulse var(--sentinel-pulse-duration) ease-in-out 2"
           : isLive
           ? "sentinelPulse var(--sentinel-pulse-duration) ease-in-out infinite"
@@ -131,7 +136,7 @@ export function TelosNode({ data, selected }: NodeProps) {
       }}
       tabIndex={0}
       role="button"
-      aria-label={`${d.label} — ${d.layer} ${d.level}${isLive ? ` — live: ${liveCalls} calls` : ""}`}
+      aria-label={`${d.label} — ${d.layer} ${d.level}${replayOn ? " — replaying" : isLive ? ` — live: ${liveCalls} calls` : ""}`}
     >
       {/* Handles are structurally required for RF edge routing but invisible
           in this read-only view — no edge dragging is offered to the user.

@@ -3,6 +3,7 @@ import { createApi } from "./api/client";
 import { NodeDetail, SourceResult, TelosNodeDTO, Recommendation } from "./api/types";
 import { useNavigation } from "./graph/useNavigation";
 import { useTraceOverlay } from "./graph/useTraceOverlay";
+import { useTracePlayback } from "./graph/useTracePlayback";
 import { useDensity } from "./graph/useDensity";
 import type { DensityMode } from "./graph/useDensity";
 import { useTheme } from "./graph/useTheme";
@@ -46,6 +47,15 @@ export function App() {
   const [askOpen, setAskOpen] = useState(false);
   const [liveOn, setLiveOn] = useState(false);
   const trace = useTraceOverlay(api, liveOn);
+  const playback = useTracePlayback(api);
+
+  const onReplay = useCallback(async () => {
+    if (playback.playing) { playback.stop(); return; }
+    try {
+      const recent = await api.recentTraces(1);
+      if (recent[0]) await playback.play(recent[0].traceId);
+    } catch { /* no traces yet — non-fatal */ }
+  }, [playback]);
 
   // ── File explorer state ──────────────────────────────────────────────────
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -328,6 +338,34 @@ export function App() {
             {liveOn && trace.state ? `Live · ${trace.totalCalls}` : "Live"}
           </button>
           <button
+            onClick={onReplay}
+            aria-label={playback.playing ? "Stop trace replay" : "Replay the most recent trace"}
+            aria-pressed={playback.playing}
+            title="Replay the most recent request as a path through the map"
+            style={{
+              flexShrink: 0,
+              background: playback.playing ? "var(--accent-soft)" : "none",
+              border: `1px solid ${playback.playing ? "var(--accent)" : "var(--border)"}`,
+              borderRadius: "var(--r-sm)",
+              cursor: "pointer",
+              color: playback.playing ? "var(--accent)" : "var(--text-muted)",
+              fontFamily: "var(--font-ui)",
+              fontSize: "var(--t-meta-size)",
+              lineHeight: 1,
+              height: 28,
+              padding: "0 var(--s-3)",
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--s-1)",
+              outline: "none",
+            }}
+            onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
+            onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+          >
+            <span aria-hidden="true">{playback.playing ? "■" : "▷"}</span>
+            {playback.playing ? `${playback.step + 1}/${playback.total}` : "Replay"}
+          </button>
+          <button
             onClick={() => setAskOpen(true)}
             aria-label="Ask the codebase"
             title="Ask where something happens / take a tour"
@@ -455,6 +493,7 @@ export function App() {
             registerFitView={registerFitView}
             layoutKey={`${sidebarOpen ? "s" : ""}${viewerVisible ? "v" : ""}`}
             trace={trace}
+            replayNodeId={playback.activeNodeId}
           />
         </div>
 

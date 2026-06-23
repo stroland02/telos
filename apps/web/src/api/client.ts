@@ -1,4 +1,4 @@
-import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState } from "./types";
+import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep } from "./types";
 
 export interface TelosApi {
   overview(): Promise<GraphView>;
@@ -14,6 +14,10 @@ export interface TelosApi {
   traceState(): Promise<TraceState>;
   /** Subscribe to the live trace SSE stream; returns an unsubscribe fn. */
   subscribeTrace(onState: (s: TraceState) => void, onError?: () => void): () => void;
+  /** Recent traces, newest first (playback picker). */
+  recentTraces(limit?: number): Promise<TraceSummary[]>;
+  /** One trace's chronological node path (playback animation). */
+  traceReplay(traceId: string): Promise<TracePathStep[]>;
 }
 
 export function createApi(baseUrl = ""): TelosApi {
@@ -50,5 +54,9 @@ export function createApi(baseUrl = ""): TelosApi {
       es.onerror = () => onError?.();
       return () => es.close();
     },
+    recentTraces: async (limit) =>
+      (await get<{ traces: TraceSummary[] }>(`/api/trace/recent${limit ? `?limit=${limit}` : ""}`)).traces,
+    traceReplay: async (traceId) =>
+      (await get<{ steps: TracePathStep[] }>(`/api/trace/replay/${encodeURIComponent(traceId)}`)).steps,
   };
 }
