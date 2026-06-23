@@ -23,4 +23,18 @@ describe("DetailPanel summary", () => {
     render(<DetailPanel detail={detail(null)} onClose={() => {}} />);
     expect(screen.queryByText("Summary")).toBeNull();
   });
+
+  it("renders recent logs when present, omits the section when empty", () => {
+    const { rerender } = render(<DetailPanel detail={detail(null)} onClose={() => {}} />);
+    expect(screen.queryByText(/Recent logs/)).toBeNull();
+    rerender(
+      <DetailPanel
+        detail={detail(null)}
+        onClose={() => {}}
+        logs={[{ ts: 1, severity: "ERROR", body: "login failed", attrs: {}, nodeId: "a" }]}
+      />,
+    );
+    expect(screen.getByText(/Recent logs/)).toBeTruthy();
+    expect(screen.getByText("login failed")).toBeTruthy();
+  });
 });

@@ -89,6 +89,15 @@ describe("createApi", () => {
     expect(steps[0].nodeId).toBe("A");
   });
 
+  it("nodeLogs(id) scopes the request to the node", async () => {
+    const f = mockFetch(200, { logs: [{ ts: 1, severity: "ERROR", body: "boom", attrs: {}, nodeId: "n1" }] });
+    vi.stubGlobal("fetch", f);
+    const api = createApi();
+    const logs = await api.nodeLogs("n1", 20);
+    expect(f).toHaveBeenCalledWith("/api/logs?node=n1&limit=20");
+    expect(logs[0].body).toBe("boom");
+  });
+
   it("subscribeTrace() parses SSE frames and unsubscribes by closing", () => {
     let last: FakeES | null = null;
     class FakeES {

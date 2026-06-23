@@ -20,10 +20,11 @@ export function buildNodeIndex(graph: TelosGraph): NodeIndex {
   return { byQname, edgePairs };
 }
 
-/** Resolve a span to a node id, or null if nothing matches (unmapped). */
-export function matchSpanToNode(span: SpanRecord, index: NodeIndex): string | null {
-  const ns = span.attrs["code.namespace"];
-  const fn = span.attrs["code.function"];
+/** Resolve OTel `code.*` attributes (with an optional fallback name) to a node
+ *  id, or null. Shared by span and log matching. */
+export function matchByAttrs(attrs: Record<string, string>, fallbackName: string, index: NodeIndex): string | null {
+  const ns = attrs["code.namespace"];
+  const fn = attrs["code.function"];
   if (ns && fn) {
     const hit = index.byQname.get(`${ns}.${fn}`);
     if (hit) return hit;
@@ -32,5 +33,10 @@ export function matchSpanToNode(span: SpanRecord, index: NodeIndex): string | nu
     const hit = index.byQname.get(fn);
     if (hit) return hit;
   }
-  return index.byQname.get(span.name) ?? null;
+  return fallbackName ? index.byQname.get(fallbackName) ?? null : null;
+}
+
+/** Resolve a span to a node id, or null if nothing matches (unmapped). */
+export function matchSpanToNode(span: SpanRecord, index: NodeIndex): string | null {
+  return matchByAttrs(span.attrs, span.name, index);
 }

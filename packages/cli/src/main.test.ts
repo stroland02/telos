@@ -89,13 +89,18 @@ describe("buildDemoOtlp", () => {
 });
 
 describe("runTraceDemo", () => {
-  it("POSTs a synthetic OTLP payload to <url>/v1/traces", async () => {
+  it("POSTs synthetic OTLP traces and logs", async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: true, status: 200 } as Response);
     const r = await runTraceDemo({ url: "http://x:1/", path: "Z:/no/such/repo", fetchImpl });
     expect(r.spans).toBeGreaterThanOrEqual(2);
-    const [url, init] = fetchImpl.mock.calls[0];
-    expect(url).toBe("http://x:1/v1/traces");
-    const body = JSON.parse((init as RequestInit).body as string);
-    expect(body.resourceSpans[0].scopeSpans[0].spans).toHaveLength(r.spans);
+    expect(r.logs).toBeGreaterThanOrEqual(1);
+
+    const [traceUrl, traceInit] = fetchImpl.mock.calls[0];
+    expect(traceUrl).toBe("http://x:1/v1/traces");
+    expect(JSON.parse((traceInit as RequestInit).body as string).resourceSpans[0].scopeSpans[0].spans).toHaveLength(r.spans);
+
+    const [logUrl, logInit] = fetchImpl.mock.calls[1];
+    expect(logUrl).toBe("http://x:1/v1/logs");
+    expect(JSON.parse((logInit as RequestInit).body as string).resourceLogs[0].scopeLogs[0].logRecords).toHaveLength(r.logs);
   });
 });

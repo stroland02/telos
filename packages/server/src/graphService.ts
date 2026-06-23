@@ -1,7 +1,7 @@
 // packages/server/src/graphService.ts
 import {
   GraphStore, aggregate, overview, childrenOf, nodeDetail, resolveNode, buildTour, askGraph,
-  TraceAggregator, TraceBuffer, buildNodeIndex,
+  TraceAggregator, TraceBuffer, LogBuffer, buildNodeIndex,
   TelosGraph, TelosNode, AggregatedGraph, GraphView, NodeDetail,
 } from "@telos/engine";
 import { recommend } from "@telos/harness";
@@ -19,7 +19,7 @@ export class GraphService implements GraphProvider {
   private hub: TraceHub | null = null;
   getTraceHub(): TraceHub {
     if (!this.hub) {
-      this.hub = { aggregator: new TraceAggregator(), buffer: new TraceBuffer(), index: buildNodeIndex(this.graph) };
+      this.hub = { aggregator: new TraceAggregator(), buffer: new TraceBuffer(), logs: new LogBuffer(), index: buildNodeIndex(this.graph) };
     }
     return this.hub;
   }

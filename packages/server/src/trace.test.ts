@@ -64,6 +64,28 @@ describe("trace overlay routes", () => {
     await app.close();
   });
 
+  it("ingests logs and serves them scoped to a node", async () => {
+    const svc = GraphService.fromGraph(graph);
+    const app = buildServer(svc);
+    const logsBody = {
+      resourceLogs: [{ scopeLogs: [{ logRecords: [
+        { timeUnixNano: "5", severityText: "ERROR", body: { stringValue: "boom" },
+          attributes: [{ key: "code.namespace", value: { stringValue: "auth" } }, { key: "code.function", value: { stringValue: "authenticate" } }] },
+        { timeUnixNano: "6", severityText: "INFO", body: { stringValue: "noise" }, attributes: [] },
+      ] }] }],
+    };
+    const post = await app.inject({ method: "POST", url: "/v1/logs", payload: logsBody });
+    expect(post.statusCode).toBe(200);
+
+    const scoped = await app.inject({ method: "GET", url: "/api/logs?node=A" });
+    expect(scoped.statusCode).toBe(200);
+    expect(scoped.json().logs.map((l: any) => l.body)).toEqual(["boom"]);
+
+    const all = await app.inject({ method: "GET", url: "/api/logs" });
+    expect(all.json().logs).toHaveLength(2);
+    await app.close();
+  });
+
   it("returns 404 when the provider has no trace hub", async () => {
     const minimal: GraphProvider = {
       getOverview: () => ({}), getChildren: () => null, getNode: () => null,

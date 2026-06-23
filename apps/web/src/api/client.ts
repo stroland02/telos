@@ -1,4 +1,4 @@
-import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep } from "./types";
+import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine } from "./types";
 
 export interface TelosApi {
   overview(): Promise<GraphView>;
@@ -18,6 +18,8 @@ export interface TelosApi {
   recentTraces(limit?: number): Promise<TraceSummary[]>;
   /** One trace's chronological node path (playback animation). */
   traceReplay(traceId: string): Promise<TracePathStep[]>;
+  /** Recent logs scoped to a node (or all if no id). */
+  nodeLogs(nodeId?: string, limit?: number): Promise<LogLine[]>;
 }
 
 export function createApi(baseUrl = ""): TelosApi {
@@ -58,5 +60,12 @@ export function createApi(baseUrl = ""): TelosApi {
       (await get<{ traces: TraceSummary[] }>(`/api/trace/recent${limit ? `?limit=${limit}` : ""}`)).traces,
     traceReplay: async (traceId) =>
       (await get<{ steps: TracePathStep[] }>(`/api/trace/replay/${encodeURIComponent(traceId)}`)).steps,
+    nodeLogs: async (nodeId, limit) => {
+      const params = new URLSearchParams();
+      if (nodeId) params.set("node", nodeId);
+      if (limit) params.set("limit", String(limit));
+      const qs = params.toString();
+      return (await get<{ logs: LogLine[] }>(`/api/logs${qs ? `?${qs}` : ""}`)).logs;
+    },
   };
 }
