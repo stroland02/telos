@@ -1,4 +1,4 @@
-import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot, ProcessSample } from "./types";
+import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot, ProcessSample, ForgeState } from "./types";
 
 export interface TelosApi {
   overview(): Promise<GraphView>;
@@ -26,6 +26,8 @@ export interface TelosApi {
   profile(limit?: number): Promise<ProfileSnapshot>;
   /** Latest local process snapshot (CPU-sorted, node-tagged). */
   processes(limit?: number): Promise<ProcessSample[]>;
+  /** Subscribe to the Forge build-loop SSE stream; returns an unsubscribe fn. */
+  subscribeForge(onState: (s: ForgeState) => void, onError?: () => void): () => void;
 }
 
 export function createApi(baseUrl = ""): TelosApi {
@@ -78,5 +80,13 @@ export function createApi(baseUrl = ""): TelosApi {
     profile: (limit) => get<ProfileSnapshot>(`/api/profile${limit ? `?limit=${limit}` : ""}`),
     processes: async (limit) =>
       (await get<{ processes: ProcessSample[] }>(`/api/processes${limit ? `?limit=${limit}` : ""}`)).processes,
+    subscribeForge: (onState, onError) => {
+      const es = new EventSource(`${baseUrl}/api/forge/stream`);
+      es.onmessage = (ev) => {
+        try { onState(JSON.parse(ev.data) as ForgeState); } catch { /* ignore bad frame */ }
+      };
+      es.onerror = () => onError?.();
+      return () => es.close();
+    },
   };
 }

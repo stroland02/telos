@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
 import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, buildSetupPlan } from "@telos/harness";
+import { runForge, stubDriver, claudeAgentDriver, ForgeRunResult } from "@telos/forge";
 import { pathToFileURL } from "node:url";
 import open from "open";
 
@@ -216,6 +217,29 @@ export async function runTop(opts: {
   return { count: processes.length, url };
 }
 
+export async function runForgeCli(opts: {
+  intent: string; path?: string; url?: string; driver?: string;
+  budget?: number; maxTurns?: number; fetchImpl?: typeof fetch;
+}): Promise<ForgeRunResult> {
+  const repoDir = resolve(opts.path ?? ".");
+  const url = (opts.url ?? "http://localhost:5180").replace(/\/$/, "");
+  const doFetch = opts.fetchImpl ?? fetch;
+  const driver = opts.driver === "stub" ? stubDriver : claudeAgentDriver;
+  const run = `forge-${driver.id}`;
+  return runForge({
+    intent: opts.intent, repoDir, driver,
+    maxBudgetUsd: opts.budget, maxTurns: opts.maxTurns,
+    onDiff: async ({ checkpoint, diff }) => {
+      try {
+        await doFetch(`${url}/v1/forge/diff`, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ run, checkpoint, diff }),
+        });
+      } catch { /* headless / no server — reflection is best-effort */ }
+    },
+  });
+}
+
 export async function runServe(opts: { path: string; port: number; open?: boolean }): Promise<{ address: string; close: () => Promise<void> }> {
   const repo = resolve(opts.path);
   const dbPath = join(repo, ".telos", "graph.db");
@@ -309,6 +333,17 @@ export function buildProgram(): Command {
     .action(async (opts: { demo: boolean; url: string; path: string }) => {
       const r = await runTop({ url: opts.url, path: opts.path, demo: opts.demo });
       console.log(`Telos: pushed ${r.count} processes -> ${r.url}/v1/processes (open "▤ Procs" in the map)`);
+    });
+  program.command("forge <intent>").description("Run a bounded agentic build loop on an isolated branch (reflects onto the map)")
+    .option("-p, --path <path>", "repo path", ".")
+    .option("--url <url>", "running Telos server base URL", "http://localhost:5180")
+    .option("--driver <id>", "build driver: claude-agent | stub", "claude-agent")
+    .option("--budget <usd>", "max spend before stopping", parseFloat)
+    .option("--max-turns <n>", "max agent turns", (v) => parseInt(v, 10))
+    .action(async (intent: string, opts: { path: string; url: string; driver: string; budget?: number; maxTurns?: number }) => {
+      const r = await runForgeCli({ intent, path: opts.path, url: opts.url, driver: opts.driver, budget: opts.budget, maxTurns: opts.maxTurns });
+      console.log(`Telos forge [${r.stop}] — branch ${r.branch}: ${r.commits} commit(s), ${r.turns} turn(s), $${r.costUsd.toFixed(4)}.`);
+      console.log(`Review: git diff ${r.baseBranch}..${r.branch}  (merge to keep, or 'git branch -D ${r.branch}' to discard)`);
     });
   program.command("setup").description("Print harness install commands (ECC/Superpowers/Headroom) and bootstrap .telos/harness.lock")
     .option("--dir <path>", "project dir containing .telos", ".")

@@ -81,6 +81,7 @@ export function TelosNode({ data, selected }: NodeProps) {
   const d = data as unknown as FlowNodeData & {
     _pathOn?: boolean | null; _pathDim?: boolean;
     _liveCalls?: number; _liveErr?: boolean; _replayOn?: boolean; _hot?: number;
+    _forgeAdded?: boolean; _forgeChanged?: boolean; _forgeRemoved?: boolean;
   };
   const isLeaf = d.level === "symbol" || d.level === "file";
 
@@ -110,7 +111,15 @@ export function TelosNode({ data, selected }: NodeProps) {
   // Warm heat color (amber → red-orange) intensifying with hot. Halo grows too.
   const hotColor = `rgba(${Math.round(245 - hot * 30)}, ${Math.round(158 - hot * 90)}, 11, ${(0.45 + hot * 0.55).toFixed(2)})`;
 
-  const shadow = replayOn
+  // Forge build-loop overlay: a node touched by the current iteration's diff
+  // gets a colored ring — added (green), changed (amber), removed (faded).
+  const forgeColor = d._forgeAdded ? "var(--ok, #3fb950)"
+    : d._forgeChanged ? "var(--warn, #d29922)"
+    : d._forgeRemoved ? "var(--text-faint)" : null;
+
+  const shadow = forgeColor
+    ? `0 0 0 2px ${forgeColor}, 0 0 18px ${forgeColor}, 0 2px 12px ${glow}`
+    : replayOn
     ? `0 0 0 3px var(--accent), 0 0 28px var(--accent), 0 2px 12px ${glow}`
     : (selected || pathOn)
     ? `0 0 0 2px var(--accent), 0 0 20px var(--accent-soft), 0 2px 12px ${glow}`

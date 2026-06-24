@@ -9,7 +9,7 @@ import { PathFinderBar, PATH_FINDER_IDLE, bfsPath } from "./PathFinder";
 import type { PathFinderState } from "./PathFinder";
 import { ExportButton } from "./ExportButton";
 import { TourBar } from "./TourBar";
-import type { Layer, GraphView } from "../api/types";
+import type { Layer, GraphView, ForgeState } from "../api/types";
 import type { TelosApi } from "../api/client";
 import type { DensityMode } from "../graph/useDensity";
 import type { TraceOverlay } from "../graph/useTraceOverlay";
@@ -113,7 +113,7 @@ function WidthReader({ onWidth }: { onWidth: (w: number) => void }) {
 // Minimum map column width below which the minimap is hidden to save space.
 const MINIMAP_MIN_WIDTH = 380;
 
-export function MapView({ nav, api, density, theme, onOpenNode, registerFitView, layoutKey, trace, replayNodeId, hotIntensity }: { nav: NavigationState; api: TelosApi; density: DensityMode; theme?: string; onOpenNode: (id: string) => void; registerFitView?: (fn: () => void) => void; layoutKey?: string; trace?: TraceOverlay; replayNodeId?: string | null; hotIntensity?: (nodeId: string) => number }) {
+export function MapView({ nav, api, density, theme, onOpenNode, registerFitView, layoutKey, trace, replayNodeId, hotIntensity, forge }: { nav: NavigationState; api: TelosApi; density: DensityMode; theme?: string; onOpenNode: (id: string) => void; registerFitView?: (fn: () => void) => void; layoutKey?: string; trace?: TraceOverlay; replayNodeId?: string | null; hotIntensity?: (nodeId: string) => number; forge?: ForgeState | null }) {
   // Sync module-level density ref so TelosNode reads it on each render.
   setCurrentDensity(density);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -273,10 +273,13 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
             _liveErr: (sig?.errors ?? 0) > 0,
             _replayOn: replayNodeId != null && n.id === replayNodeId,
             _hot: hotIntensity ? hotIntensity(n.id) : 0,
+            _forgeAdded: forge?.diff.added.nodes.includes(n.id) ?? false,
+            _forgeChanged: forge?.diff.changed.includes(n.id) ?? false,
+            _forgeRemoved: forge?.diff.removed.nodes.includes(n.id) ?? false,
           },
         };
       }),
-    [filteredNodes, pathNodeSet, isPathActive, trace, replayNodeId, hotIntensity],
+    [filteredNodes, pathNodeSet, isPathActive, trace, replayNodeId, hotIntensity, forge],
   );
 
   // Source node label for PathFinderBar prompt.
