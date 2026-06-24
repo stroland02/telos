@@ -3,6 +3,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { App } from "./App";
 
 beforeEach(() => {
+  // SSE overlays (forge) open an EventSource on mount; stub it for jsdom.
+  vi.stubGlobal("EventSource", class { close() {} onmessage = null; onerror = null; } as unknown as typeof EventSource);
   vi.stubGlobal("fetch", vi.fn(async (url: string) => ({
     ok: true, status: 200,
     json: async () => {

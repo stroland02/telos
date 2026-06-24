@@ -14,6 +14,7 @@ function stubApi(over: Partial<TelosApi> = {}): TelosApi {
     nodeLogs: vi.fn().mockResolvedValue([]), nodeMetrics: vi.fn().mockResolvedValue([]),
     profile: vi.fn().mockResolvedValue({ nodes: [], totalSamples: 0, unmatched: 0 }),
     processes: vi.fn().mockResolvedValue([]),
+    subscribeForge: vi.fn().mockReturnValue(() => {}),
     ...over,
   } as TelosApi;
 }

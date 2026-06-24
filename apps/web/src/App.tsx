@@ -5,6 +5,7 @@ import { useNavigation } from "./graph/useNavigation";
 import { useTraceOverlay } from "./graph/useTraceOverlay";
 import { useTracePlayback } from "./graph/useTracePlayback";
 import { useProfileOverlay } from "./graph/useProfileOverlay";
+import { useForgeOverlay } from "./graph/useForgeOverlay";
 import { useDensity } from "./graph/useDensity";
 import type { DensityMode } from "./graph/useDensity";
 import { useTheme } from "./graph/useTheme";
@@ -55,6 +56,7 @@ export function App() {
   const playback = useTracePlayback(api);
   const [hotOn, setHotOn] = useState(false);
   const profile = useProfileOverlay(api, hotOn);
+  const { forge } = useForgeOverlay(api);
 
   const onReplay = useCallback(async () => {
     if (playback.playing) { playback.stop(); return; }
@@ -559,6 +561,7 @@ export function App() {
             trace={trace}
             replayNodeId={playback.activeNodeId}
             hotIntensity={hotOn ? profile.intensity : undefined}
+            forge={forge}
           />
         </div>
 

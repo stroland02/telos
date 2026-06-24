@@ -31,3 +31,5 @@ export interface MetricSeries { name: string; unit: string; latest: number; poin
 export interface HotNode { nodeId: string; self: number; total: number; }
 export interface ProfileSnapshot { nodes: HotNode[]; totalSamples: number; unmatched: number; }
 export interface ProcessSample { pid: number; ppid?: number; name: string; cmd?: string; cpu: number; memMb: number; nodeId?: string | null; }
+export interface ForgeDiff { added: { nodes: string[]; edges: string[] }; removed: { nodes: string[]; edges: string[] }; changed: string[]; }
+export interface ForgeState { run: string; turn: number; costUsd: number; stop: string | null; diff: ForgeDiff; }
