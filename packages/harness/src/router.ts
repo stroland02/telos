@@ -36,5 +36,12 @@ export const PROMPT_CATALOG: PromptCapability[] = [
   { id: "superpowers:test-driven-development", kind: "skill", source: "superpowers", title: "Test-driven development", triggers: ["tdd", "write tests", "test first", "failing test"] },
   { id: "ecc:security-review", kind: "skill", source: "ecc", title: "Security review", triggers: ["security", "auth", "vulnerab", "injection", "secret", "credential", "xss", "csrf"] },
   { id: "ecc:code-review", kind: "skill", source: "ecc", title: "Code review", triggers: ["review", "code review", "before merging", "pull request"] },
+  { id: "ecc:performance-optimizer", kind: "agent", source: "ecc", title: "Optimize performance", triggers: ["optimize", "slow", "performance", "bottleneck", "speed up", "memory leak", "latency", "too slow"] },
+  { id: "ecc:database-reviewer", kind: "agent", source: "ecc", title: "Database / SQL review", triggers: ["database", "sql", "query", "migration", "schema", "index", "n+1"] },
+  { id: "ecc:a11y-architect", kind: "agent", source: "ecc", title: "Accessibility review", triggers: ["accessibility", "a11y", "wcag", "screen reader", "aria", "keyboard navigation"] },
+  { id: "ecc:refactor-cleaner", kind: "agent", source: "ecc", title: "Refactor / remove dead code", triggers: ["refactor", "clean up", "dead code", "simplify", "duplicate code", "remove unused", "tidy up"] },
+  { id: "ecc:architect", kind: "agent", source: "ecc", title: "Architecture & system design", triggers: ["architecture", "system design", "scalab", "design pattern", "high-level design"] },
+  { id: "ecc:e2e-runner", kind: "agent", source: "ecc", title: "End-to-end testing", triggers: ["e2e", "end to end", "end-to-end", "playwright", "browser test"] },
+  { id: "ecc:doc-updater", kind: "agent", source: "ecc", title: "Update documentation", triggers: ["documentation", "readme", "changelog", "update docs", "write docs"] },
   { id: "headroom:compress", kind: "skill", source: "headroom", title: "Compress context to cut tokens", triggers: ["too many tokens", "context too", "too long", "compress", "reduce cost", "token cost"] },
 ];
