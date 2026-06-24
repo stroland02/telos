@@ -1,5 +1,7 @@
-export { scan } from "./pipeline.js";
+export { scan, scanGraph } from "./pipeline.js";
 export { GraphStore } from "./store.js";
+export { diffGraphs } from "./diff.js";
+export type { GraphDiff } from "./diff.js";
 export * from "./schema.js";
 export * from "./aggregator.js";
 export * from "./query.js";

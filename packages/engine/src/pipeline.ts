@@ -8,7 +8,8 @@ import { resolveGraph } from "./resolver.js";
 import { GraphStore } from "./store.js";
 import { TelosGraph, TelosNode, TelosEdge } from "./schema.js";
 
-export async function scan(repoRoot: string): Promise<{ dbPath: string; graph: TelosGraph }> {
+/** Parse + resolve a repo into a graph. Pure: writes nothing to disk. */
+export async function scanGraph(repoRoot: string): Promise<TelosGraph> {
   const files = await walk(repoRoot);
   const parser = await Parser.create();
   const nodes: TelosNode[] = []; const edges: TelosEdge[] = [];
@@ -25,8 +26,12 @@ export async function scan(repoRoot: string): Promise<{ dbPath: string; graph: T
   } finally {
     parser.dispose();
   }
+  return resolveGraph({ nodes, edges });
+}
 
-  const graph = resolveGraph({ nodes, edges });
+/** Scan a repo and persist the graph to <repoRoot>/.telos/graph.db. */
+export async function scan(repoRoot: string): Promise<{ dbPath: string; graph: TelosGraph }> {
+  const graph = await scanGraph(repoRoot);
   const telosDir = join(repoRoot, ".telos");
   mkdirSync(telosDir, { recursive: true });
   const dbPath = join(telosDir, "graph.db");
