@@ -32,4 +32,21 @@ describe("PROMPT_CATALOG", () => {
     const ids = routePrompt("my server keeps failing with a stack trace", PROMPT_CATALOG).map((r) => r.capability.id);
     expect(ids).toContain("superpowers:systematic-debugging");
   });
+  it("routes a performance+database prompt to both relevant reviewers", () => {
+    const ids = routePrompt("optimize the slow database query", PROMPT_CATALOG).map((r) => r.capability.id);
+    expect(ids).toContain("ecc:performance-optimizer");
+    expect(ids).toContain("ecc:database-reviewer");
+  });
+  it("routes an accessibility prompt to the a11y architect", () => {
+    const ids = routePrompt("add aria labels for screen reader accessibility", PROMPT_CATALOG).map((r) => r.capability.id);
+    expect(ids).toContain("ecc:a11y-architect");
+  });
+  it("routes a refactor prompt to the refactor cleaner", () => {
+    const ids = routePrompt("refactor this module to remove dead code", PROMPT_CATALOG).map((r) => r.capability.id);
+    expect(ids).toContain("ecc:refactor-cleaner");
+  });
+  it("routes an end-to-end testing prompt to the e2e runner", () => {
+    const ids = routePrompt("write a playwright end-to-end test for checkout", PROMPT_CATALOG).map((r) => r.capability.id);
+    expect(ids).toContain("ecc:e2e-runner");
+  });
 });
