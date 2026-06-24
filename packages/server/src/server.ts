@@ -2,10 +2,17 @@ import Fastify, { FastifyInstance } from "fastify";
 import fastifyStatic from "@fastify/static";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
-import { TraceAggregator, TraceBuffer, LogBuffer, MetricBuffer, ProfileBuffer, ProcessBuffer, FileNodeRef, ProcessSample, NodeIndex, parseOtlpTraces, parseOtlpLogs, parseOtlpMetrics, parseFoldedStacks, tagProcesses } from "@telos/engine";
+import type { ServerResponse } from "node:http";
+import { TraceAggregator, TraceBuffer, LogBuffer, MetricBuffer, ProfileBuffer, ProcessBuffer, FileNodeRef, ProcessSample, NodeIndex, GraphDiff, parseOtlpTraces, parseOtlpLogs, parseOtlpMetrics, parseFoldedStacks, tagProcesses } from "@telos/engine";
+
+/** Latest Forge build-loop checkpoint reflected onto the map. Ephemeral. */
+export type ForgeState = { run: string; turn: number; costUsd: number; stop: string | null; diff: GraphDiff } | null;
+
+/** Forge reflection channel: latest state + open SSE subscribers. */
+export interface ForgeHub { state: ForgeState; subscribers: Set<ServerResponse> }
 
 /** Live trace state shared by the OTLP receiver, SSE stream, and replay routes. */
-export interface TraceHub { aggregator: TraceAggregator; buffer: TraceBuffer; logs: LogBuffer; metrics: MetricBuffer; profile: ProfileBuffer; processes: ProcessBuffer; fileNodes: FileNodeRef[]; index: NodeIndex }
+export interface TraceHub { aggregator: TraceAggregator; buffer: TraceBuffer; logs: LogBuffer; metrics: MetricBuffer; profile: ProfileBuffer; processes: ProcessBuffer; fileNodes: FileNodeRef[]; index: NodeIndex; forge: ForgeHub }
 
 export interface GraphProvider {
   getOverview(): unknown;
@@ -186,6 +193,39 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
     const tick = setInterval(send, 1000);
     const beat = setInterval(() => reply.raw.write(": heartbeat\n\n"), 15000);
     req.raw.on("close", () => { clearInterval(tick); clearInterval(beat); reply.raw.end(); });
+  });
+
+  // ── Forge reflection channel (Phase 4) — ephemeral, additive, no DB writes ──
+  // A forge build loop POSTs each iteration's graph diff; the open map animates
+  // added/changed/removed nodes. Same isolation guarantee as the trace signals.
+  app.post<{ Body: { run: string; checkpoint: { turn: number; costUsd: number }; diff: GraphDiff; stop?: string | null } }>(
+    "/v1/forge/diff",
+    async (req, reply) => {
+      const hub = provider.getTraceHub?.();
+      if (!hub) return reply.code(404).send({ error: "forge channel unavailable" });
+      const b = req.body;
+      hub.forge.state = { run: b.run, turn: b.checkpoint.turn, costUsd: b.checkpoint.costUsd, stop: b.stop ?? null, diff: b.diff };
+      const payload = `data: ${JSON.stringify(hub.forge.state)}\n\n`;
+      for (const res of hub.forge.subscribers) res.write(payload);
+      return { ok: true };
+    },
+  );
+
+  app.get("/api/forge/state", async (_req, reply) => {
+    const hub = provider.getTraceHub?.();
+    if (!hub) return reply.code(404).send({ error: "forge channel unavailable" });
+    return { state: hub.forge.state };
+  });
+
+  app.get("/api/forge/stream", async (req, reply) => {
+    const hub = provider.getTraceHub?.();
+    if (!hub) return reply.code(404).send({ error: "forge channel unavailable" });
+    reply.hijack();
+    reply.raw.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+    if (hub.forge.state) reply.raw.write(`data: ${JSON.stringify(hub.forge.state)}\n\n`);
+    hub.forge.subscribers.add(reply.raw);
+    const beat = setInterval(() => reply.raw.write(": heartbeat\n\n"), 15000);
+    req.raw.on("close", () => { clearInterval(beat); hub.forge.subscribers.delete(reply.raw); reply.raw.end(); });
   });
 
   app.get<{ Params: { id: string } }>("/api/cluster/:id", async (req, reply) => {
