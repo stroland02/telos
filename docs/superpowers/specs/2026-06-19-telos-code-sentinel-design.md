@@ -1,8 +1,35 @@
 # Telos, the Code Sentinel — Design Spec
 
 **Date:** 2026-06-19
-**Status:** Approved (MVP / v1 scope)
+**Status:** Approved (MVP / v1 scope) — **language scope amended 2026-06-24, see below**
 **Author:** Sebastian Roland + Claude (brainstorming session)
+
+---
+
+## Implementation Status (amended 2026-06-24)
+
+The original §6 promised "~12 language mappings" in v1. **As built, the engine
+ships two language families: TypeScript/JavaScript and Python.** This was a
+deliberate narrowing — depth over breadth — and is now the *official* v1 scope:
+
+- **Shipped languages:** TypeScript, JavaScript (TS grammar), Python. Each is a
+  `languages/<id>/` folder (`extract.scm` + `layer-hints.json`) plus a grammar
+  `.wasm` under `packages/engine/grammars/` and an entry in
+  `packages/engine/src/languages/registry.ts`.
+- **The extensibility on-ramp** (`telos add-language`) is the path to the
+  remaining languages (Go, Rust, Java, C#, Ruby, PHP, C/C++, Swift, Kotlin).
+  Each is added incrementally as a folder + grammar, not a rewrite.
+- **Known gap vs. the original "data change, not a code change" promise:** the
+  registry maps (`EXTENSION_LANGUAGE`, `LANGUAGE_GRAMMAR`) are currently
+  hand-edited, so adding a language touches one small code file in addition to
+  the data folder. Making the registry auto-discover `languages/` folders is the
+  work that fully realizes the original invariant; `telos add-language`
+  scaffolds the folder and prints the remaining wiring steps.
+
+Everything downstream of extraction (resolver, store, aggregator, API, web, MCP,
+overlays) is already language-agnostic, so new languages light up the whole
+product with no further work. The §6/§8 text below is the original design intent;
+this section is the source of truth for current coverage.
 
 ---
 
@@ -223,6 +250,9 @@ languages/<lang>/
 The engine auto-discovers these folders. **v1 ships ~12 mappings** (TS/JS, Python, Go,
 Rust, Java, C#, Ruby, PHP, C/C++, Swift, Kotlin) — covering ~95% of real repos — plus a
 `telos add-language` scaffold command for the rest.
+
+> **Amended 2026-06-24:** v1 ships **3** of these (TS, JS, Python); the rest are the
+> `telos add-language` backlog. See "Implementation Status" at the top of this doc.
 
 ---
 
