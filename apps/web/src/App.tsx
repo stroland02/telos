@@ -13,7 +13,6 @@ import { MapView } from "./components/MapView";
 import { Breadcrumbs } from "./components/Breadcrumbs";
 import { DetailPanel } from "./components/DetailPanel";
 import { ShortcutsOverlay } from "./components/ShortcutsOverlay";
-import { FileTree } from "./components/FileTree";
 import { CodeViewer } from "./components/CodeViewer";
 import { AskPanel } from "./components/AskPanel";
 import { ProcessPanel } from "./components/ProcessPanel";
@@ -24,7 +23,6 @@ import { useTelosStatus } from "./graph/useTelosStatus";
 
 const api = createApi();
 
-const SIDEBAR_WIDTH = 260;
 const RIGHT_PANE_DEFAULT = Math.min(Math.round(window.innerWidth * 0.40), 600);
 const RIGHT_PANE_MIN = 340;
 const RIGHT_PANE_MAX = Math.round(window.innerWidth * 0.72);
@@ -223,60 +221,14 @@ export function App() {
         explorerOpen={sidebarOpen}
         onToggleExplorer={() => setSidebarOpen((v) => !v)}
         onShortcuts={() => setShortcutsOpen(true)}
+        filePaths={filePaths}
+        selectedFile={selectedFile}
+        onSelectFile={openFile}
       />
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", position: "relative" }}>
 
       {/* ── Main area: [Explorer | Map | Right pane] ──────────────────── */}
       <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
-
-        {/* Left sidebar — collapsible file explorer */}
-        {sidebarOpen && (
-          <nav
-            aria-label="File explorer"
-            style={{
-              width: SIDEBAR_WIDTH,
-              minWidth: SIDEBAR_WIDTH,
-              maxWidth: SIDEBAR_WIDTH,
-              background: "var(--surface)",
-              borderRight: "1px solid var(--border)",
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-              flexShrink: 0,
-            }}
-          >
-            {/* Explorer header */}
-            <div
-              style={{
-                height: 36,
-                display: "flex",
-                alignItems: "center",
-                padding: "0 var(--s-3)",
-                borderBottom: "1px solid var(--border)",
-                flexShrink: 0,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "var(--t-meta-size)",
-                  fontWeight: 600,
-                  color: "var(--text-faint)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  fontFamily: "var(--font-ui)",
-                }}
-              >
-                Explorer
-              </span>
-            </div>
-
-            <FileTree
-              paths={filePaths}
-              selectedPath={selectedFile}
-              onSelectFile={openFile}
-            />
-          </nav>
-        )}
 
         {/* Map — always gets the remaining flex space.
             layoutKey forces RF to remount (and re-fitView) when the pane
