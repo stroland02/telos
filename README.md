@@ -12,8 +12,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)](https://www.typescriptlang.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-f69220.svg)](https://pnpm.io/)
 
-<!-- Drop a screenshot/GIF of the map at docs/screenshot.png -->
-<img src="docs/screenshot.png" alt="Telos architecture map" width="820" onerror="this.style.display='none'"/>
+<img src="docs/demo.gif" alt="Telos — scanning a codebase into a live architecture map" width="820"/>
 
 </div>
 
