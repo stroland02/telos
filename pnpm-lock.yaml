@@ -198,6 +198,28 @@ importers:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@20.19.43)(jsdom@24.1.3)
 
+  packages/resolve:
+    dependencies:
+      '@anthropic-ai/claude-agent-sdk':
+        specifier: ^0.3.187
+        version: 0.3.187(@anthropic-ai/sdk@0.105.0(zod@3.25.76))(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(zod@3.25.76)
+      '@telos/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@telos/harness':
+        specifier: workspace:*
+        version: link:../harness
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.43)(jsdom@24.1.3)
+
   packages/server:
     dependencies:
       '@fastify/static':
