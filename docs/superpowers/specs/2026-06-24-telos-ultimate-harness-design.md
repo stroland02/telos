@@ -1,7 +1,7 @@
 # Telos Ultimate Harness — Graph-as-Memory + Harness Cockpit
 
 **Date:** 2026-06-24
-**Status:** Approved (user chose "Both, B then A; spec+plan+build now")
+**Status:** Shipped 2026-06-24 — B (engine/CLI/MCP) + A (harness/CLI/server/web)
 **Author:** Sebastian Roland + Claude
 
 ---
