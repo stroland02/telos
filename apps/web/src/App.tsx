@@ -11,6 +11,7 @@ import type { DensityMode } from "./graph/useDensity";
 import { useTheme } from "./graph/useTheme";
 import { MapView } from "./components/MapView";
 import { Breadcrumbs } from "./components/Breadcrumbs";
+import { SignalHint } from "./components/SignalHint";
 import { FileTree } from "./components/FileTree";
 import { DetailPanel } from "./components/DetailPanel";
 import { ShortcutsOverlay } from "./components/ShortcutsOverlay";
@@ -308,6 +309,14 @@ export function App() {
             hotIntensity={hotOn ? profile.intensity : undefined}
             forge={forge}
             resolve={resolve}
+          />
+          <SignalHint
+            items={[
+              ...(liveOn && (!trace.state || trace.state.nodes.length === 0)
+                ? [{ label: "Live", how: "telos trace --demo  (or POST OTLP spans → :5180/v1/traces)" }] : []),
+              ...(hotOn && profile.totalSamples === 0
+                ? [{ label: "Hot path", how: "telos trace --demo  (or POST folded stacks → :5180/v1/profile)" }] : []),
+            ]}
           />
         </div>
 
