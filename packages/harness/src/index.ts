@@ -6,3 +6,4 @@ export * from "./doctor.js";
 export * from "./router.js";
 export * from "./setup.js";
 export * from "./status.js";
+export * from "./activate.js";
