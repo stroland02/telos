@@ -28,7 +28,7 @@ export function ControlRail({
     v === null || v === undefined ? "—" : String(v);
 
   const g = status.graph;
-  const langs = g ? g.languages.join(", ") : "—";
+  const langs = g && Array.isArray(g.languages) ? g.languages.join(", ") : "—";
 
   return (
     <nav

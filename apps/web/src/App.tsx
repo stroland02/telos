@@ -19,6 +19,9 @@ import { CodeViewer } from "./components/CodeViewer";
 import { AskPanel } from "./components/AskPanel";
 import { ProcessPanel } from "./components/ProcessPanel";
 import { HarnessPanel } from "./components/HarnessPanel";
+import { ContextPanel } from "./components/ContextPanel";
+import { ControlRail } from "./components/ControlRail";
+import { useTelosStatus } from "./graph/useTelosStatus";
 
 const api = createApi();
 
@@ -53,6 +56,11 @@ export function App() {
   const [askOpen, setAskOpen] = useState(false);
   const [procsOpen, setProcsOpen] = useState(false);
   const [harnessOpen, setHarnessOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [railCollapsed, setRailCollapsed] = useState(() => {
+    try { return localStorage.getItem("telos.rail.collapsed") === "1"; } catch { return false; }
+  });
+  const status = useTelosStatus(api);
   const [liveOn, setLiveOn] = useState(false);
   const trace = useTraceOverlay(api, liveOn);
   const playback = useTracePlayback(api);
@@ -192,7 +200,23 @@ export function App() {
   }, []);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg)", color: "var(--text)", position: "relative" }}>
+    <div style={{ display: "flex", flexDirection: "row", height: "100vh", background: "var(--bg)", color: "var(--text)" }}>
+      <ControlRail
+        status={status}
+        active={{ live: liveOn, hot: hotOn, procs: procsOpen, ask: askOpen, harness: harnessOpen, context: contextOpen }}
+        on={{
+          toggleLive: () => setLiveOn((v) => !v),
+          replay: onReplay,
+          toggleHot: () => setHotOn((v) => !v),
+          openProcs: () => setProcsOpen(true),
+          openAsk: () => setAskOpen(true),
+          openHarness: () => setHarnessOpen(true),
+          openContext: () => setContextOpen(true),
+        }}
+        collapsed={railCollapsed}
+        onCollapsedChange={(v) => { setRailCollapsed(v); try { localStorage.setItem("telos.rail.collapsed", v ? "1" : "0"); } catch { /* ignore */ } }}
+      />
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", position: "relative" }}>
       {/* ── Top bar — 48px, --surface ──────────────────────────────────── */}
       <header
         style={{
@@ -647,7 +671,9 @@ export function App() {
       <AskPanel open={askOpen} api={api} onOpenNode={openNode} onClose={() => setAskOpen(false)} />
       <ProcessPanel open={procsOpen} api={api} onOpenNode={openNode} onClose={() => setProcsOpen(false)} />
       <HarnessPanel open={harnessOpen} api={api} onClose={() => setHarnessOpen(false)} />
+      <ContextPanel open={contextOpen} api={api} onClose={() => setContextOpen(false)} />
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      </div>
     </div>
   );
 }

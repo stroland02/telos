@@ -22,14 +22,14 @@ export function useTelosStatus(api: TelosApi, intervalMs = 5000): TelosStatus {
       if (!alive) return;
       setStatus((prev) => ({
         ...prev,
-        graph: stats.status === "fulfilled" ? stats.value : prev.graph,
-        harness: harness.status === "fulfilled"
-          ? { caps: harness.value.totals.nodeCapabilities, drift: harness.value.drift.status }
+        graph: stats.status === "fulfilled" && stats.value ? stats.value : prev.graph,
+        harness: harness.status === "fulfilled" && harness.value?.totals
+          ? { caps: harness.value.totals.nodeCapabilities, drift: harness.value.drift?.status ?? "ok" }
           : prev.harness,
-        live: trace.status === "fulfilled"
-          ? { calls: trace.value.nodes.reduce((s, n) => s + n.calls, 0) }
+        live: trace.status === "fulfilled" && Array.isArray(trace.value?.nodes)
+          ? { calls: trace.value.nodes.reduce((s, n) => s + (n.calls ?? 0), 0) }
           : prev.live,
-        procs: procs.status === "fulfilled" ? procs.value.length : prev.procs,
+        procs: procs.status === "fulfilled" && Array.isArray(procs.value) ? procs.value.length : prev.procs,
       }));
     };
 
