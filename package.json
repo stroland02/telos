@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "pnpm -r build",
+    "telos": "node packages/cli/dist/main.js",
     "test": "pnpm -r build && pnpm -r --workspace-concurrency=1 exec vitest run",
     "typecheck": "pnpm -r exec tsc -p tsconfig.json --noEmit",
     "lint": "eslint ."
