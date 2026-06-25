@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveGraph } from "./resolver.js";
+import { resolveGraph, inferLayerFromPath } from "./resolver.js";
 import { TelosGraph, createNodeId } from "./schema.js";
 
 function fn(path: string, name: string) {
@@ -29,6 +29,16 @@ describe("resolveGraph", () => {
     const ctrl = fn("src/controllers/user.ts", "list");
     const out = resolveGraph({ nodes: [ctrl], edges: [] });
     expect(out.nodes[0].layer).toBe("api");
+  });
+
+  it("infers layers from directory/role when hints miss", () => {
+    expect(inferLayerFromPath("packages/server/src/server.ts")).toBe("api");
+    expect(inferLayerFromPath("apps/web/src/App.tsx")).toBe("ui");
+    expect(inferLayerFromPath("packages/engine/src/core.ts")).toBe("service");
+    expect(inferLayerFromPath("src/models/user.ts")).toBe("data");
+    expect(inferLayerFromPath("src/utils/log.ts")).toBe("util");
+    expect(inferLayerFromPath("infra/deploy/ci.yml")).toBe("infra");
+    expect(inferLayerFromPath("packages/zzz/random.ts")).toBe("unknown");
   });
 
   it("drops a call edge when the name is ambiguous (2+ definitions)", () => {
