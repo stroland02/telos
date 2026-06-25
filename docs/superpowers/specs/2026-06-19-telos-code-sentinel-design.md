@@ -19,12 +19,10 @@ deliberate narrowing — depth over breadth — and is now the *official* v1 sco
 - **The extensibility on-ramp** (`telos add-language`) is the path to the
   remaining languages (Go, Rust, Java, C#, Ruby, PHP, C/C++, Swift, Kotlin).
   Each is added incrementally as a folder + grammar, not a rewrite.
-- **Known gap vs. the original "data change, not a code change" promise:** the
-  registry maps (`EXTENSION_LANGUAGE`, `LANGUAGE_GRAMMAR`) are currently
-  hand-edited, so adding a language touches one small code file in addition to
-  the data folder. Making the registry auto-discover `languages/` folders is the
-  work that fully realizes the original invariant; `telos add-language`
-  scaffolds the folder and prints the remaining wiring steps.
+- **"Data change, not a code change" — now realized (2026-06-24).** The registry
+  auto-discovers `languages/*/lang.json` manifests; adding a language touches no
+  code. `telos add-language <id>` scaffolds a complete, discoverable folder.
+  See `2026-06-24-telos-data-driven-languages-design.md`.
 
 Everything downstream of extraction (resolver, store, aggregator, API, web, MCP,
 overlays) is already language-agnostic, so new languages light up the whole

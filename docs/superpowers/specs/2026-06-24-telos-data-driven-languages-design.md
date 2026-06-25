@@ -1,7 +1,7 @@
 # Data-Driven Language Registry + `telos add-language` — Design Spec
 
 **Date:** 2026-06-24
-**Status:** Approved (design confirmed by user)
+**Status:** Shipped 2026-06-24 (commits 7e90b9f / b7a3e9c / d4843fc)
 **Author:** Sebastian Roland + Claude
 
 ---
