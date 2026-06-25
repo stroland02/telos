@@ -9,13 +9,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TelosApi } from "../api/client";
-import { Panel, Button } from "./ui";
+import { TokenSavings } from "../api/types";
+import { Panel, Button, Badge } from "./ui";
+
+const fmt = (n: number) => n.toLocaleString("en-US");
 
 export function ContextPanel({
   open, api, onClose,
 }: { open: boolean; api: TelosApi; onClose: () => void }) {
   const refreshRef = useRef<HTMLButtonElement>(null);
   const [brief, setBrief] = useState<string>("");
+  const [savings, setSavings] = useState<TokenSavings | null>(null);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(() => {
@@ -24,6 +28,7 @@ export function ContextPanel({
       .then(setBrief)
       .catch(() => setBrief(""))
       .finally(() => setLoading(false));
+    api.measure().then(setSavings).catch(() => setSavings(null));
   }, [api]);
 
   useEffect(() => { if (open) refresh(); }, [open, refresh]);
@@ -36,6 +41,16 @@ export function ContextPanel({
           </span>
           <Button ref={refreshRef} variant="primary" onClick={refresh}>Refresh</Button>
         </div>
+
+        {savings && savings.reductionPct > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)", padding: "var(--s-2) var(--s-3)", borderBottom: "1px solid var(--border)", fontFamily: "var(--font-ui)", fontSize: "var(--t-meta-size)", color: "var(--text-muted)" }}>
+            <Badge tone="accent">{savings.reductionPct.toFixed(1)}% fewer tokens</Badge>
+            <span>
+              ~{fmt(savings.packTokens)} tokens vs ~{fmt(savings.baselineTokens)} to read {savings.files} files cold
+              {" "}· {savings.ratio.toFixed(0)}× smaller · ~${savings.costSavedUsd.toFixed(3)} saved / warm-start
+            </span>
+          </div>
+        )}
 
         <div style={{ overflowY: "auto", padding: "var(--s-3)" }}>
           {loading && <Empty text="Loading…" />}

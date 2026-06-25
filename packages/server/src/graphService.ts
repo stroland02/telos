@@ -1,12 +1,16 @@
 // packages/server/src/graphService.ts
+import { statSync } from "node:fs";
+import { join } from "node:path";
 import {
   GraphStore, aggregate, overview, childrenOf, nodeDetail, resolveNode, buildTour, askGraph,
   TraceAggregator, TraceBuffer, LogBuffer, MetricBuffer, ProfileBuffer, ProcessBuffer, buildNodeIndex,
-  buildContextPack, renderContextPack,
+  buildContextPack, renderContextPack, measureSavings, type SavingsReport,
   TelosGraph, TelosNode, AggregatedGraph, GraphView, NodeDetail,
 } from "@telos/engine";
 import { recommend } from "@telos/harness";
 import { GraphProvider, TraceHub } from "./server.js";
+
+export interface MeasureResult extends SavingsReport { files: number; missing: number }
 
 export class GraphService implements GraphProvider {
   private constructor(
@@ -38,6 +42,21 @@ export class GraphService implements GraphProvider {
 
   getOverview(): GraphView { return overview(this.graph, this.agg); }
   getContext(limit?: number): string { return renderContextPack(buildContextPack(this.graph, { limit })); }
+
+  /** Token savings: cold-read source baseline vs the warm-start brief. Needs
+   *  repoRoot to size files on disk; returns a zeroed baseline if it's unset. */
+  getMeasure(limit?: number): MeasureResult {
+    let baselineChars = 0, files = 0, missing = 0;
+    for (const n of this.graph.nodes) {
+      if (n.kind !== "file") continue;
+      files++;
+      if (!this.repoRoot) { missing++; continue; }
+      try { baselineChars += statSync(join(this.repoRoot, n.path)).size; }
+      catch { missing++; }
+    }
+    const packText = renderContextPack(buildContextPack(this.graph, { limit }));
+    return { ...measureSavings({ baselineChars, packText }), files, missing };
+  }
   getStats(): { nodes: number; edges: number; files: number; languages: string[]; enriched: number } {
     const nodes = this.graph.nodes;
     return {

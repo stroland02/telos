@@ -1,4 +1,4 @@
-import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot, ProcessSample, ForgeState, HarnessStatus, GraphStats, ResolveState } from "./types";
+import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot, ProcessSample, ForgeState, HarnessStatus, GraphStats, ResolveState, TokenSavings } from "./types";
 
 export interface TelosApi {
   overview(): Promise<GraphView>;
@@ -34,6 +34,8 @@ export interface TelosApi {
   harnessStatus(): Promise<HarnessStatus>;
   /** Graph-as-memory: the token-budgeted architecture brief (markdown). */
   contextPack(): Promise<string>;
+  /** Token savings: cold-read source baseline vs the warm-start brief. */
+  measure(): Promise<TokenSavings>;
   /** Lightweight graph stats for the control rail footer. */
   stats(): Promise<GraphStats>;
   /** Harness engagement: write/remove the Claude Code statusline. */
@@ -112,6 +114,7 @@ export function createApi(baseUrl = ""): TelosApi {
     },
     harnessStatus: () => get<HarnessStatus>("/api/harness"),
     contextPack: async () => (await get<{ brief: string }>("/api/context")).brief,
+    measure: async () => get<TokenSavings>("/api/measure"),
     stats: () => get<GraphStats>("/api/stats"),
     activate: async (deactivate) => {
       const res = await fetch(`${baseUrl}/api/activate`, {

@@ -61,6 +61,18 @@ describe("graph routes", () => {
     await app.close(); svc.close();
   });
 
+  it("GET /api/measure returns the token-savings shape", async () => {
+    const svc = service();
+    const app = buildServer(svc);
+    const res = await app.inject({ method: "GET", url: "/api/measure" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(typeof body.packTokens).toBe("number");
+    expect(typeof body.reductionPct).toBe("number");
+    expect(body.files).toBeGreaterThan(0);
+    await app.close(); svc.close();
+  });
+
   it("POST /v1/resolve stores findings; GET /api/resolve/state returns them", async () => {
     const svc = service();
     const app = buildServer(svc);

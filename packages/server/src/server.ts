@@ -36,6 +36,8 @@ export interface GraphProvider {
   getTraceHub?(): TraceHub;
   /** Optional: graph-as-memory architecture brief (markdown). */
   getContext?(limit?: number): string;
+  /** Optional: token-savings measurement (cold read vs warm-start brief). */
+  getMeasure?(limit?: number): { baselineTokens: number; packTokens: number; reductionPct: number; ratio: number; costSavedUsd: number; files: number; missing: number };
   /** Optional: lightweight graph stats for the control rail footer. */
   getStats?(): { nodes: number; edges: number; files: number; languages: string[]; enriched: number };
   repoRoot: string | null;
@@ -58,6 +60,14 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
 
   app.get("/api/stats", async () =>
     provider.getStats ? provider.getStats() : { nodes: 0, edges: 0, files: 0, languages: [], enriched: 0 });
+
+  // Proof the brief is cheaper than a cold read — surfaced in the Context panel.
+  app.get("/api/measure", async (req) => {
+    const limit = Number((req.query as { limit?: string }).limit) || undefined;
+    return provider.getMeasure
+      ? provider.getMeasure(limit)
+      : { baselineTokens: 0, packTokens: 0, reductionPct: 0, ratio: 1, costSavedUsd: 0, files: 0, missing: 0 };
+  });
 
   // Harness engagement: write/remove the Claude Code statusline for the served repo.
   const noRepo = { settingsPath: "", statusLinePresent: false, harnessLockPresent: false };

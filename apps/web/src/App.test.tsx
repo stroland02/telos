@@ -14,6 +14,7 @@ beforeEach(() => {
       if (url.includes("/api/harness")) return { installed: [], totals: { nodeCapabilities: 0, promptIntents: 0 }, drift: { status: "ok", missing: [], added: [] }, lock: { present: false, path: "" } };
       if (url.includes("/api/trace/state")) return { nodes: [], edges: [], unmapped: 0, unmappedEdges: 0, windowMs: 30000 };
       if (url.includes("/api/processes")) return { processes: [] };
+      if (url.includes("/api/measure")) return { baselineTokens: 0, packTokens: 0, reductionPct: 0, ratio: 1, costSavedUsd: 0, files: 0, missing: 0 };
       if (url.includes("/api/context")) return { brief: "" };
       if (url.includes("/api/harness/config")) return { enabled: [] };
       if (url.includes("/api/activate")) return { statusLinePresent: false, harnessLockPresent: false, settingsPath: "" };

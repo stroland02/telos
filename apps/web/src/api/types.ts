@@ -48,6 +48,9 @@ export interface HarnessStatus {
   lock: { present: boolean; path: string };
 }
 
+// ── Token savings: cold-read baseline vs the warm-start brief ────────────────
+export interface TokenSavings { baselineTokens: number; packTokens: number; reductionPct: number; ratio: number; costSavedUsd: number; files: number; missing: number; }
+
 // ── Control rail status (assembled from existing reads/streams) ──────────────
 export interface GraphStats { nodes: number; edges: number; files: number; languages: string[]; enriched: number; }
 export interface TelosStatus {
