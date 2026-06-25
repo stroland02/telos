@@ -6,8 +6,8 @@
  * Token-styled, no hard-coded hex (except the severity dots, intentional).
  */
 
-import { useEffect } from "react";
 import { Finding } from "../api/types";
+import { Panel } from "./ui";
 
 const SEV_RANK: Record<string, number> = { error: 3, warn: 2, info: 1 };
 const SEV_COLOR: Record<string, string> = { error: "var(--danger, #f85149)", warn: "var(--warn, #d29922)", info: "var(--accent)" };
@@ -15,38 +15,11 @@ const SEV_COLOR: Record<string, string> = { error: "var(--danger, #f85149)", war
 export function ResolutionsPanel({
   open, findings, onOpenNode, onClose,
 }: { open: boolean; findings: Finding[]; onOpenNode: (id: string) => void; onClose: () => void }) {
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
   const sorted = [...findings].sort((a, b) => (SEV_RANK[b.severity] ?? 0) - (SEV_RANK[a.severity] ?? 0));
   const openFinding = (id: string) => { onOpenNode(id); onClose(); };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Resolutions"
-      onClick={onClose}
-      style={{
-        position: "absolute", inset: 0, zIndex: 40,
-        background: "color-mix(in srgb, var(--bg) 70%, transparent)",
-        display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "10vh",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 640, maxWidth: "92vw", maxHeight: "76vh", display: "flex", flexDirection: "column",
-          background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md, 8px)",
-          boxShadow: "var(--shadow-panel)", overflow: "hidden",
-        }}
-      >
+    <Panel open={open} onClose={onClose} ariaLabel="Resolutions" width={640} paddingTop="10vh">
         <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)", padding: "var(--s-3)", borderBottom: "1px solid var(--border)" }}>
           <span style={{ flex: 1, fontFamily: "var(--font-ui)", fontSize: "var(--t-body-size, 14px)", color: "var(--text)" }}>
             Resolutions <span style={{ color: "var(--text-faint)" }}>({findings.length})</span>
@@ -84,7 +57,6 @@ export function ResolutionsPanel({
             </button>
           ))}
         </div>
-      </div>
-    </div>
+    </Panel>
   );
 }

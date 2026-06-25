@@ -10,9 +10,10 @@
  * focus moved to the input on open. Token-styled, no hard-coded hex.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { TelosApi } from "../api/client";
 import { Answer, TourStop } from "../api/types";
+import { Panel, Button } from "./ui";
 
 interface Hit { id: string; primary: string; secondary: string | null }
 
@@ -25,16 +26,6 @@ export function AskPanel({
   const [hits, setHits] = useState<Hit[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    inputRef.current?.focus();
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
-
-  if (!open) return null;
 
   const runAsk = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,25 +48,7 @@ export function AskPanel({
   const pick = (id: string) => { onOpenNode(id); onClose(); };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Ask the codebase"
-      onClick={onClose}
-      style={{
-        position: "absolute", inset: 0, zIndex: 40,
-        background: "color-mix(in srgb, var(--bg) 70%, transparent)",
-        display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "12vh",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 560, maxWidth: "90vw", maxHeight: "70vh", display: "flex", flexDirection: "column",
-          background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md, 8px)",
-          boxShadow: "var(--shadow-panel)", overflow: "hidden",
-        }}
-      >
+    <Panel open={open} onClose={onClose} ariaLabel="Ask the codebase" width={560} initialFocus={inputRef}>
         <form onSubmit={runAsk} style={{ display: "flex", gap: "var(--s-2)", padding: "var(--s-3)", borderBottom: "1px solid var(--border)" }}>
           <input
             ref={inputRef}
@@ -88,8 +61,8 @@ export function AskPanel({
               color: "var(--text)", padding: "var(--s-2)", fontFamily: "var(--font-ui)", fontSize: "var(--t-body-size, 14px)", outline: "none",
             }}
           />
-          <button type="submit" style={btn(true)}>Ask</button>
-          <button type="button" onClick={runTour} style={btn(false)} title="Dependency-ordered walkthrough">Tour</button>
+          <Button type="submit" variant="primary">Ask</Button>
+          <Button type="button" onClick={runTour} title="Dependency-ordered walkthrough">Tour</Button>
         </form>
 
         <div style={{ overflowY: "auto", padding: "var(--s-2)" }}>
@@ -124,19 +97,8 @@ export function AskPanel({
             </ul>
           )}
         </div>
-      </div>
-    </div>
+    </Panel>
   );
-}
-
-function btn(primary: boolean): React.CSSProperties {
-  return {
-    flexShrink: 0, cursor: "pointer", borderRadius: "var(--r-sm)",
-    padding: "0 var(--s-3)", fontFamily: "var(--font-ui)", fontSize: "var(--t-meta-size)",
-    background: primary ? "var(--accent-soft)" : "none",
-    border: `1px solid ${primary ? "var(--accent)" : "var(--border)"}`,
-    color: primary ? "var(--accent)" : "var(--text-muted)", outline: "none",
-  };
 }
 
 function Empty({ text }: { text: string }) {

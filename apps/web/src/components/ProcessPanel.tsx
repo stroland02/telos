@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TelosApi } from "../api/client";
 import { ProcessSample } from "../api/types";
+import { Panel, Button } from "./ui";
 
 interface TreeRow extends ProcessSample { depth: number }
 
@@ -57,44 +58,17 @@ export function ProcessPanel({
       .finally(() => setLoading(false));
   }, [api]);
 
-  useEffect(() => {
-    if (!open) return;
-    refresh();
-    refreshRef.current?.focus();
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose, refresh]);
-
-  if (!open) return null;
+  useEffect(() => { if (open) refresh(); }, [open, refresh]);
 
   const openProc = (id: string) => { onOpenNode(id); onClose(); };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Local processes"
-      onClick={onClose}
-      style={{
-        position: "absolute", inset: 0, zIndex: 40,
-        background: "color-mix(in srgb, var(--bg) 70%, transparent)",
-        display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "12vh",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 620, maxWidth: "92vw", maxHeight: "72vh", display: "flex", flexDirection: "column",
-          background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md, 8px)",
-          boxShadow: "var(--shadow-panel)", overflow: "hidden",
-        }}
-      >
+    <Panel open={open} onClose={onClose} ariaLabel="Local processes" width={620} initialFocus={refreshRef}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)", padding: "var(--s-3)", borderBottom: "1px solid var(--border)" }}>
           <span style={{ flex: 1, fontFamily: "var(--font-ui)", fontSize: "var(--t-body-size, 14px)", color: "var(--text)" }}>
             Processes <span style={{ color: "var(--text-faint)" }}>({procs.length})</span>
           </span>
-          <button ref={refreshRef} onClick={refresh} style={btn(true)}>Refresh</button>
+          <Button ref={refreshRef} variant="primary" onClick={refresh}>Refresh</Button>
         </div>
 
         <div style={{ overflowY: "auto", padding: "var(--s-2)" }}>
@@ -140,8 +114,7 @@ export function ProcessPanel({
             </table>
           )}
         </div>
-      </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -150,15 +123,6 @@ function Th({ children, right }: { children: React.ReactNode; right?: boolean })
 }
 function Td({ children, right, title }: { children: React.ReactNode; right?: boolean; title?: string }) {
   return <td title={title} style={{ padding: "var(--s-1) var(--s-2)", textAlign: right ? "right" : "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 260 }}>{children}</td>;
-}
-function btn(primary: boolean): React.CSSProperties {
-  return {
-    flexShrink: 0, cursor: "pointer", borderRadius: "var(--r-sm)", height: 28,
-    padding: "0 var(--s-3)", fontFamily: "var(--font-ui)", fontSize: "var(--t-meta-size)",
-    background: primary ? "var(--accent-soft)" : "none",
-    border: `1px solid ${primary ? "var(--accent)" : "var(--border)"}`,
-    color: primary ? "var(--accent)" : "var(--text-muted)", outline: "none",
-  };
 }
 function Empty({ text }: { text: string }) {
   return <div style={{ padding: "var(--s-3)", fontSize: "var(--t-meta-size)", color: "var(--text-faint)", fontStyle: "italic" }}>{text}</div>;
