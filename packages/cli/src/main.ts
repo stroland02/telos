@@ -10,6 +10,7 @@ import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
 import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus, activate, deactivate, statusLineText } from "@telos/harness";
 import { runForge, stubDriver, claudeAgentDriver, ForgeRunResult } from "@telos/forge";
+import { runResolve, stubReviewDriver, claudeReviewDriver, type ResolveState } from "@telos/resolve";
 import { pathToFileURL } from "node:url";
 import open from "open";
 
@@ -37,6 +38,25 @@ export async function runEnrich(
   } finally {
     store.close();
   }
+}
+
+/** Run the scan-for-resolutions pass over a scanned repo; best-effort POST to a server. */
+export async function runResolveCli(opts: { path: string; driver: "claude" | "stub"; limit: number; url: string }): Promise<ResolveState> {
+  const repo = resolve(opts.path);
+  const dbPath = join(repo, ".telos", "graph.db");
+  if (!existsSync(dbPath)) {
+    throw new Error(`No graph found at ${dbPath}. Run 'telos scan ${opts.path}' first.`);
+  }
+  const store = GraphStore.open(dbPath);
+  let graph;
+  try { graph = store.loadGraph(); } finally { store.close(); }
+  const driver = opts.driver === "claude" ? claudeReviewDriver : stubReviewDriver;
+  const state = await runResolve({ graph, driver, repoDir: repo, limit: opts.limit });
+  state.startedAt = Date.now();
+  try {
+    await fetch(`${opts.url}/v1/resolve`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(state) });
+  } catch { /* server not running — findings still returned */ }
+  return state;
 }
 
 /** The single-line Telos engagement indicator for the Claude Code statusline. */
@@ -378,6 +398,15 @@ export function buildProgram(): Command {
     .option("--line", "print a single line (used by the Claude Code statusline)", false)
     .action(async (path: string | undefined) => {
       console.log(await runStatusLine(path ?? "."));
+    });
+  program.command("resolve [path]").description("Scan for resolutions: run review agents over the riskiest nodes, flag findings on the map")
+    .option("--driver <id>", "review driver: claude | stub", "stub")
+    .option("--limit <n>", "max nodes to review", "20")
+    .option("--url <url>", "Telos server to post findings to", "http://127.0.0.1:5180")
+    .action(async (path: string | undefined, opts: { driver: string; limit: string; url: string }) => {
+      const state = await runResolveCli({ path: path ?? ".", driver: opts.driver === "claude" ? "claude" : "stub", limit: Number(opts.limit), url: opts.url });
+      console.log(`Reviewed ${state.scanned} nodes — ${state.findings.length} findings.`);
+      for (const f of state.findings.slice(0, 20)) console.log(`  [${f.severity}] ${f.title} — ${f.file}`);
     });
   program.command("serve [path]").description("Serve the architecture map for a scanned repo")
     .option("-p, --port <port>", "port to listen on", "5180")

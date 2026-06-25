@@ -15,6 +15,7 @@
     "@telos/mcp": "workspace:*",
     "@telos/harness": "workspace:*",
     "@telos/forge": "workspace:*",
+    "@telos/resolve": "workspace:*",
     "commander": "^12.0.0",
     "open": "^10.1.0"
   },

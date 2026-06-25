@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, runTop, buildDemoProcesses, buildProgram, runContext, runHarness, runStatusLine } from "./main.js";
+import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, runTop, buildDemoProcesses, buildProgram, runContext, runHarness, runStatusLine, runResolveCli } from "./main.js";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -80,6 +80,19 @@ describe("telos harness command", () => {
   it("is registered", () => {
     const names = buildProgram().commands.map((c) => c.name());
     expect(names).toContain("harness");
+  });
+});
+
+describe("telos resolve command + runResolveCli", () => {
+  it("is registered", () => {
+    expect(buildProgram().commands.map((c) => c.name())).toContain("resolve");
+  });
+  it("produces findings with the stub driver", async () => {
+    await runScan(repo);
+    const state = await runResolveCli({ path: repo, driver: "stub", limit: 3, url: "http://127.0.0.1:65530" });
+    expect(state.scanned).toBeGreaterThan(0);
+    expect(state.findings.length).toBeGreaterThan(0);
+    expect(state.done).toBe(true);
   });
 });
 
