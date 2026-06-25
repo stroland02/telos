@@ -2,7 +2,8 @@ import { Command } from "commander";
 import { resolve, join, dirname } from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { scan, GraphStore, enrichGraph, heuristicEnricher, createLlmEnricher, buildTour, askGraph, ProcessSample } from "@telos/engine";
+import { scan, GraphStore, enrichGraph, heuristicEnricher, createLlmEnricher, buildTour, askGraph, ProcessSample, LANGUAGES_DIR } from "@telos/engine";
+import { addLanguage } from "./add-language.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { GraphService, buildServer } from "@telos/server";
@@ -263,6 +264,28 @@ export function buildProgram(): Command {
     .action(async (path: string) => {
       const s = await runScan(path);
       console.log(`Telos: ${s.nodeCount} nodes, ${s.edgeCount} edges -> ${s.dbPath}`);
+    });
+  program.command("add-language <id>").description("Scaffold a new language mapping (adds a discoverable languages/<id>/ folder)")
+    .requiredOption("--ext <exts>", "comma-separated file extensions, e.g. .rb,.rake")
+    .option("--grammar <wasm>", "grammar wasm filename (default tree-sitter-<id>.wasm)")
+    .option("--alias-of <id>", "reuse another language's extract.scm instead of authoring one")
+    .option("--dir <path>", "target languages dir (default: the engine's languages/)")
+    .action((id: string, opts: { ext: string; grammar?: string; aliasOf?: string; dir?: string }) => {
+      const extensions = opts.ext.split(",").map((e) => e.trim()).filter(Boolean)
+        .map((e) => (e.startsWith(".") ? e : "." + e));
+      const dir = opts.dir ? resolve(opts.dir) : LANGUAGES_DIR;
+      const grammar = opts.grammar ?? `tree-sitter-${id}.wasm`;
+      const res = addLanguage({ id, extensions, grammar: opts.grammar, aliasOf: opts.aliasOf, dir });
+      console.log(`Created ${id}:`);
+      for (const f of res.created) console.log(`  ${f}`);
+      console.log("\nNext steps:");
+      console.log(`  1. Drop ${grammar} into packages/engine/grammars/`);
+      if (opts.aliasOf) {
+        console.log(`  2. Re-scan — ${id} reuses ${opts.aliasOf}'s query and is auto-discovered`);
+      } else {
+        console.log(`  2. Fill in ${join(res.folder, "extract.scm")} with the universal-kind queries`);
+        console.log(`  3. Re-scan — ${id} is now auto-discovered`);
+      }
     });
   program.command("serve [path]").description("Serve the architecture map for a scanned repo")
     .option("-p, --port <port>", "port to listen on", "5180")
