@@ -52,6 +52,15 @@ describe("ControlRail", () => {
     expect(screen.getByText("551 nodes · 939 edges")).toBeTruthy();
   });
 
+  it("orders the rail groups View → Agent → Build → Live signals → Display", () => {
+    render(<ControlRail status={fullStatus} active={active} on={handlers()} collapsed={false} onCollapsedChange={noop} {...extra} />);
+    const order = ["View", "Agent", "Build", "Live signals", "Display"].map((label) => screen.getByText(label));
+    for (let i = 1; i < order.length; i++) {
+      // Each group label must appear after the previous one in document order.
+      expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+  });
+
   it("clicking an entry calls its handler", () => {
     const on = handlers();
     render(<ControlRail status={fullStatus} active={active} on={on} collapsed={false} onCollapsedChange={noop} {...extra} />);

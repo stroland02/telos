@@ -83,9 +83,32 @@ export function ControlRail({
       )}
 
       <div style={{ flex: 1, overflowY: "auto", padding: "var(--s-1)" }}>
+        {/* View — the core surfaces, always on top */}
         {!collapsed && <Group label="View" />}
         <Item icon="▦" label="Map" active sub="graph" collapsed={collapsed} onClick={() => {}} />
         <Item icon="☰" label="Explorer" active={explorerOpen} sub={explorerOpen ? "shown" : "hidden"} collapsed={collapsed} onClick={onToggleExplorer} />
+
+        {/* Agent — Telos's headline capability */}
+        {!collapsed && <Group label="Agent" />}
+        <Item icon="✦" label="Ask" active={active.ask} sub="Q&A / tour" collapsed={collapsed} onClick={on.openAsk} />
+        <Item icon="⚙" label="Harness" active={active.harness} sub={status.harness ? `${status.harness.caps} caps · ${status.harness.drift}` : "—"} collapsed={collapsed} onClick={on.openHarness} />
+        <Item icon="❖" label="Context" active={active.context} sub="graph memory" collapsed={collapsed} onClick={on.openContext} />
+        <Item icon="⚡" label="Activate" active={engaged} sub={engaged ? "engaged" : "off"} collapsed={collapsed} onClick={onActivate} />
+
+        {/* Build */}
+        {!collapsed && <Group label="Build" />}
+        <Item icon="⚒" label="Forge" sub={status.forge ? `turn ${status.forge.turn} · $${status.forge.costUsd.toFixed(2)}` : "idle"} collapsed={collapsed} onClick={() => {}} />
+        <Item icon="⚠" label="Resolve" sub={resolveCount > 0 ? `${resolveCount} findings` : "scan"} collapsed={collapsed} onClick={onResolve} />
+
+        {/* Live signals — real but evolving; sits below the solid features */}
+        {!collapsed && <Group label="Live signals" />}
+        <Item icon="●" label="Live" active={active.live} sub={`${badge(status.live?.calls)} calls`} collapsed={collapsed} onClick={on.toggleLive} />
+        <Item icon="▷" label="Replay" sub="newest" collapsed={collapsed} onClick={on.replay} />
+        <Item icon="🔥" label="Hot" active={active.hot} sub="hot path" collapsed={collapsed} onClick={on.toggleHot} />
+        <Item icon="▤" label="Procs" active={active.procs} sub={`${badge(status.procs)}`} collapsed={collapsed} onClick={on.openProcs} />
+
+        {/* Display — view-shaping controls, kept at the bottom */}
+        {!collapsed && <Group label="Display" />}
         {!collapsed && (
           <div role="group" aria-label="Detail density" style={{ display: "flex", gap: 0, padding: "var(--s-1) var(--s-2)" }}>
             {DENSITIES.map((m, i) => (
@@ -134,22 +157,6 @@ export function ControlRail({
 
         <Item icon="▶" label="Tour" active={tourActive} sub="walk nodes" collapsed={collapsed} onClick={onTour} />
         <Item icon="⤓" label="Export" sub="image" collapsed={collapsed} onClick={onExport} />
-
-        {!collapsed && <Group label="Live signals" />}
-        <Item icon="●" label="Live" active={active.live} sub={`${badge(status.live?.calls)} calls`} collapsed={collapsed} onClick={on.toggleLive} />
-        <Item icon="▷" label="Replay" sub="newest" collapsed={collapsed} onClick={on.replay} />
-        <Item icon="🔥" label="Hot" active={active.hot} sub="hot path" collapsed={collapsed} onClick={on.toggleHot} />
-        <Item icon="▤" label="Procs" active={active.procs} sub={`${badge(status.procs)}`} collapsed={collapsed} onClick={on.openProcs} />
-
-        {!collapsed && <Group label="Agent" />}
-        <Item icon="✦" label="Ask" active={active.ask} sub="Q&A / tour" collapsed={collapsed} onClick={on.openAsk} />
-        <Item icon="⚙" label="Harness" active={active.harness} sub={status.harness ? `${status.harness.caps} caps · ${status.harness.drift}` : "—"} collapsed={collapsed} onClick={on.openHarness} />
-        <Item icon="❖" label="Context" active={active.context} sub="graph memory" collapsed={collapsed} onClick={on.openContext} />
-        <Item icon="⚡" label="Activate" active={engaged} sub={engaged ? "engaged" : "off"} collapsed={collapsed} onClick={onActivate} />
-
-        {!collapsed && <Group label="Build" />}
-        <Item icon="⚒" label="Forge" sub={status.forge ? `turn ${status.forge.turn} · $${status.forge.costUsd.toFixed(2)}` : "idle"} collapsed={collapsed} onClick={() => {}} />
-        <Item icon="⚠" label="Resolve" sub={resolveCount > 0 ? `${resolveCount} findings` : "scan"} collapsed={collapsed} onClick={onResolve} />
       </div>
 
       {/* Footer: stats + theme + shortcuts */}
