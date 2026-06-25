@@ -34,6 +34,9 @@ export interface TelosApi {
   contextPack(): Promise<string>;
   /** Lightweight graph stats for the control rail footer. */
   stats(): Promise<GraphStats>;
+  /** Harness engagement: write/remove the Claude Code statusline. */
+  activate(deactivate?: boolean): Promise<{ statusLinePresent: boolean }>;
+  activationState(): Promise<{ statusLinePresent: boolean }>;
 }
 
 export function createApi(baseUrl = ""): TelosApi {
@@ -97,5 +100,13 @@ export function createApi(baseUrl = ""): TelosApi {
     harnessStatus: () => get<HarnessStatus>("/api/harness"),
     contextPack: async () => (await get<{ brief: string }>("/api/context")).brief,
     stats: () => get<GraphStats>("/api/stats"),
+    activate: async (deactivate) => {
+      const res = await fetch(`${baseUrl}/api/activate`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ deactivate: !!deactivate }),
+      });
+      if (!res.ok) throw new Error(`activate -> ${res.status}`);
+      return (await res.json()) as { statusLinePresent: boolean };
+    },
+    activationState: () => get<{ statusLinePresent: boolean }>("/api/activate/state"),
   };
 }

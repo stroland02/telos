@@ -61,6 +61,15 @@ describe("graph routes", () => {
     await app.close(); svc.close();
   });
 
+  it("GET /api/activate/state returns the engagement shape", async () => {
+    const svc = service();
+    const app = buildServer(svc);
+    const res = await app.inject({ method: "GET", url: "/api/activate/state" });
+    expect(res.statusCode).toBe(200);
+    expect(typeof res.json().statusLinePresent).toBe("boolean");
+    await app.close(); svc.close();
+  });
+
   it("GET /api/harness returns the cockpit status", async () => {
     const svc = service();
     const app = buildServer(svc);

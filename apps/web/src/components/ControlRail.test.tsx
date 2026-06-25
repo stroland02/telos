@@ -28,6 +28,8 @@ const extra = {
   showSymbols: false,
   onShowSymbols: vi.fn(),
   granularityApplicable: true,
+  engaged: false,
+  onActivate: vi.fn(),
 };
 
 const fullStatus: TelosStatus = {

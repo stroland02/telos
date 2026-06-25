@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import type { ServerResponse } from "node:http";
 import { TraceAggregator, TraceBuffer, LogBuffer, MetricBuffer, ProfileBuffer, ProcessBuffer, FileNodeRef, ProcessSample, NodeIndex, GraphDiff, parseOtlpTraces, parseOtlpLogs, parseOtlpMetrics, parseFoldedStacks, tagProcesses } from "@telos/engine";
-import { buildHarnessStatus, DEFAULT_CATALOG, PROMPT_CATALOG, HARNESS_INSTALLS, parseLock, type HarnessLock } from "@telos/harness";
+import { buildHarnessStatus, DEFAULT_CATALOG, PROMPT_CATALOG, HARNESS_INSTALLS, parseLock, type HarnessLock, activate, deactivate, activationState } from "@telos/harness";
 
 /** Latest Forge build-loop checkpoint reflected onto the map. Ephemeral. */
 export type ForgeState = { run: string; turn: number; costUsd: number; stop: string | null; diff: GraphDiff } | null;
@@ -54,6 +54,15 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
 
   app.get("/api/stats", async () =>
     provider.getStats ? provider.getStats() : { nodes: 0, edges: 0, files: 0, languages: [], enriched: 0 });
+
+  // Harness engagement: write/remove the Claude Code statusline for the served repo.
+  const noRepo = { settingsPath: "", statusLinePresent: false, harnessLockPresent: false };
+  app.get("/api/activate/state", async () => (provider.repoRoot ? activationState(provider.repoRoot) : noRepo));
+  app.post("/api/activate", async (req) => {
+    if (!provider.repoRoot) return noRepo;
+    const body = (req.body ?? {}) as { deactivate?: boolean };
+    return body.deactivate ? deactivate(provider.repoRoot) : activate(provider.repoRoot);
+  });
 
   // Harness cockpit: installed harnesses + enabled capability counts + drift,
   // so the web client can show "what powers are active" at a glance.
