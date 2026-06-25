@@ -1,6 +1,7 @@
+#!/usr/bin/env node
 import { Command } from "commander";
 import { resolve, join, dirname } from "node:path";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { scan, GraphStore, enrichGraph, heuristicEnricher, createLlmEnricher, buildTour, askGraph, ProcessSample, LANGUAGES_DIR, buildContextPack, renderContextPack, type ContextPack } from "@telos/engine";
 import { addLanguage } from "./add-language.js";
@@ -579,7 +580,23 @@ export function buildProgram(): Command {
   return program;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+/**
+ * True when this file is the process entry point. Resolves symlinks on both
+ * sides so a globally-linked `telos` bin (process.argv[1] is the symlink, but
+ * import.meta.url is the real path) still runs the program instead of exiting
+ * silently.
+ */
+function invokedAsMain(): boolean {
+  const arg = process.argv[1];
+  if (!arg) return false;
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(arg)).href;
+  } catch {
+    return import.meta.url === pathToFileURL(arg).href;
+  }
+}
+
+if (invokedAsMain()) {
   buildProgram().parseAsync(process.argv).catch((err) => {
     console.error(err instanceof Error ? err.message : err);
     process.exitCode = 1;
