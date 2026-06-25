@@ -226,11 +226,6 @@ export function App() {
       />
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", position: "relative" }}>
 
-      {/* Slim breadcrumb strip — interactive graph navigation (click to jump zoom levels) */}
-      <div style={{ flexShrink: 0, height: 36, minHeight: 36, display: "flex", alignItems: "center", padding: "0 var(--s-3)", borderBottom: "1px solid var(--border)", background: "var(--surface)" }}>
-        <Breadcrumbs crumbs={nav.crumbs} onJump={nav.goToCrumb} />
-      </div>
-
       {/* ── Main area: [Explorer | Map | Right pane] ──────────────────── */}
       <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
 
@@ -288,6 +283,12 @@ export function App() {
             configuration changes (sidebar or viewer toggled). Splitter drags
             are handled by the useStore(s.width) observer inside FitViewRegistrar. */}
         <div style={{ flex: 1, minWidth: MAP_MIN_WIDTH, position: "relative" }}>
+          {/* Floating graph breadcrumbs — top-center over the map (no top bar) */}
+          <div style={{ position: "absolute", top: "var(--s-3)", left: "50%", transform: "translateX(-50%)", zIndex: 5, maxWidth: "82%", display: "flex", justifyContent: "center" }}>
+            <div style={{ background: "color-mix(in srgb, var(--surface) 90%, transparent)", border: "1px solid var(--border)", borderRadius: "var(--r-md, 8px)", padding: "var(--s-1) var(--s-3)", boxShadow: "var(--shadow-panel)", backdropFilter: "blur(6px)", maxWidth: "100%", overflow: "hidden" }}>
+              <Breadcrumbs crumbs={nav.crumbs} onJump={nav.goToCrumb} />
+            </div>
+          </div>
           <MapView
             nav={nav}
             api={api}
