@@ -8,7 +8,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
-import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus } from "@telos/harness";
+import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus, activate, deactivate, statusLineText } from "@telos/harness";
 import { runForge, stubDriver, claudeAgentDriver, ForgeRunResult } from "@telos/forge";
 import { pathToFileURL } from "node:url";
 import open from "open";
@@ -37,6 +37,21 @@ export async function runEnrich(
   } finally {
     store.close();
   }
+}
+
+/** The single-line Telos engagement indicator for the Claude Code statusline. */
+export async function runStatusLine(path: string): Promise<string> {
+  const repo = resolve(path);
+  const graph = existsSync(join(repo, ".telos", "graph.db"));
+  let live = false;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 200);
+    const res = await fetch("http://127.0.0.1:5180/api/health", { signal: ctrl.signal });
+    clearTimeout(t);
+    live = res.ok;
+  } catch { /* server not running — fine */ }
+  return statusLineText({ agents: DEFAULT_CATALOG.length, graph, live });
 }
 
 /** Aggregate the harness cockpit status from the repo's lock + the live catalogs. */
@@ -341,6 +356,28 @@ export function buildProgram(): Command {
       } else {
         console.log("Drift: ok");
       }
+    });
+  program.command("activate [path]").description("Engage Telos: bootstrap the harness + show '◇ Telos engaged' in the Claude Code statusline")
+    .action((path: string | undefined) => {
+      const repo = resolve(path ?? ".");
+      const selfPath = fileURLToPath(import.meta.url);
+      const st = activate(repo, { statusLineCommand: `node "${selfPath}" status --line` });
+      runDoctor(join(repo, ".telos", "harness.lock"));
+      console.log(`◇ Telos engaged — statusline written to ${st.settingsPath}`);
+      console.log("Open a Claude Code session in this repo to see: ◇ Telos engaged");
+      console.log("\nHarnesses (install any you don't have):");
+      for (const h of buildSetupPlan()) console.log(`  ${h.source.padEnd(12)} ${h.install.join(" && ")}`);
+      console.log("\nUndo with: telos deactivate");
+    });
+  program.command("deactivate [path]").description("Remove the Telos statusline from this repo")
+    .action((path: string | undefined) => {
+      const st = deactivate(resolve(path ?? "."));
+      console.log(st.statusLinePresent ? "Telos statusline still present." : `Telos statusline removed from ${st.settingsPath}.`);
+    });
+  program.command("status [path]").description("Print the Telos engagement status line")
+    .option("--line", "print a single line (used by the Claude Code statusline)", false)
+    .action(async (path: string | undefined) => {
+      console.log(await runStatusLine(path ?? "."));
     });
   program.command("serve [path]").description("Serve the architecture map for a scanned repo")
     .option("-p, --port <port>", "port to listen on", "5180")

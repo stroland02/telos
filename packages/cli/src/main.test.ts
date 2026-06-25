@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, runTop, buildDemoProcesses, buildProgram, runContext, runHarness } from "./main.js";
+import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, runTop, buildDemoProcesses, buildProgram, runContext, runHarness, runStatusLine } from "./main.js";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -80,6 +80,23 @@ describe("telos harness command", () => {
   it("is registered", () => {
     const names = buildProgram().commands.map((c) => c.name());
     expect(names).toContain("harness");
+  });
+});
+
+describe("activate/deactivate/status commands", () => {
+  it("are registered", () => {
+    const names = buildProgram().commands.map((c) => c.name());
+    expect(names).toContain("activate");
+    expect(names).toContain("deactivate");
+    expect(names).toContain("status");
+  });
+});
+
+describe("runStatusLine", () => {
+  it("returns the Telos engagement line", async () => {
+    const line = await runStatusLine(repo);
+    expect(line).toContain("◇ Telos");
+    expect(line).toMatch(/agents/);
   });
 });
 
