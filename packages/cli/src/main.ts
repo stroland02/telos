@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { resolve, join, dirname } from "node:path";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { scan, GraphStore, enrichGraph, heuristicEnricher, createLlmEnricher, buildTour, askGraph, ProcessSample, LANGUAGES_DIR, buildContextPack, renderContextPack, type ContextPack } from "@telos/engine";
 import { addLanguage } from "./add-language.js";
@@ -8,7 +8,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
-import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, buildSetupPlan } from "@telos/harness";
+import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus } from "@telos/harness";
 import { runForge, stubDriver, claudeAgentDriver, ForgeRunResult } from "@telos/forge";
 import { pathToFileURL } from "node:url";
 import open from "open";
@@ -37,6 +37,21 @@ export async function runEnrich(
   } finally {
     store.close();
   }
+}
+
+/** Aggregate the harness cockpit status from the repo's lock + the live catalogs. */
+export function runHarness(path: string): HarnessStatus {
+  const lockPath = join(resolve(path), ".telos", "harness.lock");
+  const lock: HarnessLock | null = existsSync(lockPath)
+    ? parseLock(readFileSync(lockPath, "utf-8"))
+    : null;
+  return buildHarnessStatus({
+    lockPath,
+    lock,
+    nodeCatalog: DEFAULT_CATALOG,
+    promptCatalog: PROMPT_CATALOG,
+    installs: HARNESS_INSTALLS,
+  });
 }
 
 /** Read the persisted graph and distill it into a token-budgeted context pack —
@@ -308,6 +323,24 @@ export function buildProgram(): Command {
     .action((path: string | undefined, opts: { limit: string; json: boolean }) => {
       const pack = runContext(path ?? ".", { limit: Number(opts.limit) });
       console.log(opts.json ? JSON.stringify(pack, null, 2) : renderContextPack(pack));
+    });
+  program.command("harness [path]").description("Show the harness cockpit: installed harnesses, enabled capabilities, drift")
+    .option("--json", "emit the raw HarnessStatus JSON", false)
+    .action((path: string | undefined, opts: { json: boolean }) => {
+      const status = runHarness(path ?? ".");
+      if (opts.json) { console.log(JSON.stringify(status, null, 2)); return; }
+      console.log("Harnesses (orchestrate + curate):");
+      for (const h of status.installed) {
+        console.log(`  ${h.source.padEnd(12)} ${String(h.nodeCapabilities).padStart(3)} caps  ${h.title}`);
+      }
+      console.log(`\nCapabilities: ${status.totals.nodeCapabilities} node-context, ${status.totals.promptIntents} prompt intents`);
+      const lock = status.lock.present ? "present" : "absent (run 'telos doctor' to bootstrap)";
+      console.log(`Lock: ${lock}`);
+      if (status.drift.status === "drift") {
+        console.log(`Drift: ${status.drift.missing.length} missing, ${status.drift.added.length} new — run 'telos doctor'`);
+      } else {
+        console.log("Drift: ok");
+      }
     });
   program.command("serve [path]").description("Serve the architecture map for a scanned repo")
     .option("-p, --port <port>", "port to listen on", "5180")

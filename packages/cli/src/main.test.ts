@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, runTop, buildDemoProcesses, buildProgram, runContext } from "./main.js";
+import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, runTop, buildDemoProcesses, buildProgram, runContext, runHarness } from "./main.js";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -73,6 +73,22 @@ describe("runContext", () => {
     expect(pack.totals.nodes).toBeGreaterThan(0);
     expect(pack.entryPoints.length).toBeLessThanOrEqual(5);
     expect(Array.isArray(pack.layers)).toBe(true);
+  });
+});
+
+describe("telos harness command", () => {
+  it("is registered", () => {
+    const names = buildProgram().commands.map((c) => c.name());
+    expect(names).toContain("harness");
+  });
+});
+
+describe("runHarness", () => {
+  it("aggregates installed harnesses and totals from the catalogs", () => {
+    const status = runHarness(repo);
+    expect(status.installed.length).toBeGreaterThan(0);
+    expect(status.totals.nodeCapabilities).toBeGreaterThan(0);
+    expect(typeof status.drift.status).toBe("string");
   });
 });
 
