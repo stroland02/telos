@@ -38,6 +38,16 @@ export class GraphService implements GraphProvider {
 
   getOverview(): GraphView { return overview(this.graph, this.agg); }
   getContext(limit?: number): string { return renderContextPack(buildContextPack(this.graph, { limit })); }
+  getStats(): { nodes: number; edges: number; files: number; languages: string[]; enriched: number } {
+    const nodes = this.graph.nodes;
+    return {
+      nodes: nodes.length,
+      edges: this.graph.edges.length,
+      files: nodes.filter((n) => n.kind === "file").length,
+      languages: [...new Set(nodes.map((n) => n.language))].sort(),
+      enriched: nodes.filter((n) => n.summary && n.summary.trim()).length,
+    };
+  }
   getChildren(id: string): GraphView | null { return childrenOf(this.graph, this.agg, id); }
   getNode(id: string): NodeDetail | null { return nodeDetail(this.graph, id); }
 

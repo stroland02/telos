@@ -42,3 +42,13 @@ export interface HarnessStatus {
   drift: { status: string; missing: string[]; added: string[] };
   lock: { present: boolean; path: string };
 }
+
+// ── Control rail status (assembled from existing reads/streams) ──────────────
+export interface GraphStats { nodes: number; edges: number; files: number; languages: string[]; enriched: number; }
+export interface TelosStatus {
+  graph: GraphStats | null;
+  harness: { caps: number; drift: string } | null;
+  live: { calls: number } | null;
+  procs: number | null;
+  forge: { turn: number; costUsd: number; stop: string | null } | null;
+}

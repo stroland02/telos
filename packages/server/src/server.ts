@@ -32,6 +32,8 @@ export interface GraphProvider {
   getTraceHub?(): TraceHub;
   /** Optional: graph-as-memory architecture brief (markdown). */
   getContext?(limit?: number): string;
+  /** Optional: lightweight graph stats for the control rail footer. */
+  getStats?(): { nodes: number; edges: number; files: number; languages: string[]; enriched: number };
   repoRoot: string | null;
 }
 
@@ -49,6 +51,9 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
     const limit = Number((req.query as { limit?: string }).limit) || undefined;
     return { brief: provider.getContext ? provider.getContext(limit) : "" };
   });
+
+  app.get("/api/stats", async () =>
+    provider.getStats ? provider.getStats() : { nodes: 0, edges: 0, files: 0, languages: [], enriched: 0 });
 
   // Harness cockpit: installed harnesses + enabled capability counts + drift,
   // so the web client can show "what powers are active" at a glance.

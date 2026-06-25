@@ -1,4 +1,4 @@
-import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot, ProcessSample, ForgeState, HarnessStatus } from "./types";
+import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot, ProcessSample, ForgeState, HarnessStatus, GraphStats } from "./types";
 
 export interface TelosApi {
   overview(): Promise<GraphView>;
@@ -32,6 +32,8 @@ export interface TelosApi {
   harnessStatus(): Promise<HarnessStatus>;
   /** Graph-as-memory: the token-budgeted architecture brief (markdown). */
   contextPack(): Promise<string>;
+  /** Lightweight graph stats for the control rail footer. */
+  stats(): Promise<GraphStats>;
 }
 
 export function createApi(baseUrl = ""): TelosApi {
@@ -94,5 +96,6 @@ export function createApi(baseUrl = ""): TelosApi {
     },
     harnessStatus: () => get<HarnessStatus>("/api/harness"),
     contextPack: async () => (await get<{ brief: string }>("/api/context")).brief,
+    stats: () => get<GraphStats>("/api/stats"),
   };
 }
