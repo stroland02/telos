@@ -82,6 +82,7 @@ export function TelosNode({ data, selected }: NodeProps) {
     _pathOn?: boolean | null; _pathDim?: boolean;
     _liveCalls?: number; _liveErr?: boolean; _replayOn?: boolean; _hot?: number;
     _forgeAdded?: boolean; _forgeChanged?: boolean; _forgeRemoved?: boolean;
+    _findingSeverity?: "info" | "warn" | "error" | null;
   };
   const isLeaf = d.level === "symbol" || d.level === "file";
 
@@ -117,7 +118,14 @@ export function TelosNode({ data, selected }: NodeProps) {
     : d._forgeChanged ? "var(--warn, #d29922)"
     : d._forgeRemoved ? "var(--text-faint)" : null;
 
-  const shadow = forgeColor
+  // Resolve overlay: a node with an open finding gets a severity-colored ring.
+  const findingColor = d._findingSeverity === "error" ? "var(--danger, #f85149)"
+    : d._findingSeverity === "warn" ? "var(--warn, #d29922)"
+    : d._findingSeverity === "info" ? "var(--accent)" : null;
+
+  const shadow = findingColor
+    ? `0 0 0 2px ${findingColor}, 0 0 18px ${findingColor}, 0 2px 12px ${glow}`
+    : forgeColor
     ? `0 0 0 2px ${forgeColor}, 0 0 18px ${forgeColor}, 0 2px 12px ${glow}`
     : replayOn
     ? `0 0 0 3px var(--accent), 0 0 28px var(--accent), 0 2px 12px ${glow}`

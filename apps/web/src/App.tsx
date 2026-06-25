@@ -20,7 +20,9 @@ import { ProcessPanel } from "./components/ProcessPanel";
 import { HarnessPanel } from "./components/HarnessPanel";
 import { ContextPanel } from "./components/ContextPanel";
 import { ControlRail } from "./components/ControlRail";
+import { ResolutionsPanel } from "./components/ResolutionsPanel";
 import { useTelosStatus } from "./graph/useTelosStatus";
+import { useResolveOverlay } from "./graph/useResolveOverlay";
 
 const api = createApi();
 
@@ -71,6 +73,8 @@ export function App() {
   const [hotOn, setHotOn] = useState(false);
   const profile = useProfileOverlay(api, hotOn);
   const { forge } = useForgeOverlay(api);
+  const { resolve } = useResolveOverlay(api);
+  const [resolveOpen, setResolveOpen] = useState(false);
 
   const onReplay = useCallback(async () => {
     if (playback.playing) { playback.stop(); return; }
@@ -249,6 +253,8 @@ export function App() {
         granularityApplicable={hasFileNodes}
         engaged={engaged}
         onActivate={onActivate}
+        onResolve={() => setResolveOpen(true)}
+        resolveCount={resolve?.findings.length ?? 0}
       />
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", position: "relative" }}>
 
@@ -301,6 +307,7 @@ export function App() {
             replayNodeId={playback.activeNodeId}
             hotIntensity={hotOn ? profile.intensity : undefined}
             forge={forge}
+            resolve={resolve}
           />
         </div>
 
@@ -358,6 +365,7 @@ export function App() {
       <ProcessPanel open={procsOpen} api={api} onOpenNode={openNode} onClose={() => setProcsOpen(false)} />
       <HarnessPanel open={harnessOpen} api={api} onClose={() => setHarnessOpen(false)} />
       <ContextPanel open={contextOpen} api={api} onClose={() => setContextOpen(false)} />
+      <ResolutionsPanel open={resolveOpen} findings={resolve?.findings ?? []} onOpenNode={openNode} onClose={() => setResolveOpen(false)} />
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       </div>
     </div>

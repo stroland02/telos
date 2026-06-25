@@ -9,7 +9,9 @@ import { PATH_FINDER_IDLE, bfsPath } from "./PathFinder";
 import type { PathFinderState } from "./PathFinder";
 import { ExportButton } from "./ExportButton";
 import { TourBar } from "./TourBar";
-import type { Layer, GraphView, ForgeState } from "../api/types";
+import type { Layer, GraphView, ForgeState, ResolveState } from "../api/types";
+
+const SEVRANK: Record<string, number> = { error: 3, warn: 2, info: 1 };
 import type { TelosApi } from "../api/client";
 import type { DensityMode } from "../graph/useDensity";
 import type { TraceOverlay } from "../graph/useTraceOverlay";
@@ -112,7 +114,7 @@ function WidthReader({ onWidth }: { onWidth: (w: number) => void }) {
 // Minimum map column width below which the minimap is hidden to save space.
 const MINIMAP_MIN_WIDTH = 380;
 
-export function MapView({ nav, api, density, theme, onOpenNode, registerFitView, layoutKey, trace, replayNodeId, hotIntensity, forge, tourActive, onTourClose, registerExport, showSymbols = false }: { nav: NavigationState; api: TelosApi; density: DensityMode; theme?: string; onOpenNode: (id: string) => void; registerFitView?: (fn: () => void) => void; layoutKey?: string; trace?: TraceOverlay; replayNodeId?: string | null; hotIntensity?: (nodeId: string) => number; forge?: ForgeState | null; tourActive?: boolean; onTourClose?: () => void; registerExport?: (a: { exportSvg: () => void; exportJson: () => void }) => void; showSymbols?: boolean }) {
+export function MapView({ nav, api, density, theme, onOpenNode, registerFitView, layoutKey, trace, replayNodeId, hotIntensity, forge, resolve, tourActive, onTourClose, registerExport, showSymbols = false }: { nav: NavigationState; api: TelosApi; density: DensityMode; theme?: string; onOpenNode: (id: string) => void; registerFitView?: (fn: () => void) => void; layoutKey?: string; trace?: TraceOverlay; replayNodeId?: string | null; hotIntensity?: (nodeId: string) => number; forge?: ForgeState | null; resolve?: ResolveState | null; tourActive?: boolean; onTourClose?: () => void; registerExport?: (a: { exportSvg: () => void; exportJson: () => void }) => void; showSymbols?: boolean }) {
   // Sync module-level density ref so TelosNode reads it on each render.
   setCurrentDensity(density);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -249,6 +251,16 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
       });
   }, [flow.edges, visibleNodeIds, hoveredNodeId, pathEdgeSet, isPathActive, trace]);
 
+  // Highest-severity finding per node (for the resolve overlay ring).
+  const findingSeverity = useMemo(() => {
+    const m = new Map<string, "info" | "warn" | "error">();
+    for (const f of resolve?.findings ?? []) {
+      const cur = m.get(f.nodeId);
+      if (!cur || SEVRANK[f.severity] > SEVRANK[cur]) m.set(f.nodeId, f.severity);
+    }
+    return m;
+  }, [resolve]);
+
   // Nodes with path-aware styling injected into data.
   const styledNodes = useMemo(
     () =>
@@ -267,10 +279,11 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
             _forgeAdded: forge?.diff.added.nodes.includes(n.id) ?? false,
             _forgeChanged: forge?.diff.changed.includes(n.id) ?? false,
             _forgeRemoved: forge?.diff.removed.nodes.includes(n.id) ?? false,
+            _findingSeverity: findingSeverity.get(n.id) ?? null,
           },
         };
       }),
-    [filteredNodes, pathNodeSet, isPathActive, trace, replayNodeId, hotIntensity, forge],
+    [filteredNodes, pathNodeSet, isPathActive, trace, replayNodeId, hotIntensity, forge, findingSeverity],
   );
 
   const handleNodeClick = useCallback(

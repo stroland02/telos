@@ -1,4 +1,4 @@
-import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot, ProcessSample, ForgeState, HarnessStatus, GraphStats } from "./types";
+import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot, ProcessSample, ForgeState, HarnessStatus, GraphStats, ResolveState } from "./types";
 
 export interface TelosApi {
   overview(): Promise<GraphView>;
@@ -28,6 +28,8 @@ export interface TelosApi {
   processes(limit?: number): Promise<ProcessSample[]>;
   /** Subscribe to the Forge build-loop SSE stream; returns an unsubscribe fn. */
   subscribeForge(onState: (s: ForgeState) => void, onError?: () => void): () => void;
+  /** Subscribe to the Resolve (scan-for-resolutions) SSE stream; returns unsubscribe. */
+  subscribeResolve(onState: (s: ResolveState) => void, onError?: () => void): () => void;
   /** Harness cockpit: installed harnesses, enabled capability counts, drift. */
   harnessStatus(): Promise<HarnessStatus>;
   /** Graph-as-memory: the token-budgeted architecture brief (markdown). */
@@ -93,6 +95,14 @@ export function createApi(baseUrl = ""): TelosApi {
       const es = new EventSource(`${baseUrl}/api/forge/stream`);
       es.onmessage = (ev) => {
         try { onState(JSON.parse(ev.data) as ForgeState); } catch { /* ignore bad frame */ }
+      };
+      es.onerror = () => onError?.();
+      return () => es.close();
+    },
+    subscribeResolve: (onState, onError) => {
+      const es = new EventSource(`${baseUrl}/api/resolve/stream`);
+      es.onmessage = (ev) => {
+        try { onState(JSON.parse(ev.data) as ResolveState); } catch { /* ignore bad frame */ }
       };
       es.onerror = () => onError?.();
       return () => es.close();

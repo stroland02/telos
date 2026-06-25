@@ -25,7 +25,7 @@ export function ControlRail({
   explorerOpen, onToggleExplorer, onShortcuts,
   onTour, tourActive, onExport,
   showSymbols, onShowSymbols, granularityApplicable,
-  engaged, onActivate,
+  engaged, onActivate, onResolve, resolveCount,
 }: {
   status: TelosStatus;
   active: RailActive;
@@ -49,6 +49,8 @@ export function ControlRail({
   granularityApplicable: boolean;
   engaged: boolean;
   onActivate: () => void;
+  onResolve: () => void;
+  resolveCount: number;
 }) {
   const badge = (v: string | number | null | undefined) => (v === null || v === undefined ? "—" : String(v));
   const g = status.graph;
@@ -147,6 +149,7 @@ export function ControlRail({
 
         {!collapsed && <Group label="Build" />}
         <Item icon="⚒" label="Forge" sub={status.forge ? `turn ${status.forge.turn} · $${status.forge.costUsd.toFixed(2)}` : "idle"} collapsed={collapsed} onClick={() => {}} />
+        <Item icon="⚠" label="Resolve" sub={resolveCount > 0 ? `${resolveCount} findings` : "scan"} collapsed={collapsed} onClick={onResolve} />
       </div>
 
       {/* Footer: stats + theme + shortcuts */}

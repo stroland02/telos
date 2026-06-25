@@ -34,6 +34,10 @@ export interface ProcessSample { pid: number; ppid?: number; name: string; cmd?:
 export interface ForgeDiff { added: { nodes: string[]; edges: string[] }; removed: { nodes: string[]; edges: string[] }; changed: string[]; }
 export interface ForgeState { run: string; turn: number; costUsd: number; stop: string | null; diff: ForgeDiff; }
 
+// ── Resolve (scan-for-resolutions): agent findings flagged on the map ────────
+export interface Finding { nodeId: string; file: string; severity: "info" | "warn" | "error"; title: string; detail: string; suggestion: string; agent: string; }
+export interface ResolveState { findings: Finding[]; scanned: number; startedAt: number; done: boolean; }
+
 // ── Harness cockpit: what's installed / enabled / drifted ────────────────────
 export interface HarnessSourceStatus { source: string; title: string; repo: string; nodeCapabilities: number; }
 export interface HarnessStatus {

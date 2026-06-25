@@ -30,6 +30,8 @@ const extra = {
   granularityApplicable: true,
   engaged: false,
   onActivate: vi.fn(),
+  onResolve: vi.fn(),
+  resolveCount: 0,
 };
 
 const fullStatus: TelosStatus = {
