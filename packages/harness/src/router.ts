@@ -45,3 +45,21 @@ export const PROMPT_CATALOG: PromptCapability[] = [
   { id: "ecc:doc-updater", kind: "agent", source: "ecc", title: "Update documentation", triggers: ["documentation", "readme", "changelog", "update docs", "write docs"] },
   { id: "headroom:compress", kind: "skill", source: "headroom", title: "Compress context to cut tokens", triggers: ["too many tokens", "context too", "too long", "compress", "reduce cost", "token cost"] },
 ];
+
+/**
+ * One-line routing nudge for the UserPromptSubmit hook: which curated capability
+ * fits this prompt, restricted to the currently-enabled harnesses. Returns "" when
+ * nothing matches (so the hook injects nothing and never blocks the prompt).
+ */
+export function routeForHook(
+  prompt: string,
+  enabledSources: CapabilitySource[],
+  catalog: PromptCapability[] = PROMPT_CATALOG,
+  limit = 3,
+): string {
+  if (!prompt.trim() || enabledSources.length === 0) return "";
+  const allowed = new Set(enabledSources);
+  const routed = routePrompt(prompt, catalog.filter((c) => allowed.has(c.source))).slice(0, limit);
+  if (routed.length === 0) return "";
+  return `Telos: for this task, use ${routed.map((r) => r.capability.id).join(", ")}.`;
+}

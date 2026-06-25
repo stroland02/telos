@@ -50,3 +50,22 @@ describe("PROMPT_CATALOG", () => {
     expect(ids).toContain("ecc:e2e-runner");
   });
 });
+
+import { routeForHook } from "./router.js";
+
+describe("routeForHook", () => {
+  it("nudges toward the matching capability, filtered to enabled sources", () => {
+    const out = routeForHook("optimize the slow database query", ["ecc"]);
+    expect(out).toMatch(/^Telos: for this task, use /);
+    expect(out).toMatch(/ecc:/);
+  });
+  it("returns empty when no source is enabled or no match", () => {
+    expect(routeForHook("optimize the slow query", [])).toBe("");
+    expect(routeForHook("", ["ecc"])).toBe("");
+    expect(routeForHook("xyzzy nothing matches here", ["ecc"])).toBe("");
+  });
+  it("excludes capabilities from disabled sources", () => {
+    // headroom:compress triggers on "compress"; with only ecc enabled it must not appear
+    expect(routeForHook("please compress the context", ["ecc"])).not.toMatch(/headroom/);
+  });
+});
