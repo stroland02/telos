@@ -12,6 +12,18 @@ function handlers(over: Partial<RailHandlers> = {}): RailHandlers {
 }
 const active: RailActive = { live: false, hot: false, procs: false, ask: false, harness: false, context: false };
 
+const extra = {
+  api: { search: vi.fn().mockResolvedValue([]) } as unknown as import("../api/client").TelosApi,
+  onOpenNode: noop,
+  density: "learn",
+  onDensity: vi.fn(),
+  theme: "dark",
+  onToggleTheme: vi.fn(),
+  explorerOpen: true,
+  onToggleExplorer: vi.fn(),
+  onShortcuts: vi.fn(),
+};
+
 const fullStatus: TelosStatus = {
   graph: { nodes: 551, edges: 939, files: 166, languages: ["javascript", "python", "typescript"], enriched: 12 },
   harness: { caps: 8, drift: "ok" },
@@ -22,7 +34,7 @@ const fullStatus: TelosStatus = {
 
 describe("ControlRail", () => {
   it("renders feature entries and status badges", () => {
-    render(<ControlRail status={fullStatus} active={active} on={handlers()} collapsed={false} onCollapsedChange={noop} />);
+    render(<ControlRail status={fullStatus} active={active} on={handlers()} collapsed={false} onCollapsedChange={noop} {...extra} />);
     expect(screen.getByText("Map")).toBeTruthy();
     expect(screen.getByText("Harness")).toBeTruthy();
     expect(screen.getByText("Context")).toBeTruthy();
@@ -32,7 +44,7 @@ describe("ControlRail", () => {
 
   it("clicking an entry calls its handler", () => {
     const on = handlers();
-    render(<ControlRail status={fullStatus} active={active} on={on} collapsed={false} onCollapsedChange={noop} />);
+    render(<ControlRail status={fullStatus} active={active} on={on} collapsed={false} onCollapsedChange={noop} {...extra} />);
     fireEvent.click(screen.getByText("Live"));
     expect(on.toggleLive).toHaveBeenCalled();
     fireEvent.click(screen.getByText("Context"));
@@ -41,13 +53,13 @@ describe("ControlRail", () => {
 
   it("renders — for missing status fields", () => {
     const empty: TelosStatus = { graph: null, harness: null, live: null, procs: null, forge: null };
-    render(<ControlRail status={empty} active={active} on={handlers()} collapsed={false} onCollapsedChange={noop} />);
+    render(<ControlRail status={empty} active={active} on={handlers()} collapsed={false} onCollapsedChange={noop} {...extra} />);
     expect(screen.getByText("— nodes")).toBeTruthy();
   });
 
   it("collapse button toggles", () => {
     const onCollapsedChange = vi.fn();
-    render(<ControlRail status={fullStatus} active={active} on={handlers()} collapsed={false} onCollapsedChange={onCollapsedChange} />);
+    render(<ControlRail status={fullStatus} active={active} on={handlers()} collapsed={false} onCollapsedChange={onCollapsedChange} {...extra} />);
     fireEvent.click(screen.getByLabelText("Collapse control rail"));
     expect(onCollapsedChange).toHaveBeenCalledWith(true);
   });
