@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { TelosGraph, TelosNode } from "@telos/engine";
-import { runExplore, runCallers, runImpact, runRecommend, runTour, runAsk, ToolContext } from "./tools.js";
+import { runExplore, runCallers, runImpact, runRecommend, runTour, runAsk, runContext, ToolContext } from "./tools.js";
 
 function node(id: string): TelosNode {
   return {
@@ -47,5 +47,10 @@ describe("tool handlers", () => {
   it("runAsk ranks a relevant symbol for a question", () => {
     const answers = runAsk(ctx(), { question: "where is alpha" }).answers;
     expect(answers[0].qualifiedName).toBe("m/alpha");
+  });
+  it("runContext returns a non-empty architecture brief", () => {
+    const brief = runContext(ctx(), {});
+    expect(brief).toContain("# Architecture context");
+    expect(brief).toContain("2 nodes, 1 edges");
   });
 });

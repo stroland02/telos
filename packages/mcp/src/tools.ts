@@ -1,7 +1,7 @@
 import {
   GraphStore, TelosGraph, TelosNode,
   callersOf, calleesOf, impactOf, affectedBy, explore, ExploreHit, resolveNode,
-  buildTour, askGraph,
+  buildTour, askGraph, buildContextPack, renderContextPack,
 } from "@telos/engine";
 import { recommend } from "@telos/harness";
 
@@ -48,4 +48,8 @@ export function runAsk(ctx: ToolContext, args: { question: string; limit?: numbe
       qualifiedName: a.node.qualifiedName, path: a.node.path, summary: a.node.summary, score: a.score,
     })),
   };
+}
+/** Warm-start brief: the graph distilled into agent working memory (markdown). */
+export function runContext(ctx: ToolContext, args: { limit?: number }): string {
+  return renderContextPack(buildContextPack(ctx.graph, { limit: args.limit }));
 }

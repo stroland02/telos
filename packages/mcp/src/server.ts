@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { ToolContext, runExplore, runCallers, runCallees, runImpact, runAffected, runRecommend, runTour, runAsk } from "./tools.js";
+import { ToolContext, runExplore, runCallers, runCallees, runImpact, runAffected, runRecommend, runTour, runAsk, runContext } from "./tools.js";
 
 const asText = (result: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
@@ -80,6 +80,15 @@ export function buildMcpServer(ctx: ToolContext): McpServer {
       inputSchema: { question: z.string(), limit: z.number().optional() },
     },
     async (args) => asText(runAsk(ctx, args)),
+  );
+
+  server.registerTool(
+    "telos_context",
+    {
+      description: "Warm-start architecture brief: a token-budgeted overview of layers, entry points, hotspots, and key summaries — the graph as agent memory. Read this first to orient before exploring.",
+      inputSchema: { limit: z.number().optional() },
+    },
+    async (args) => ({ content: [{ type: "text" as const, text: runContext(ctx, args) }] }),
   );
 
   return server;
