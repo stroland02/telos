@@ -54,24 +54,31 @@ The same graph is consumed **many ways**:
 
 ## 🚀 Quick start
 
-**Requirements:** Node ≥ 20, [pnpm](https://pnpm.io/) 9.
+**Requirements:** Node ≥ 20.
 
 ```bash
-# 1. Get it
+# 1. Install the CLI
+npm i -g telos
+
+# 2. Scan any codebase and open the living map
+telos scan /path/to/your-project
+telos serve /path/to/your-project    # → http://127.0.0.1:5180
+```
+
+That's it — `serve` opens the architecture map in your browser.
+
+<details>
+<summary><strong>From source</strong> (for development, needs <a href="https://pnpm.io/">pnpm</a> 9)</summary>
+
+```bash
 git clone https://github.com/stroland02/telos.git
 cd telos
-
-# 2. Install + build
 pnpm install
 pnpm build
-
-# 3. Scan a codebase (here, Telos itself) and open the map
 pnpm telos scan .
 pnpm telos serve .          # → http://127.0.0.1:5180
 ```
-
-That's it — `serve` opens the living map in your browser. Point `scan` at any repo:
-`pnpm telos scan /path/to/your-project`.
+</details>
 
 ## 🧭 Commands
 
@@ -134,7 +141,7 @@ apps/
 - ✅ **Phase 2** — live OTel overlay (traces/metrics/logs/profiles) + OS processes
 - ✅ **Phase 3** — semantic brain (enrich/tour/ask) + local-LLM enrichment
 - ✅ **Phase 4 (slice 1)** — Telos Forge build loop
-- 🔜 **Distribution** — `npm i -g telos`
+- ✅ **Distribution** — packaged for `npm i -g telos`
 - 🔜 **More languages** — Go, Rust, Java, … via `telos add-language`
 
 ## 🛠️ Development
