@@ -30,6 +30,8 @@ export interface GraphProvider {
   getAnswers?(q: string, limit?: number): unknown[];
   /** Optional: live OTel trace hub. Absent on minimal providers. */
   getTraceHub?(): TraceHub;
+  /** Optional: graph-as-memory architecture brief (markdown). */
+  getContext?(limit?: number): string;
   repoRoot: string | null;
 }
 
@@ -41,6 +43,12 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
   app.get("/api/health", async () => ({ status: "ok" }));
 
   app.get("/api/overview", async () => provider.getOverview());
+
+  // Graph-as-memory: the token-budgeted architecture brief, for the web UI.
+  app.get("/api/context", async (req) => {
+    const limit = Number((req.query as { limit?: string }).limit) || undefined;
+    return { brief: provider.getContext ? provider.getContext(limit) : "" };
+  });
 
   // Harness cockpit: installed harnesses + enabled capability counts + drift,
   // so the web client can show "what powers are active" at a glance.

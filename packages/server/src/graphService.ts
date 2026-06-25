@@ -2,6 +2,7 @@
 import {
   GraphStore, aggregate, overview, childrenOf, nodeDetail, resolveNode, buildTour, askGraph,
   TraceAggregator, TraceBuffer, LogBuffer, MetricBuffer, ProfileBuffer, ProcessBuffer, buildNodeIndex,
+  buildContextPack, renderContextPack,
   TelosGraph, TelosNode, AggregatedGraph, GraphView, NodeDetail,
 } from "@telos/engine";
 import { recommend } from "@telos/harness";
@@ -36,6 +37,7 @@ export class GraphService implements GraphProvider {
   }
 
   getOverview(): GraphView { return overview(this.graph, this.agg); }
+  getContext(limit?: number): string { return renderContextPack(buildContextPack(this.graph, { limit })); }
   getChildren(id: string): GraphView | null { return childrenOf(this.graph, this.agg, id); }
   getNode(id: string): NodeDetail | null { return nodeDetail(this.graph, id); }
 

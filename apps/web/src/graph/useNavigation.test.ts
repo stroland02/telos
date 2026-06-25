@@ -34,6 +34,7 @@ function fakeApi(overrides: Partial<TelosApi> = {}): TelosApi {
     processes: vi.fn().mockResolvedValue([]),
     subscribeForge: vi.fn().mockReturnValue(() => {}),
     harnessStatus: vi.fn(),
+    contextPack: vi.fn().mockResolvedValue(""),
     ...overrides,
   };
 }

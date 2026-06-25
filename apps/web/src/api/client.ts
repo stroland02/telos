@@ -30,6 +30,8 @@ export interface TelosApi {
   subscribeForge(onState: (s: ForgeState) => void, onError?: () => void): () => void;
   /** Harness cockpit: installed harnesses, enabled capability counts, drift. */
   harnessStatus(): Promise<HarnessStatus>;
+  /** Graph-as-memory: the token-budgeted architecture brief (markdown). */
+  contextPack(): Promise<string>;
 }
 
 export function createApi(baseUrl = ""): TelosApi {
@@ -91,5 +93,6 @@ export function createApi(baseUrl = ""): TelosApi {
       return () => es.close();
     },
     harnessStatus: () => get<HarnessStatus>("/api/harness"),
+    contextPack: async () => (await get<{ brief: string }>("/api/context")).brief,
   };
 }

@@ -41,6 +41,15 @@ describe("graph routes", () => {
     await app.close(); svc.close();
   });
 
+  it("GET /api/context returns the architecture brief", async () => {
+    const svc = service();
+    const app = buildServer(svc);
+    const res = await app.inject({ method: "GET", url: "/api/context" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().brief).toContain("# Architecture context");
+    await app.close(); svc.close();
+  });
+
   it("GET /api/harness returns the cockpit status", async () => {
     const svc = service();
     const app = buildServer(svc);
