@@ -128,6 +128,7 @@ describe("createApi", () => {
       onmessage: ((ev: { data: string }) => void) | null = null;
       onerror: (() => void) | null = null;
       closed = false;
+      // eslint-disable-next-line @typescript-eslint/no-this-alias -- test mock captures its own instance
       constructor(public url: string) { last = this; }
       close() { this.closed = true; }
     }

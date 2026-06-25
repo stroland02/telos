@@ -22,7 +22,7 @@ function span(p: Partial<SpanRecord>): SpanRecord {
 
 describe("TraceAggregator", () => {
   it("aggregates node counts, p95, errors and derives static edges", () => {
-    let t = 1000;
+    const t = 1000;
     const agg = new TraceAggregator({ windowMs: 30_000, now: () => t });
     agg.ingest([
       span({ spanId: "a1", name: "A", durationMs: 10 }),

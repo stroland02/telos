@@ -96,7 +96,6 @@ function FitViewRegistrar({ registerFitView }: { registerFitView?: (fn: () => vo
     // Tiny delay lets the DOM settle after RF's resize processing
     const tid = setTimeout(fit, 16);
     return () => clearTimeout(tid);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rfWidth, rfHeight]);
 
   return null;
@@ -130,15 +129,13 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
     if (typeof document === "undefined") return "#121822";
     return getComputedStyle(document.documentElement)
       .getPropertyValue("--minimap-bg").trim() || "#121822";
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme]); // re-resolve when theme changes
 
   const minimapMask = useMemo(() => {
     if (typeof document === "undefined") return "rgba(11,15,20,0.60)";
     return getComputedStyle(document.documentElement)
       .getPropertyValue("--minimap-mask").trim() || "rgba(11,15,20,0.60)";
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [theme]);
+  }, [theme]); // re-resolve when theme changes
   const [pfState, setPfState] = useState<PathFinderState>(PATH_FINDER_IDLE);
   const [tourActive, setTourActive] = useState(false);
 

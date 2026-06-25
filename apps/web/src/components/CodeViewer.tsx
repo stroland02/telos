@@ -220,7 +220,7 @@ export function CodeViewer({ source, loading, error, theme, onClose }: CodeViewe
         {html && !hlLoading && (
           <div
             className="telos-code"
-            // eslint-disable-next-line react/no-danger
+            // Shiki-rendered, trusted highlight HTML — not user input
             dangerouslySetInnerHTML={{ __html: html }}
             aria-label={`Source code of ${basename}`}
           />
