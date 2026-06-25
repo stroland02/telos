@@ -4,6 +4,8 @@ export type { LangManifest } from "./languages/registry.js";
 export { GraphStore } from "./store.js";
 export { diffGraphs } from "./diff.js";
 export type { GraphDiff } from "./diff.js";
+export { buildContextPack, renderContextPack } from "./context.js";
+export type { ContextPack, ContextPackNode } from "./context.js";
 export * from "./schema.js";
 export * from "./aggregator.js";
 export * from "./query.js";
