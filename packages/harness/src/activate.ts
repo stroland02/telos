@@ -5,16 +5,20 @@ import { dirname, join } from "node:path";
 export interface ActivationState {
   settingsPath: string;
   statusLinePresent: boolean;
+  hookPresent: boolean;
   harnessLockPresent: boolean;
 }
 
-// Substring that marks a statusLine as ours (so deactivate only removes Telos's).
-const TELOS_MARKER = "status --line";
+// Substrings that mark settings as ours (so deactivate only removes Telos's).
+const STATUSLINE_MARKER = "status --line";
+const HOOK_MARKER = "route --hook";
 
 /** The one-line indicator Claude Code's statusline renders. */
-export function statusLineText(s: { agents?: number; graph?: boolean; live?: boolean }): string {
+export function statusLineText(s: { agents?: number; graph?: boolean; live?: boolean; harnesses?: number }): string {
   if (s.agents == null) return "◇ Telos";
-  const parts = ["◇ Telos engaged", `${s.agents} agents`, `graph ${s.graph ? "✓" : "—"}`];
+  const parts = ["◇ Telos engaged"];
+  if (s.harnesses != null) parts.push(`${s.harnesses} harness${s.harnesses === 1 ? "" : "es"}`);
+  parts.push(`${s.agents} agents`, `graph ${s.graph ? "✓" : "—"}`);
   if (s.live) parts.push("live");
   return parts.join(" · ");
 }
@@ -35,29 +39,61 @@ function readSettings(p: string): Record<string, unknown> {
 
 function isTelosStatusLine(sl: unknown): boolean {
   return !!(sl && typeof (sl as { command?: unknown }).command === "string" &&
-    ((sl as { command: string }).command).includes(TELOS_MARKER));
+    ((sl as { command: string }).command).includes(STATUSLINE_MARKER));
 }
 
-/** Write a `statusLine` into <repo>/.claude/settings.json, preserving other keys. */
-export function activate(repoRoot: string, opts: { statusLineCommand?: string } = {}): ActivationState {
+function isTelosHookEntry(entry: unknown): boolean {
+  const hooks = (entry as { hooks?: unknown }).hooks;
+  return Array.isArray(hooks) && hooks.some((h) =>
+    typeof (h as { command?: unknown }).command === "string" && (h as { command: string }).command.includes(HOOK_MARKER));
+}
+
+function setUserPromptHook(settings: Record<string, unknown>, command: string): void {
+  const hooks = (settings.hooks && typeof settings.hooks === "object" ? settings.hooks : {}) as Record<string, unknown>;
+  const existing = Array.isArray(hooks.UserPromptSubmit) ? (hooks.UserPromptSubmit as unknown[]).filter((e) => !isTelosHookEntry(e)) : [];
+  existing.push({ hooks: [{ type: "command", command }] });
+  hooks.UserPromptSubmit = existing;
+  settings.hooks = hooks;
+}
+
+function removeUserPromptHook(settings: Record<string, unknown>): boolean {
+  const hooks = settings.hooks as Record<string, unknown> | undefined;
+  if (!hooks || !Array.isArray(hooks.UserPromptSubmit)) return false;
+  const list = hooks.UserPromptSubmit as unknown[];
+  const filtered = list.filter((e) => !isTelosHookEntry(e));
+  if (filtered.length === list.length) return false;
+  if (filtered.length === 0) delete hooks.UserPromptSubmit;
+  else hooks.UserPromptSubmit = filtered;
+  if (Object.keys(hooks).length === 0) delete settings.hooks;
+  return true;
+}
+
+function hookPresent(settings: Record<string, unknown>): boolean {
+  const hooks = settings.hooks as Record<string, unknown> | undefined;
+  return !!(hooks && Array.isArray(hooks.UserPromptSubmit) && (hooks.UserPromptSubmit as unknown[]).some(isTelosHookEntry));
+}
+
+/** Write the statusLine (and, when hookCommand is given, the UserPromptSubmit
+ *  routing hook) into <repo>/.claude/settings.json, preserving all other keys. */
+export function activate(repoRoot: string, opts: { statusLineCommand?: string; hookCommand?: string } = {}): ActivationState {
   const p = settingsPathFor(repoRoot);
   const settings = readSettings(p);
-  const command = opts.statusLineCommand ?? "telos status --line";
-  settings.statusLine = { type: "command", command };
+  settings.statusLine = { type: "command", command: opts.statusLineCommand ?? "telos status --line" };
+  if (opts.hookCommand) setUserPromptHook(settings, opts.hookCommand);
   mkdirSync(dirname(p), { recursive: true });
   writeFileSync(p, JSON.stringify(settings, null, 2) + "\n");
   return activationState(repoRoot);
 }
 
-/** Remove only the statusLine Telos added; leave all other settings intact. */
+/** Remove only the statusLine + UserPromptSubmit hook Telos added. */
 export function deactivate(repoRoot: string): ActivationState {
   const p = settingsPathFor(repoRoot);
   if (existsSync(p)) {
     const settings = readSettings(p);
-    if (isTelosStatusLine(settings.statusLine)) {
-      delete settings.statusLine;
-      writeFileSync(p, JSON.stringify(settings, null, 2) + "\n");
-    }
+    let changed = false;
+    if (isTelosStatusLine(settings.statusLine)) { delete settings.statusLine; changed = true; }
+    if (removeUserPromptHook(settings)) changed = true;
+    if (changed) writeFileSync(p, JSON.stringify(settings, null, 2) + "\n");
   }
   return activationState(repoRoot);
 }
@@ -68,6 +104,7 @@ export function activationState(repoRoot: string): ActivationState {
   return {
     settingsPath: p,
     statusLinePresent: isTelosStatusLine(settings.statusLine),
+    hookPresent: hookPresent(settings),
     harnessLockPresent: existsSync(join(repoRoot, ".telos", "harness.lock")),
   };
 }

@@ -51,3 +51,22 @@ describe("activate / deactivate", () => {
     expect(after.statusLine).toEqual({ type: "command", command: "my-prompt" });
   });
 });
+
+describe("activate UserPromptSubmit hook", () => {
+  it("installs the routing hook, preserving other hooks; deactivate removes only ours", () => {
+    const d = mkdtempSync(join(tmpdir(), "telos-hook-"));
+    try {
+      mkdirSync(join(d, ".claude"));
+      writeFileSync(join(d, ".claude", "settings.json"), JSON.stringify({ hooks: { PreToolUse: [{ hooks: [{ type: "command", command: "other-hook" }] }] } }));
+      const st = activate(d, { hookCommand: 'node x.js route --hook' });
+      expect(st.hookPresent).toBe(true);
+      const w = JSON.parse(readFileSync(join(d, ".claude", "settings.json"), "utf8"));
+      expect(w.hooks.PreToolUse).toBeDefined();
+      expect(w.hooks.UserPromptSubmit[0].hooks[0].command).toContain("route --hook");
+      deactivate(d);
+      const a = JSON.parse(readFileSync(join(d, ".claude", "settings.json"), "utf8"));
+      expect(a.hooks?.UserPromptSubmit).toBeUndefined();
+      expect(a.hooks.PreToolUse).toBeDefined();
+    } finally { rmSync(d, { recursive: true, force: true }); }
+  });
+});
