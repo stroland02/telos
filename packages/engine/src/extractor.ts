@@ -16,6 +16,34 @@ const CAPTURE_KIND: Record<string, NodeKind> = {
   "method.name": "method", "interface.name": "interface",
 };
 
+// Tree-sitter node types that introduce a decision path, across the languages we
+// support (TS/JS + Python). Each adds 1 to cyclomatic complexity.
+const BRANCH_TYPES = new Set([
+  "if_statement", "elif_clause", "for_statement", "for_in_statement",
+  "while_statement", "do_statement", "case_clause", "switch_case",
+  "catch_clause", "except_clause", "conditional_expression", "ternary_expression",
+  "boolean_operator", // python `and`/`or`
+]);
+
+/** Cyclomatic complexity ≈ 1 + decision points in the node's subtree. Universal:
+ *  counts branch node types plus `&&`/`||` operators (TS) and boolean_operator (Py). */
+function cyclomaticComplexity(node: WebTreeSitter.SyntaxNode): number {
+  let count = 0;
+  const stack: WebTreeSitter.SyntaxNode[] = [node];
+  while (stack.length) {
+    const n = stack.pop()!;
+    if (BRANCH_TYPES.has(n.type)) count++;
+    else if (n.type === "binary_expression") {
+      for (let i = 0; i < n.childCount; i++) {
+        const t = n.child(i)!.type;
+        if (t === "&&" || t === "||") { count++; break; }
+      }
+    }
+    for (let i = 0; i < n.childCount; i++) stack.push(n.child(i)!);
+  }
+  return 1 + count;
+}
+
 function baseNode(
   kind: NodeKind,
   name: string,
@@ -30,7 +58,7 @@ function baseNode(
     lineStart: node.startPosition.row + 1, lineEnd: node.endPosition.row + 1,
     layer: "unknown", fanIn: 0, fanOut: 0,
     lines: node.endPosition.row - node.startPosition.row + 1,
-    complexity: 0, summary: null,
+    complexity: cyclomaticComplexity(node), summary: null,
   };
 }
 
@@ -50,7 +78,10 @@ export function extractFile(args: {
     for (const cap of m.captures) {
       const kind = CAPTURE_KIND[cap.name];
       if (kind) {
-        const symbol = baseNode(kind, cap.node.text, relPath, language, cap.node);
+        // Use the enclosing definition node (parent of the captured name) so
+        // lines + complexity reflect the whole symbol, not just its name token.
+        const defNode = cap.node.parent ?? cap.node;
+        const symbol = baseNode(kind, cap.node.text, relPath, language, defNode);
         nodes.push(symbol);
         edges.push({ sourceId: fileNode.id, targetId: symbol.id, kind: "contains", resolved: true });
       } else if (cap.name === "call.name") {

@@ -20,6 +20,26 @@ describe("extractFile (TypeScript)", () => {
   });
 });
 
+describe("extractFile complexity + lines", () => {
+  it("computes cyclomatic complexity from branches and lines from the definition", () => {
+    const source = [
+      "function simple() { return 1; }",
+      "function branchy(x) {",
+      "  if (x > 0) { return 1; }",
+      "  for (let i = 0; i < x; i++) { doIt(); }",
+      "  return x && x > 2 ? 1 : 0;",
+      "}",
+    ].join("\n");
+    const tree = parser.parse(source, "typescript");
+    const { nodes } = extractFile({ tree, source, relPath: "src/a.ts", language: "typescript" });
+    const simple = nodes.find((n) => n.name === "simple")!;
+    const branchy = nodes.find((n) => n.name === "branchy")!;
+    expect(simple.complexity).toBe(1); // no branches => base complexity 1
+    expect(branchy.complexity).toBeGreaterThan(3); // if + for + && + ternary
+    expect(branchy.lines).toBeGreaterThan(1); // whole definition, not just the name line
+  });
+});
+
 describe("extractFile (Python)", () => {
   it("extracts a python function node", () => {
     const source = "def foo():\n    bar()\n";
