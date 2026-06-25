@@ -24,6 +24,7 @@ export function ControlRail({
   api, onOpenNode, density, onDensity, theme, onToggleTheme,
   explorerOpen, onToggleExplorer, onShortcuts,
   onTour, tourActive, onExport,
+  showSymbols, onShowSymbols, granularityApplicable,
 }: {
   status: TelosStatus;
   active: RailActive;
@@ -42,6 +43,9 @@ export function ControlRail({
   onTour: () => void;
   tourActive: boolean;
   onExport: () => void;
+  showSymbols: boolean;
+  onShowSymbols: (v: boolean) => void;
+  granularityApplicable: boolean;
 }) {
   const badge = (v: string | number | null | undefined) => (v === null || v === undefined ? "—" : String(v));
   const g = status.graph;
@@ -96,6 +100,28 @@ export function ControlRail({
                 }}
               >
                 {m}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {!collapsed && granularityApplicable && (
+          <div role="group" aria-label="Granularity" style={{ display: "flex", gap: 0, padding: "0 var(--s-2) var(--s-1)" }}>
+            {([["Files", false], ["+Symbols", true]] as const).map(([label, val], i) => (
+              <button
+                key={label}
+                onClick={() => onShowSymbols(val)}
+                aria-pressed={showSymbols === val}
+                style={{
+                  flex: 1, fontFamily: "var(--font-mono)", fontSize: 11, padding: "2px 0", cursor: "pointer", whiteSpace: "nowrap",
+                  background: showSymbols === val ? "var(--accent-soft)" : "none",
+                  border: `1px solid ${showSymbols === val ? "var(--accent)" : "var(--border)"}`,
+                  borderLeft: i > 0 ? "none" : undefined,
+                  borderRadius: i === 0 ? "var(--r-sm) 0 0 var(--r-sm)" : "0 var(--r-sm) var(--r-sm) 0",
+                  color: showSymbols === val ? "var(--accent)" : "var(--text-faint)", outline: "none",
+                }}
+              >
+                {label}
               </button>
             ))}
           </div>

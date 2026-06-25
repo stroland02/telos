@@ -57,6 +57,7 @@ export function App() {
   const [harnessOpen, setHarnessOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [tourActive, setTourActive] = useState(false);
+  const [showSymbols, setShowSymbols] = useState(false);
   const exportRef = useRef<{ exportSvg: () => void; exportJson: () => void } | null>(null);
   const registerExport = useCallback((a: { exportSvg: () => void; exportJson: () => void }) => { exportRef.current = a; }, []);
   const [railCollapsed, setRailCollapsed] = useState(() => {
@@ -158,6 +159,10 @@ export function App() {
   // Reset tour when the view changes (drilled into a new level).
   useEffect(() => { setTourActive(false); }, [nav.view]);
 
+  // Files/+Symbols granularity applies only at file level; reset when leaving it.
+  const hasFileNodes = (nav.view?.nodes ?? []).some((n) => (n as { level?: string }).level === "file");
+  useEffect(() => { if (!hasFileNodes) setShowSymbols(false); }, [hasFileNodes]);
+
   // "?" key toggles the shortcuts overlay (only when focus is not in an input).
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -232,6 +237,9 @@ export function App() {
         onTour={() => setTourActive(true)}
         tourActive={tourActive}
         onExport={() => exportRef.current?.exportSvg()}
+        showSymbols={showSymbols}
+        onShowSymbols={setShowSymbols}
+        granularityApplicable={hasFileNodes}
       />
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", position: "relative" }}>
 
@@ -278,6 +286,7 @@ export function App() {
             tourActive={tourActive}
             onTourClose={() => setTourActive(false)}
             registerExport={registerExport}
+            showSymbols={showSymbols}
             layoutKey={`${sidebarOpen ? "s" : ""}${viewerVisible ? "v" : ""}`}
             trace={trace}
             replayNodeId={playback.activeNodeId}

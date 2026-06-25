@@ -25,6 +25,9 @@ const extra = {
   onTour: vi.fn(),
   tourActive: false,
   onExport: vi.fn(),
+  showSymbols: false,
+  onShowSymbols: vi.fn(),
+  granularityApplicable: true,
 };
 
 const fullStatus: TelosStatus = {

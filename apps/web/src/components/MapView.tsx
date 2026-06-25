@@ -112,7 +112,7 @@ function WidthReader({ onWidth }: { onWidth: (w: number) => void }) {
 // Minimum map column width below which the minimap is hidden to save space.
 const MINIMAP_MIN_WIDTH = 380;
 
-export function MapView({ nav, api, density, theme, onOpenNode, registerFitView, layoutKey, trace, replayNodeId, hotIntensity, forge, tourActive, onTourClose, registerExport }: { nav: NavigationState; api: TelosApi; density: DensityMode; theme?: string; onOpenNode: (id: string) => void; registerFitView?: (fn: () => void) => void; layoutKey?: string; trace?: TraceOverlay; replayNodeId?: string | null; hotIntensity?: (nodeId: string) => number; forge?: ForgeState | null; tourActive?: boolean; onTourClose?: () => void; registerExport?: (a: { exportSvg: () => void; exportJson: () => void }) => void }) {
+export function MapView({ nav, api, density, theme, onOpenNode, registerFitView, layoutKey, trace, replayNodeId, hotIntensity, forge, tourActive, onTourClose, registerExport, showSymbols = false }: { nav: NavigationState; api: TelosApi; density: DensityMode; theme?: string; onOpenNode: (id: string) => void; registerFitView?: (fn: () => void) => void; layoutKey?: string; trace?: TraceOverlay; replayNodeId?: string | null; hotIntensity?: (nodeId: string) => number; forge?: ForgeState | null; tourActive?: boolean; onTourClose?: () => void; registerExport?: (a: { exportSvg: () => void; exportJson: () => void }) => void; showSymbols?: boolean }) {
   // Sync module-level density ref so TelosNode reads it on each render.
   setCurrentDensity(density);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -144,9 +144,6 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
     () => (nav.view?.nodes ?? []).some((n) => n.level === "file"),
     [nav.view],
   );
-  const [showSymbols, setShowSymbols] = useState(false);
-  // Reset toggle when navigating to a level without file nodes
-  useEffect(() => { if (!hasFileNodes) setShowSymbols(false); }, [hasFileNodes]);
 
   // When showSymbols is on, fetch symbol children for every file node in the view.
   const [symbolView, setSymbolView] = useState<GraphView | null>(null);
@@ -413,59 +410,6 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
               onReset={() => setPfState(PATH_FINDER_IDLE)}
               sourceLabel={sourceLabel}
             />
-
-            {/* Granularity toggle — appears only at file level when path-finder is idle */}
-            {hasFileNodes && !pfState.active && pfState.path === null && (
-              <div style={{ display: "flex", gap: 0 }}>
-                <button
-                  onClick={() => setShowSymbols(false)}
-                  aria-pressed={!showSymbols}
-                  title="Show file nodes only"
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "var(--t-meta-size)",
-                    lineHeight: "var(--t-meta-lh)",
-                    padding: "var(--s-1) var(--s-3)",
-                    background: !showSymbols ? "var(--accent-soft)" : "var(--surface)",
-                    border: `1px solid ${!showSymbols ? "var(--accent)" : "var(--border)"}`,
-                    borderRadius: "var(--r-sm) 0 0 var(--r-sm)",
-                    color: !showSymbols ? "var(--accent)" : "var(--text-muted)",
-                    cursor: "pointer",
-                    outline: "none",
-                    transition: "background 120ms ease, color 120ms ease, border-color 120ms ease",
-                    whiteSpace: "nowrap",
-                  }}
-                  onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
-                  onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
-                >
-                  Files
-                </button>
-                <button
-                  onClick={() => setShowSymbols(true)}
-                  aria-pressed={showSymbols}
-                  title="Expand symbols within each file"
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "var(--t-meta-size)",
-                    lineHeight: "var(--t-meta-lh)",
-                    padding: "var(--s-1) var(--s-3)",
-                    background: showSymbols ? "var(--accent-soft)" : "var(--surface)",
-                    border: `1px solid ${showSymbols ? "var(--accent)" : "var(--border)"}`,
-                    borderLeft: "none",
-                    borderRadius: "0 var(--r-sm) var(--r-sm) 0",
-                    color: showSymbols ? "var(--accent)" : "var(--text-muted)",
-                    cursor: "pointer",
-                    outline: "none",
-                    transition: "background 120ms ease, color 120ms ease, border-color 120ms ease",
-                    whiteSpace: "nowrap",
-                  }}
-                  onFocus={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 2px var(--accent)"; }}
-                  onBlur={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
-                >
-                  +Symbols
-                </button>
-              </div>
-            )}
           </Panel>
 
           {/* ── Top-right panel: Tour + Export ─────────────────────────────
