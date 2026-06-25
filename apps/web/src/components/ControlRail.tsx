@@ -105,8 +105,8 @@ export function ControlRail({
           </div>
         )}
 
-        {!collapsed && granularityApplicable && (
-          <div role="group" aria-label="Granularity" style={{ display: "flex", gap: 0, padding: "0 var(--s-2) var(--s-1)" }}>
+        {!collapsed && (
+          <div role="group" aria-label="Granularity" title={granularityApplicable ? "Files vs files + symbols" : "Applies at file level — drill into a file"} style={{ display: "flex", gap: 0, padding: "0 var(--s-2) var(--s-1)", opacity: granularityApplicable ? 1 : 0.45 }}>
             {([["Files", false], ["+Symbols", true]] as const).map(([label, val], i) => (
               <button
                 key={label}

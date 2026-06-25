@@ -35,14 +35,14 @@ export function SearchBox({ api, onSelect }: { api: TelosApi; onSelect: (node: T
   }, [q, api]);
 
   return (
-    <div style={{ position: "relative", minWidth: 220 }}>
+    <div style={{ position: "relative", minWidth: 0, width: "100%" }}>
       <input
         ref={inputRef}
         id="telos-search"
         name="search"
-        type="search"
+        type="text"
         autoComplete="off"
-        placeholder="Search symbols… ⌘K"
+        placeholder="Search… ⌘K"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         aria-label="Search symbols"
