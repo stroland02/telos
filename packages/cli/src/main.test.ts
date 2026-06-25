@@ -83,6 +83,24 @@ describe("telos harness command", () => {
   });
 });
 
+describe("route --hook + harness count", () => {
+  it("route command is registered", () => {
+    expect(buildProgram().commands.map((c) => c.name())).toContain("route");
+  });
+  it("runStatusLine reflects the enabled harness count", async () => {
+    const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const d = mkdtempSync(join(tmpdir(), "telos-hs-"));
+    try {
+      mkdirSync(join(d, ".telos"), { recursive: true });
+      writeFileSync(join(d, ".telos", "harness.config.json"), JSON.stringify({ enabled: ["ecc"] }));
+      const line = await runStatusLine(d);
+      expect(line).toMatch(/1 harness/);
+    } finally { rmSync(d, { recursive: true, force: true }); }
+  });
+});
+
 describe("telos resolve command + runResolveCli", () => {
   it("is registered", () => {
     expect(buildProgram().commands.map((c) => c.name())).toContain("resolve");

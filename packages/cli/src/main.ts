@@ -8,7 +8,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
-import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus, activate, deactivate, statusLineText } from "@telos/harness";
+import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus, activate, deactivate, statusLineText, routeForHook, readConfig, setEnabled, ALL_SOURCES, type CapabilitySource } from "@telos/harness";
 import { runForge, stubDriver, claudeAgentDriver, ForgeRunResult } from "@telos/forge";
 import { runResolve, stubReviewDriver, claudeReviewDriver, type ResolveState } from "@telos/resolve";
 import { pathToFileURL } from "node:url";
@@ -59,6 +59,18 @@ export async function runResolveCli(opts: { path: string; driver: "claude" | "st
   return state;
 }
 
+/** Read all of stdin (for hook mode). Resolves "" on a TTY or after a short timeout. */
+function readStdin(): Promise<string> {
+  return new Promise((res) => {
+    if (process.stdin.isTTY) { res(""); return; }
+    let data = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (c) => { data += c; });
+    process.stdin.on("end", () => res(data));
+    setTimeout(() => res(data), 250);
+  });
+}
+
 /** The single-line Telos engagement indicator for the Claude Code statusline. */
 export async function runStatusLine(path: string): Promise<string> {
   const repo = resolve(path);
@@ -71,7 +83,8 @@ export async function runStatusLine(path: string): Promise<string> {
     clearTimeout(t);
     live = res.ok;
   } catch { /* server not running — fine */ }
-  return statusLineText({ agents: DEFAULT_CATALOG.length, graph, live });
+  const harnesses = readConfig(repo).enabled.length;
+  return statusLineText({ agents: DEFAULT_CATALOG.length, graph, live, harnesses: harnesses || undefined });
 }
 
 /** Aggregate the harness cockpit status from the repo's lock + the live catalogs. */
@@ -359,9 +372,27 @@ export function buildProgram(): Command {
       const pack = runContext(path ?? ".", { limit: Number(opts.limit) });
       console.log(opts.json ? JSON.stringify(pack, null, 2) : renderContextPack(pack));
     });
-  program.command("harness [path]").description("Show the harness cockpit: installed harnesses, enabled capabilities, drift")
+  program.command("harness [path]").description("Show the harness cockpit; --enable/--disable selects which harnesses are active (autopilot)")
     .option("--json", "emit the raw HarnessStatus JSON", false)
-    .action((path: string | undefined, opts: { json: boolean }) => {
+    .option("--enable <list>", "comma-separated harnesses to turn on (ecc,superpowers,headroom)")
+    .option("--disable <list>", "comma-separated harnesses to turn off")
+    .action((path: string | undefined, opts: { json: boolean; enable?: string; disable?: string }) => {
+      const repo = resolve(path ?? ".");
+      const parse = (s?: string) => (s ?? "").split(",").map((x) => x.trim()).filter((x): x is CapabilitySource => (ALL_SOURCES as string[]).includes(x));
+      let changed = false;
+      for (const s of parse(opts.enable)) { setEnabled(repo, s, true); changed = true; }
+      for (const s of parse(opts.disable)) { setEnabled(repo, s, false); changed = true; }
+      if (changed) {
+        const enabled = readConfig(repo).enabled;
+        console.log(`Active harnesses: ${enabled.length ? enabled.join(", ") : "(none)"}`);
+        const missing = HARNESS_INSTALLS.filter((h) => enabled.includes(h.source));
+        if (missing.length) {
+          console.log("\nEnsure each selected harness is installed + enabled in Claude Code:");
+          for (const h of missing) console.log(`  ${h.source.padEnd(12)} ${h.install.join(" && ")}`);
+        }
+        console.log("\nTelos will route each prompt to these harnesses' capabilities (re-activate if not engaged: telos activate).");
+        return;
+      }
       const status = runHarness(path ?? ".");
       if (opts.json) { console.log(JSON.stringify(status, null, 2)); return; }
       console.log("Harnesses (orchestrate + curate):");
@@ -381,11 +412,14 @@ export function buildProgram(): Command {
     .action((path: string | undefined) => {
       const repo = resolve(path ?? ".");
       const selfPath = fileURLToPath(import.meta.url);
-      const st = activate(repo, { statusLineCommand: `node "${selfPath}" status --line` });
+      const st = activate(repo, {
+        statusLineCommand: `node "${selfPath}" status --line`,
+        hookCommand: `node "${selfPath}" route --hook`,
+      });
       runDoctor(join(repo, ".telos", "harness.lock"));
-      console.log(`◇ Telos engaged — statusline written to ${st.settingsPath}`);
+      console.log(`◇ Telos engaged — statusline + per-prompt routing hook written to ${st.settingsPath}`);
       console.log("Open a Claude Code session in this repo to see: ◇ Telos engaged");
-      console.log("\nHarnesses (install any you don't have):");
+      console.log("\nHarnesses (install + enable any you want, then 'telos harness --enable <list>'):");
       for (const h of buildSetupPlan()) console.log(`  ${h.source.padEnd(12)} ${h.install.join(" && ")}`);
       console.log("\nUndo with: telos deactivate");
     });
@@ -520,13 +554,19 @@ export function buildProgram(): Command {
       if (report.missing.length) console.warn(`  removed/renamed (pinned but gone): ${report.missing.join(", ")}`);
       if (report.added.length) console.warn(`  new (not yet pinned): ${report.added.join(", ")}`);
     });
-  program.command("route <prompt>").description("Suggest harness capabilities for a prompt (authoring mode)")
-    .action((prompt: string) => {
-      const routed = routePrompt(prompt, PROMPT_CATALOG);
-      if (routed.length === 0) {
-        console.log("No harness capability matched this prompt.");
+  program.command("route [prompt]").description("Suggest harness capabilities for a prompt; --hook reads a UserPromptSubmit event from stdin and prints a routing nudge")
+    .option("--hook", "act as a Claude Code UserPromptSubmit hook (stdin JSON in, one-line nudge out)", false)
+    .action(async (prompt: string | undefined, opts: { hook: boolean }) => {
+      if (opts.hook) {
+        let userPrompt = "";
+        try { userPrompt = (JSON.parse(await readStdin()) as { prompt?: string }).prompt ?? ""; } catch { /* not JSON — emit nothing */ }
+        const line = routeForHook(userPrompt, readConfig(resolve(".")).enabled);
+        if (line) console.log(line); // injected as context for this prompt
         return;
       }
+      if (!prompt) { console.log("Provide a prompt, or use --hook for stdin mode."); return; }
+      const routed = routePrompt(prompt, PROMPT_CATALOG);
+      if (routed.length === 0) { console.log("No harness capability matched this prompt."); return; }
       console.log("Suggested capabilities:");
       for (const r of routed) console.log(`  ${r.capability.id} — ${r.capability.title}  (score ${r.score})`);
     });
