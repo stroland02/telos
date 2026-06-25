@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, runTop, buildDemoProcesses, buildProgram } from "./main.js";
+import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, runTop, buildDemoProcesses, buildProgram, runContext } from "./main.js";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -56,6 +56,23 @@ describe("runEnrich enricher selection", () => {
     const r = await runEnrich(repo, { llm: true, concurrency: 2 });
     expect(r.enriched).toBeGreaterThan(0); // fallback guarantees completion
     expect(r.enricher).toBe("llm");
+  });
+});
+
+describe("telos context command", () => {
+  it("is registered", () => {
+    const names = buildProgram().commands.map((c) => c.name());
+    expect(names).toContain("context");
+  });
+});
+
+describe("runContext", () => {
+  it("builds a context pack from the scanned graph", async () => {
+    await runScan(repo); // ensure a graph.db exists
+    const pack = runContext(repo, { limit: 5 });
+    expect(pack.totals.nodes).toBeGreaterThan(0);
+    expect(pack.entryPoints.length).toBeLessThanOrEqual(5);
+    expect(Array.isArray(pack.layers)).toBe(true);
   });
 });
 

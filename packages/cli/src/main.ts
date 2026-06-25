@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { resolve, join, dirname } from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { scan, GraphStore, enrichGraph, heuristicEnricher, createLlmEnricher, buildTour, askGraph, ProcessSample, LANGUAGES_DIR } from "@telos/engine";
+import { scan, GraphStore, enrichGraph, heuristicEnricher, createLlmEnricher, buildTour, askGraph, ProcessSample, LANGUAGES_DIR, buildContextPack, renderContextPack, type ContextPack } from "@telos/engine";
 import { addLanguage } from "./add-language.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -34,6 +34,21 @@ export async function runEnrich(
     const enriched = await enrichGraph(store.loadGraph(), enricher, { concurrency: opts.concurrency });
     store.applyEnrichment(enriched.nodes.map((n) => ({ id: n.id, summary: n.summary!, layer: n.layer })));
     return { enriched: enriched.nodes.length, dbPath, enricher: enricher.name };
+  } finally {
+    store.close();
+  }
+}
+
+/** Read the persisted graph and distill it into a token-budgeted context pack —
+ *  the agent's warm-start brief. Reflects any enrichment already written to the db. */
+export function runContext(path: string, opts: { limit?: number } = {}): ContextPack {
+  const dbPath = join(resolve(path), ".telos", "graph.db");
+  if (!existsSync(dbPath)) {
+    throw new Error(`No graph found at ${dbPath}. Run 'telos scan ${path}' first.`);
+  }
+  const store = GraphStore.open(dbPath);
+  try {
+    return buildContextPack(store.loadGraph(), { limit: opts.limit });
   } finally {
     store.close();
   }
@@ -286,6 +301,13 @@ export function buildProgram(): Command {
         console.log(`  2. Fill in ${join(res.folder, "extract.scm")} with the universal-kind queries`);
         console.log(`  3. Re-scan — ${id} is now auto-discovered`);
       }
+    });
+  program.command("context [path]").description("Print a token-budgeted architecture brief for agents (graph-as-memory)")
+    .option("--limit <n>", "max items per section", "12")
+    .option("--json", "emit the raw ContextPack JSON instead of markdown", false)
+    .action((path: string | undefined, opts: { limit: string; json: boolean }) => {
+      const pack = runContext(path ?? ".", { limit: Number(opts.limit) });
+      console.log(opts.json ? JSON.stringify(pack, null, 2) : renderContextPack(pack));
     });
   program.command("serve [path]").description("Serve the architecture map for a scanned repo")
     .option("-p, --port <port>", "port to listen on", "5180")
