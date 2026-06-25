@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, runTop, buildDemoProcesses, buildProgram, runContext, runHarness, runStatusLine, runResolveCli } from "./main.js";
+import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, runTop, buildDemoProcesses, buildProgram, runContext, runHarness, runStatusLine, runResolveCli, telosInvocation } from "./main.js";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -86,6 +86,19 @@ describe("telos harness command", () => {
 describe("route --hook + harness count", () => {
   it("route command is registered", () => {
     expect(buildProgram().commands.map((c) => c.name())).toContain("route");
+  });
+  it("telosInvocation prefers the 'telos' bin when on PATH, else falls back to node", async () => {
+    const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const dir = mkdtempSync(join(tmpdir(), "telos-bin-"));
+    try {
+      // No telos on a PATH of one empty dir → node fallback with an absolute dist path.
+      expect(telosInvocation({ PATH: dir })).toMatch(/^node ".*main\.(ts|js)"$/);
+      // Drop a telos executable on PATH → short bin name.
+      writeFileSync(join(dir, process.platform === "win32" ? "telos.CMD" : "telos"), "");
+      expect(telosInvocation({ PATH: dir, PATHEXT: ".CMD" })).toBe("telos");
+    } finally { rmSync(dir, { recursive: true, force: true }); }
   });
   it("runStatusLine reflects the enabled harness count", async () => {
     const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import("node:fs");

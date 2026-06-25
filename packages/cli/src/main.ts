@@ -73,6 +73,19 @@ function readStdin(): Promise<string> {
 }
 
 /** The single-line Telos engagement indicator for the Claude Code statusline. */
+/**
+ * How Claude Code should invoke this CLI from settings.json. Prefers the short
+ * `telos` bin when it's on PATH (clean, install-agnostic); falls back to
+ * `node "<dist/main.js>"` for an unlinked dev checkout. Exported for testing.
+ */
+export function telosInvocation(env: NodeJS.ProcessEnv = process.env): string {
+  const isWin = process.platform === "win32";
+  const exts = isWin ? (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";") : [""];
+  const dirs = (env.PATH ?? "").split(isWin ? ";" : ":").filter(Boolean);
+  const onPath = dirs.some((dir) => exts.some((ext) => existsSync(join(dir, `telos${ext}`))));
+  return onPath ? "telos" : `node "${fileURLToPath(import.meta.url)}"`;
+}
+
 export async function runStatusLine(path: string): Promise<string> {
   const repo = resolve(path);
   const graph = existsSync(join(repo, ".telos", "graph.db"));
@@ -418,10 +431,10 @@ export function buildProgram(): Command {
   program.command("activate [path]").description("Engage Telos: bootstrap the harness + show '◇ Telos engaged' in the Claude Code statusline")
     .action((path: string | undefined) => {
       const repo = resolve(path ?? ".");
-      const selfPath = fileURLToPath(import.meta.url);
+      const cmd = telosInvocation();
       const st = activate(repo, {
-        statusLineCommand: `node "${selfPath}" status --line`,
-        hookCommand: `node "${selfPath}" route --hook`,
+        statusLineCommand: `${cmd} status --line`,
+        hookCommand: `${cmd} route --hook`,
       });
       runDoctor(join(repo, ".telos", "harness.lock"));
       console.log(`◇ Telos engaged — statusline + per-prompt routing hook written to ${st.settingsPath}`);
