@@ -10,6 +10,7 @@ import { useDensity } from "./graph/useDensity";
 import type { DensityMode } from "./graph/useDensity";
 import { useTheme } from "./graph/useTheme";
 import { MapView } from "./components/MapView";
+import { Breadcrumbs } from "./components/Breadcrumbs";
 import { DetailPanel } from "./components/DetailPanel";
 import { ShortcutsOverlay } from "./components/ShortcutsOverlay";
 import { FileTree } from "./components/FileTree";
@@ -224,6 +225,11 @@ export function App() {
         onShortcuts={() => setShortcutsOpen(true)}
       />
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", position: "relative" }}>
+
+      {/* Slim breadcrumb strip — interactive graph navigation (click to jump zoom levels) */}
+      <div style={{ flexShrink: 0, height: 36, minHeight: 36, display: "flex", alignItems: "center", padding: "0 var(--s-3)", borderBottom: "1px solid var(--border)", background: "var(--surface)" }}>
+        <Breadcrumbs crumbs={nav.crumbs} onJump={nav.goToCrumb} />
+      </div>
 
       {/* ── Main area: [Explorer | Map | Right pane] ──────────────────── */}
       <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
