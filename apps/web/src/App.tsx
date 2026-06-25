@@ -11,6 +11,7 @@ import type { DensityMode } from "./graph/useDensity";
 import { useTheme } from "./graph/useTheme";
 import { MapView } from "./components/MapView";
 import { Breadcrumbs } from "./components/Breadcrumbs";
+import { FileTree } from "./components/FileTree";
 import { DetailPanel } from "./components/DetailPanel";
 import { ShortcutsOverlay } from "./components/ShortcutsOverlay";
 import { CodeViewer } from "./components/CodeViewer";
@@ -23,6 +24,7 @@ import { useTelosStatus } from "./graph/useTelosStatus";
 
 const api = createApi();
 
+const SIDEBAR_WIDTH = 260;
 const RIGHT_PANE_DEFAULT = Math.min(Math.round(window.innerWidth * 0.40), 600);
 const RIGHT_PANE_MIN = 340;
 const RIGHT_PANE_MAX = Math.round(window.innerWidth * 0.72);
@@ -54,6 +56,9 @@ export function App() {
   const [procsOpen, setProcsOpen] = useState(false);
   const [harnessOpen, setHarnessOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
+  const [tourActive, setTourActive] = useState(false);
+  const exportRef = useRef<{ exportSvg: () => void; exportJson: () => void } | null>(null);
+  const registerExport = useCallback((a: { exportSvg: () => void; exportJson: () => void }) => { exportRef.current = a; }, []);
   const [railCollapsed, setRailCollapsed] = useState(() => {
     try { return localStorage.getItem("telos.rail.collapsed") === "1"; } catch { return false; }
   });
@@ -150,6 +155,9 @@ export function App() {
     };
   }, [sidebarOpen, viewerVisible]);
 
+  // Reset tour when the view changes (drilled into a new level).
+  useEffect(() => { setTourActive(false); }, [nav.view]);
+
   // "?" key toggles the shortcuts overlay (only when focus is not in an input).
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -221,14 +229,33 @@ export function App() {
         explorerOpen={sidebarOpen}
         onToggleExplorer={() => setSidebarOpen((v) => !v)}
         onShortcuts={() => setShortcutsOpen(true)}
-        filePaths={filePaths}
-        selectedFile={selectedFile}
-        onSelectFile={openFile}
+        onTour={() => setTourActive(true)}
+        tourActive={tourActive}
+        onExport={() => exportRef.current?.exportSvg()}
       />
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", position: "relative" }}>
 
       {/* ── Main area: [Explorer | Map | Right pane] ──────────────────── */}
       <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+
+        {/* Left sidebar — collapsible file explorer (its own column) */}
+        {sidebarOpen && (
+          <nav
+            aria-label="File explorer"
+            style={{
+              width: SIDEBAR_WIDTH, minWidth: SIDEBAR_WIDTH, maxWidth: SIDEBAR_WIDTH,
+              background: "var(--surface)", borderRight: "1px solid var(--border)",
+              display: "flex", flexDirection: "column", overflow: "hidden", flexShrink: 0,
+            }}
+          >
+            <div style={{ height: 36, display: "flex", alignItems: "center", padding: "0 var(--s-3)", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+              <span style={{ fontSize: "var(--t-meta-size)", fontWeight: 600, color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-ui)" }}>
+                Explorer
+              </span>
+            </div>
+            <FileTree paths={filePaths} selectedPath={selectedFile} onSelectFile={openFile} />
+          </nav>
+        )}
 
         {/* Map — always gets the remaining flex space.
             layoutKey forces RF to remount (and re-fitView) when the pane
@@ -248,6 +275,9 @@ export function App() {
             theme={theme}
             onOpenNode={openNode}
             registerFitView={registerFitView}
+            tourActive={tourActive}
+            onTourClose={() => setTourActive(false)}
+            registerExport={registerExport}
             layoutKey={`${sidebarOpen ? "s" : ""}${viewerVisible ? "v" : ""}`}
             trace={trace}
             replayNodeId={playback.activeNodeId}

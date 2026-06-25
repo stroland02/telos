@@ -112,7 +112,7 @@ function WidthReader({ onWidth }: { onWidth: (w: number) => void }) {
 // Minimum map column width below which the minimap is hidden to save space.
 const MINIMAP_MIN_WIDTH = 380;
 
-export function MapView({ nav, api, density, theme, onOpenNode, registerFitView, layoutKey, trace, replayNodeId, hotIntensity, forge }: { nav: NavigationState; api: TelosApi; density: DensityMode; theme?: string; onOpenNode: (id: string) => void; registerFitView?: (fn: () => void) => void; layoutKey?: string; trace?: TraceOverlay; replayNodeId?: string | null; hotIntensity?: (nodeId: string) => number; forge?: ForgeState | null }) {
+export function MapView({ nav, api, density, theme, onOpenNode, registerFitView, layoutKey, trace, replayNodeId, hotIntensity, forge, tourActive, onTourClose, registerExport }: { nav: NavigationState; api: TelosApi; density: DensityMode; theme?: string; onOpenNode: (id: string) => void; registerFitView?: (fn: () => void) => void; layoutKey?: string; trace?: TraceOverlay; replayNodeId?: string | null; hotIntensity?: (nodeId: string) => number; forge?: ForgeState | null; tourActive?: boolean; onTourClose?: () => void; registerExport?: (a: { exportSvg: () => void; exportJson: () => void }) => void }) {
   // Sync module-level density ref so TelosNode reads it on each render.
   setCurrentDensity(density);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -137,7 +137,6 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
       .getPropertyValue("--minimap-mask").trim() || "rgba(11,15,20,0.60)";
   }, [theme]); // re-resolve when theme changes
   const [pfState, setPfState] = useState<PathFinderState>(PATH_FINDER_IDLE);
-  const [tourActive, setTourActive] = useState(false);
 
   // Granularity toggle: "Files" vs "Files + Symbols"
   // Only active when the current level contains file nodes.
@@ -148,8 +147,6 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
   const [showSymbols, setShowSymbols] = useState(false);
   // Reset toggle when navigating to a level without file nodes
   useEffect(() => { if (!hasFileNodes) setShowSymbols(false); }, [hasFileNodes]);
-  // Reset tour when the view changes (new level drilled into)
-  useEffect(() => { setTourActive(false); }, [nav.view]);
 
   // When showSymbols is on, fetch symbol children for every file node in the view.
   const [symbolView, setSymbolView] = useState<GraphView | null>(null);
@@ -474,15 +471,18 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
           {/* ── Top-right panel: Tour + Export ─────────────────────────────
               Anchored to top-right, 8px margin. Never overlaps top-left panel
               because RF Panels each sit in their own corner. */}
-          <Panel position="bottom-center" style={{ margin: "var(--s-4)", display: "flex", gap: "var(--s-2)", alignItems: "center" }}>
-            <TourBar
-              nodes={filteredNodes}
-              active={tourActive}
-              onActivate={() => setTourActive(true)}
-              onClose={() => setTourActive(false)}
-            />
-            <ExportButton graphView={nav.view ?? null} />
-          </Panel>
+          {tourActive && (
+            <Panel position="bottom-center" style={{ margin: "var(--s-4)" }}>
+              <TourBar
+                nodes={filteredNodes}
+                active
+                onActivate={() => {}}
+                onClose={() => onTourClose?.()}
+              />
+            </Panel>
+          )}
+          {/* Headless: registers SVG/JSON export actions up to the rail. */}
+          <ExportButton graphView={nav.view ?? null} headless onReady={registerExport} />
 
           {/* ── Bottom-left panel: Layer filter ────────────────────────────
               Moved inside RF Panel so it clips to the RF boundary. */}

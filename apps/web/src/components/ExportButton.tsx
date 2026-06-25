@@ -24,6 +24,10 @@ import type { GraphView } from "../api/types";
 interface ExportButtonProps {
   /** The raw graph view for JSON export (includes layer/level metadata). */
   graphView: GraphView | null;
+  /** When set, register the export actions up to a parent (rail-driven export). */
+  onReady?: (actions: { exportSvg: () => void; exportJson: () => void }) => void;
+  /** Render nothing — just register actions via onReady (logic-only mount). */
+  headless?: boolean;
 }
 
 const IMAGE_WIDTH = 1920;
@@ -53,7 +57,7 @@ function downloadJson(data: unknown, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export function ExportButton({ graphView }: ExportButtonProps) {
+export function ExportButton({ graphView, onReady, headless }: ExportButtonProps) {
   const { getNodes, getEdges } = useReactFlow();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -133,6 +137,10 @@ export function ExportButton({ graphView }: ExportButtonProps) {
       : { nodes: getNodes(), edges: getEdges(), exportedAt: timestamp };
     downloadJson(payload, `telos-graph-${timestamp}.json`);
   }, [graphView, getNodes, getEdges]);
+
+  // Rail-driven export: register actions up; render nothing when headless.
+  useEffect(() => { onReady?.({ exportSvg, exportJson }); }, [onReady, exportSvg, exportJson]);
+  if (headless) return null;
 
   const btnBase: React.CSSProperties = {
     display: "flex",

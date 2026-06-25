@@ -22,9 +22,9 @@ const extra = {
   explorerOpen: true,
   onToggleExplorer: vi.fn(),
   onShortcuts: vi.fn(),
-  filePaths: [] as string[],
-  selectedFile: null,
-  onSelectFile: vi.fn(),
+  onTour: vi.fn(),
+  tourActive: false,
+  onExport: vi.fn(),
 };
 
 const fullStatus: TelosStatus = {

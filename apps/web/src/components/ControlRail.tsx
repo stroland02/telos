@@ -8,7 +8,6 @@
 import { TelosApi } from "../api/client";
 import { TelosStatus, TelosNodeDTO } from "../api/types";
 import { SearchBox } from "./SearchBox";
-import { FileTree } from "./FileTree";
 
 export interface RailActive {
   live: boolean; hot: boolean; procs: boolean; ask: boolean; harness: boolean; context: boolean;
@@ -24,7 +23,7 @@ export function ControlRail({
   status, active, on, collapsed, onCollapsedChange,
   api, onOpenNode, density, onDensity, theme, onToggleTheme,
   explorerOpen, onToggleExplorer, onShortcuts,
-  filePaths, selectedFile, onSelectFile,
+  onTour, tourActive, onExport,
 }: {
   status: TelosStatus;
   active: RailActive;
@@ -40,9 +39,9 @@ export function ControlRail({
   explorerOpen: boolean;
   onToggleExplorer: () => void;
   onShortcuts: () => void;
-  filePaths: string[];
-  selectedFile: string | null;
-  onSelectFile: (path: string) => void;
+  onTour: () => void;
+  tourActive: boolean;
+  onExport: () => void;
 }) {
   const badge = (v: string | number | null | undefined) => (v === null || v === undefined ? "—" : String(v));
   const g = status.graph;
@@ -102,11 +101,8 @@ export function ControlRail({
           </div>
         )}
 
-        {!collapsed && explorerOpen && (
-          <div style={{ display: "flex", flexDirection: "column", height: "min(38vh, 340px)", margin: "var(--s-1) 0", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
-            <FileTree paths={filePaths} selectedPath={selectedFile} onSelectFile={onSelectFile} />
-          </div>
-        )}
+        <Item icon="▶" label="Tour" active={tourActive} sub="walk nodes" collapsed={collapsed} onClick={onTour} />
+        <Item icon="⤓" label="Export" sub="image" collapsed={collapsed} onClick={onExport} />
 
         {!collapsed && <Group label="Live signals" />}
         <Item icon="●" label="Live" active={active.live} sub={`${badge(status.live?.calls)} calls`} collapsed={collapsed} onClick={on.toggleLive} />
