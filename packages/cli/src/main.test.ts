@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, runTop, buildDemoProcesses, buildProgram, runContext, runHarness, runStatusLine, runResolveCli, telosInvocation } from "./main.js";
+import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, runTop, buildDemoProcesses, buildProgram, runContext, runMeasure, runHarness, runStatusLine, runResolveCli, telosInvocation } from "./main.js";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -73,6 +73,25 @@ describe("runContext", () => {
     expect(pack.totals.nodes).toBeGreaterThan(0);
     expect(pack.entryPoints.length).toBeLessThanOrEqual(5);
     expect(Array.isArray(pack.layers)).toBe(true);
+  });
+});
+
+describe("telos measure command", () => {
+  it("is registered", () => {
+    expect(buildProgram().commands.map((c) => c.name())).toContain("measure");
+  });
+});
+
+describe("runMeasure", () => {
+  it("measures the cold-read baseline against the warm-start brief", async () => {
+    await runScan(repo); // ensure a graph.db exists over real fixture files
+    const r = runMeasure(repo, { limit: 5 });
+    expect(r.files).toBeGreaterThan(0);
+    expect(r.missing).toBe(0); // fixture files are all on disk
+    expect(r.baselineTokens).toBeGreaterThan(0); // real source was sized
+    expect(r.packTokens).toBeGreaterThan(0);
+    expect(r.reductionPct).toBeGreaterThanOrEqual(0); // savings are a large-repo property
+    // The savings MATH itself (positive reduction at scale) is covered in engine/measure.test.ts.
   });
 });
 

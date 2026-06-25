@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { resolve, join, dirname } from "node:path";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { scan, GraphStore, enrichGraph, heuristicEnricher, createLlmEnricher, buildTour, askGraph, ProcessSample, LANGUAGES_DIR, buildContextPack, renderContextPack, type ContextPack } from "@telos/engine";
+import { scan, GraphStore, enrichGraph, heuristicEnricher, createLlmEnricher, buildTour, askGraph, ProcessSample, LANGUAGES_DIR, buildContextPack, renderContextPack, measureSavings, type ContextPack, type SavingsReport } from "@telos/engine";
 import { addLanguage } from "./add-language.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -126,6 +126,35 @@ export function runContext(path: string, opts: { limit?: number } = {}): Context
   const store = GraphStore.open(dbPath);
   try {
     return buildContextPack(store.loadGraph(), { limit: opts.limit });
+  } finally {
+    store.close();
+  }
+}
+
+/** Prove the warm-start brief is cheaper than reading the repo cold. Sums the
+ *  on-disk size of every source file in the graph (the tokens an agent would
+ *  otherwise load to orient) and compares it to the rendered context pack. */
+export interface MeasureResult extends SavingsReport { files: number; missing: number; limit: number; packText: string }
+export function runMeasure(path: string, opts: { limit?: number; rate?: number } = {}): MeasureResult {
+  const repo = resolve(path);
+  const dbPath = join(repo, ".telos", "graph.db");
+  if (!existsSync(dbPath)) {
+    throw new Error(`No graph found at ${dbPath}. Run 'telos scan ${path}' first.`);
+  }
+  const store = GraphStore.open(dbPath);
+  try {
+    const graph = store.loadGraph();
+    let baselineChars = 0, files = 0, missing = 0;
+    for (const n of graph.nodes) {
+      if (n.kind !== "file") continue;
+      files++;
+      try { baselineChars += statSync(join(repo, n.path)).size; }
+      catch { missing++; }
+    }
+    const limit = Math.max(1, opts.limit ?? 12);
+    const packText = renderContextPack(buildContextPack(graph, { limit }));
+    const report = measureSavings({ baselineChars, packText, usdPerMtokInput: opts.rate });
+    return { ...report, files, missing, limit, packText };
   } finally {
     store.close();
   }
@@ -385,6 +414,26 @@ export function buildProgram(): Command {
     .action((path: string | undefined, opts: { limit: string; json: boolean }) => {
       const pack = runContext(path ?? ".", { limit: Number(opts.limit) });
       console.log(opts.json ? JSON.stringify(pack, null, 2) : renderContextPack(pack));
+    });
+  program.command("measure [path]").description("Prove the token savings: cold-read baseline vs the Telos warm-start brief")
+    .option("--limit <n>", "max items per section of the brief", "12")
+    .option("--rate <usd>", "illustrative input price per million tokens", "3")
+    .option("--json", "emit the raw measurement JSON", false)
+    .action((path: string | undefined, opts: { limit: string; rate: string; json: boolean }) => {
+      const r = runMeasure(path ?? ".", { limit: Number(opts.limit), rate: Number(opts.rate) });
+      if (opts.json) {
+        const { packText: _omit, ...rest } = r;
+        console.log(JSON.stringify(rest, null, 2));
+        return;
+      }
+      const fmt = (n: number) => n.toLocaleString("en-US");
+      console.log("Telos context-memory — token savings\n");
+      console.log(`  Cold read (${r.files} source files): ~${fmt(r.baselineTokens)} tokens`);
+      console.log(`  Telos warm-start brief:             ~${fmt(r.packTokens)} tokens`);
+      console.log(`  Reduction:                          ${r.reductionPct.toFixed(1)}%  (${r.ratio.toFixed(1)}× smaller)`);
+      console.log(`  Est. input cost saved / warm-start: $${r.costSavedUsd.toFixed(4)}  (@ $${opts.rate}/Mtok)`);
+      if (r.missing > 0) console.log(`  (note: ${r.missing} file(s) not found on disk were skipped in the baseline)`);
+      console.log("\n  An agent that starts from this brief skips reading the repo cold to orient.");
     });
   program.command("harness [path]").description("Show the harness cockpit; --enable/--disable selects which harnesses are active (autopilot)")
     .option("--json", "emit the raw HarnessStatus JSON", false)
