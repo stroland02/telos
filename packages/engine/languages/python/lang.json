@@ -1,0 +1,1 @@
+{ "id": "python", "extensions": [".py"], "grammar": "tree-sitter-python.wasm" }
