@@ -7,20 +7,22 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "bundle": "tsup",
     "test": "vitest run"
   },
   "dependencies": {
     "@telos/engine": "workspace:*",
-    "@telos/server": "workspace:*",
-    "@telos/mcp": "workspace:*",
-    "@telos/harness": "workspace:*",
     "@telos/forge": "workspace:*",
+    "@telos/harness": "workspace:*",
+    "@telos/mcp": "workspace:*",
     "@telos/resolve": "workspace:*",
+    "@telos/server": "workspace:*",
     "commander": "^12.0.0",
     "open": "^10.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "tsup": "^8.5.1",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"
   }

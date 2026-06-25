@@ -7,3 +7,6 @@ build/
 test-results/
 playwright-report/
 .claude/settings.local.json
+
+# tsup bundle output (regenerated at publish time)
+dist-bundle/
