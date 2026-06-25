@@ -21,7 +21,7 @@ export class GraphService implements GraphProvider {
   getTraceHub(): TraceHub {
     if (!this.hub) {
       const fileNodes = this.graph.nodes.filter((n) => n.kind === "file").map((n) => ({ id: n.id, path: n.path }));
-      this.hub = { aggregator: new TraceAggregator(), buffer: new TraceBuffer(), logs: new LogBuffer(), metrics: new MetricBuffer(), profile: new ProfileBuffer(), processes: new ProcessBuffer(), fileNodes, index: buildNodeIndex(this.graph), forge: { state: null, subscribers: new Set() } };
+      this.hub = { aggregator: new TraceAggregator(), buffer: new TraceBuffer(), logs: new LogBuffer(), metrics: new MetricBuffer(), profile: new ProfileBuffer(), processes: new ProcessBuffer(), fileNodes, index: buildNodeIndex(this.graph), forge: { state: null, subscribers: new Set() }, resolve: { state: null, subscribers: new Set() } };
     }
     return this.hub;
   }

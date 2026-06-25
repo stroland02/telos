@@ -61,6 +61,18 @@ describe("graph routes", () => {
     await app.close(); svc.close();
   });
 
+  it("POST /v1/resolve stores findings; GET /api/resolve/state returns them", async () => {
+    const svc = service();
+    const app = buildServer(svc);
+    const state = { findings: [{ nodeId: "s2", file: "f", severity: "warn", title: "t", detail: "d", suggestion: "s", agent: "a" }], scanned: 1, startedAt: 0, done: true };
+    const post = await app.inject({ method: "POST", url: "/v1/resolve", payload: state });
+    expect(post.statusCode).toBe(200);
+    const get = await app.inject({ method: "GET", url: "/api/resolve/state" });
+    expect(get.json().state.scanned).toBe(1);
+    expect(get.json().state.findings[0].nodeId).toBe("s2");
+    await app.close(); svc.close();
+  });
+
   it("GET /api/activate/state returns the engagement shape", async () => {
     const svc = service();
     const app = buildServer(svc);

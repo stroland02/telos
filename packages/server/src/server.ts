@@ -12,8 +12,12 @@ export type ForgeState = { run: string; turn: number; costUsd: number; stop: str
 /** Forge reflection channel: latest state + open SSE subscribers. */
 export interface ForgeHub { state: ForgeState; subscribers: Set<ServerResponse> }
 
+/** Resolve (scan-for-resolutions) channel: latest findings state + subscribers. */
+export type ResolveStateDTO = { findings: unknown[]; scanned: number; startedAt: number; done: boolean } | null;
+export interface ResolveHub { state: ResolveStateDTO; subscribers: Set<ServerResponse> }
+
 /** Live trace state shared by the OTLP receiver, SSE stream, and replay routes. */
-export interface TraceHub { aggregator: TraceAggregator; buffer: TraceBuffer; logs: LogBuffer; metrics: MetricBuffer; profile: ProfileBuffer; processes: ProcessBuffer; fileNodes: FileNodeRef[]; index: NodeIndex; forge: ForgeHub }
+export interface TraceHub { aggregator: TraceAggregator; buffer: TraceBuffer; logs: LogBuffer; metrics: MetricBuffer; profile: ProfileBuffer; processes: ProcessBuffer; fileNodes: FileNodeRef[]; index: NodeIndex; forge: ForgeHub; resolve: ResolveHub }
 
 export interface GraphProvider {
   getOverview(): unknown;
@@ -264,6 +268,33 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
     hub.forge.subscribers.add(reply.raw);
     const beat = setInterval(() => reply.raw.write(": heartbeat\n\n"), 15000);
     req.raw.on("close", () => { clearInterval(beat); hub.forge.subscribers.delete(reply.raw); reply.raw.end(); });
+  });
+
+  // ── Resolve channel — same shape as forge: findings POSTed, map reflects ──
+  app.post<{ Body: ResolveStateDTO }>("/v1/resolve", async (req, reply) => {
+    const hub = provider.getTraceHub?.();
+    if (!hub) return reply.code(404).send({ error: "resolve channel unavailable" });
+    hub.resolve.state = req.body;
+    const payload = `data: ${JSON.stringify(hub.resolve.state)}\n\n`;
+    for (const res of hub.resolve.subscribers) res.write(payload);
+    return { ok: true };
+  });
+
+  app.get("/api/resolve/state", async (_req, reply) => {
+    const hub = provider.getTraceHub?.();
+    if (!hub) return reply.code(404).send({ error: "resolve channel unavailable" });
+    return { state: hub.resolve.state };
+  });
+
+  app.get("/api/resolve/stream", async (req, reply) => {
+    const hub = provider.getTraceHub?.();
+    if (!hub) return reply.code(404).send({ error: "resolve channel unavailable" });
+    reply.hijack();
+    reply.raw.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+    if (hub.resolve.state) reply.raw.write(`data: ${JSON.stringify(hub.resolve.state)}\n\n`);
+    hub.resolve.subscribers.add(reply.raw);
+    const beat = setInterval(() => reply.raw.write(": heartbeat\n\n"), 15000);
+    req.raw.on("close", () => { clearInterval(beat); hub.resolve.subscribers.delete(reply.raw); reply.raw.end(); });
   });
 
   app.get<{ Params: { id: string } }>("/api/cluster/:id", async (req, reply) => {
