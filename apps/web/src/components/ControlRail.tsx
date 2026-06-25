@@ -5,9 +5,11 @@
  * come in via props. Token-styled, no hard-coded hex.
  */
 
+import { motion, useReducedMotion } from "framer-motion";
 import { TelosApi } from "../api/client";
 import { TelosStatus, TelosNodeDTO } from "../api/types";
 import { SearchBox } from "./SearchBox";
+import { SegmentedControl, IconButton, spring } from "./ui";
 
 export interface RailActive {
   live: boolean; hot: boolean; procs: boolean; ask: boolean; harness: boolean; context: boolean;
@@ -16,8 +18,6 @@ export interface RailHandlers {
   toggleLive: () => void; replay: () => void; toggleHot: () => void; openProcs: () => void;
   openAsk: () => void; openHarness: () => void; openContext: () => void;
 }
-
-const DENSITIES = ["overview", "learn", "deep"] as const;
 
 export function ControlRail({
   status, active, on, collapsed, onCollapsedChange,
@@ -70,9 +70,9 @@ export function ControlRail({
       <div style={{ display: "flex", alignItems: "center", padding: "var(--s-2)", borderBottom: "1px solid var(--border)", gap: "var(--s-2)" }}>
         <span aria-hidden="true" style={{ color: "var(--accent)", fontSize: 16, fontWeight: 700, flexShrink: 0 }}>◇</span>
         {!collapsed && <h1 style={{ flex: 1, margin: 0, color: "var(--text)", fontSize: "var(--t-wordmark-size, 15px)", fontWeight: 700, letterSpacing: "-0.01em" }}>Telos</h1>}
-        <button aria-label={collapsed ? "Expand control rail" : "Collapse control rail"} onClick={() => onCollapsedChange(!collapsed)} style={iconBtn}>
+        <IconButton aria-label={collapsed ? "Expand control rail" : "Collapse control rail"} onClick={() => onCollapsedChange(!collapsed)}>
           {collapsed ? "»" : "«"}
-        </button>
+        </IconButton>
       </div>
 
       {/* Search */}
@@ -110,48 +110,33 @@ export function ControlRail({
         {/* Display — view-shaping controls, kept at the bottom */}
         {!collapsed && <Group label="Display" />}
         {!collapsed && (
-          <div role="group" aria-label="Detail density" style={{ display: "flex", gap: 0, padding: "var(--s-1) var(--s-2)" }}>
-            {DENSITIES.map((m, i) => (
-              <button
-                key={m}
-                onClick={() => onDensity(m)}
-                aria-pressed={density === m}
-                title={m === "overview" ? "Label only" : m === "learn" ? "Label + key metrics" : "All metrics"}
-                style={{
-                  flex: 1, fontFamily: "var(--font-mono)", fontSize: 11, padding: "2px 0", cursor: "pointer",
-                  textTransform: "capitalize", whiteSpace: "nowrap",
-                  background: density === m ? "var(--accent-soft)" : "none",
-                  border: `1px solid ${density === m ? "var(--accent)" : "var(--border)"}`,
-                  borderLeft: i > 0 ? "none" : undefined,
-                  borderRadius: i === 0 ? "var(--r-sm) 0 0 var(--r-sm)" : i === 2 ? "0 var(--r-sm) var(--r-sm) 0" : 0,
-                  color: density === m ? "var(--accent)" : "var(--text-faint)", outline: "none",
-                }}
-              >
-                {m}
-              </button>
-            ))}
+          <div style={{ padding: "var(--s-1) var(--s-2)" }}>
+            <SegmentedControl
+              ariaLabel="Detail density"
+              idBase="density"
+              value={density}
+              onChange={onDensity}
+              options={[
+                { value: "overview", label: "overview", title: "Label only" },
+                { value: "learn", label: "learn", title: "Label + key metrics" },
+                { value: "deep", label: "deep", title: "All metrics" },
+              ]}
+            />
           </div>
         )}
 
         {!collapsed && (
-          <div role="group" aria-label="Granularity" title={granularityApplicable ? "Files vs files + symbols" : "Applies at file level — drill into a file"} style={{ display: "flex", gap: 0, padding: "0 var(--s-2) var(--s-1)", opacity: granularityApplicable ? 1 : 0.45 }}>
-            {([["Files", false], ["+Symbols", true]] as const).map(([label, val], i) => (
-              <button
-                key={label}
-                onClick={() => onShowSymbols(val)}
-                aria-pressed={showSymbols === val}
-                style={{
-                  flex: 1, fontFamily: "var(--font-mono)", fontSize: 11, padding: "2px 0", cursor: "pointer", whiteSpace: "nowrap",
-                  background: showSymbols === val ? "var(--accent-soft)" : "none",
-                  border: `1px solid ${showSymbols === val ? "var(--accent)" : "var(--border)"}`,
-                  borderLeft: i > 0 ? "none" : undefined,
-                  borderRadius: i === 0 ? "var(--r-sm) 0 0 var(--r-sm)" : "0 var(--r-sm) var(--r-sm) 0",
-                  color: showSymbols === val ? "var(--accent)" : "var(--text-faint)", outline: "none",
-                }}
-              >
-                {label}
-              </button>
-            ))}
+          <div title={granularityApplicable ? "Files vs files + symbols" : "Applies at file level — drill into a file"} style={{ padding: "0 var(--s-2) var(--s-1)", opacity: granularityApplicable ? 1 : 0.45 }}>
+            <SegmentedControl
+              ariaLabel="Granularity"
+              idBase="granularity"
+              value={showSymbols ? "symbols" : "files"}
+              onChange={(v) => onShowSymbols(v === "symbols")}
+              options={[
+                { value: "files", label: "Files" },
+                { value: "symbols", label: "+Symbols" },
+              ]}
+            />
           </div>
         )}
 
@@ -169,10 +154,10 @@ export function ControlRail({
           </div>
         )}
         <div style={{ display: "flex", gap: "var(--s-2)", justifyContent: collapsed ? "center" : "flex-start" }}>
-          <button aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} title="Toggle theme" onClick={onToggleTheme} style={iconBtn}>
+          <IconButton aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} title="Toggle theme" onClick={onToggleTheme}>
             {theme === "dark" ? "☀" : "☾"}
-          </button>
-          <button aria-label="Keyboard shortcuts (?)" title="Keyboard shortcuts" onClick={onShortcuts} style={iconBtn}>?</button>
+          </IconButton>
+          <IconButton aria-label="Keyboard shortcuts (?)" title="Keyboard shortcuts" onClick={onShortcuts}>?</IconButton>
         </div>
       </div>
     </nav>
@@ -186,11 +171,15 @@ function Group({ label }: { label: string }) {
 function Item({
   icon, label, sub, active, collapsed, onClick,
 }: { icon: string; label: string; sub?: string; active?: boolean; collapsed: boolean; onClick: () => void }) {
+  const reduce = useReducedMotion();
   return (
-    <button
+    <motion.button
       onClick={onClick}
       aria-pressed={active ?? undefined}
       title={collapsed ? `${label}${sub ? ` — ${sub}` : ""}` : undefined}
+      whileHover={reduce || active ? undefined : { backgroundColor: "var(--hover)" }}
+      whileTap={reduce ? undefined : { scale: 0.98 }}
+      transition={spring}
       style={{
         width: "100%", display: "flex", alignItems: "center", gap: "var(--s-2)",
         padding: "var(--s-1) var(--s-2)", borderRadius: "var(--r-sm)", cursor: "pointer",
@@ -200,15 +189,12 @@ function Item({
         fontFamily: "inherit", fontSize: "inherit", textAlign: "left", outline: "none",
         justifyContent: collapsed ? "center" : "flex-start",
       }}
+      onFocus={(e) => { e.currentTarget.style.boxShadow = "var(--focus-ring)"; }}
+      onBlur={(e) => { e.currentTarget.style.boxShadow = "none"; }}
     >
       <span aria-hidden="true" style={{ width: 16, textAlign: "center", flexShrink: 0 }}>{icon}</span>
       {!collapsed && <span style={{ flex: 1, color: "var(--text)" }}>{label}</span>}
       {!collapsed && sub && <span style={{ color: "var(--text-faint)", fontSize: 11 }}>{sub}</span>}
-    </button>
+    </motion.button>
   );
 }
-
-const iconBtn: React.CSSProperties = {
-  flexShrink: 0, cursor: "pointer", borderRadius: "var(--r-sm)", height: 24, minWidth: 24,
-  padding: "0 6px", background: "none", border: "1px solid var(--border)", color: "var(--text-muted)", outline: "none",
-};
