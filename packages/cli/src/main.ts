@@ -395,9 +395,15 @@ export function buildProgram(): Command {
       }
       const status = runHarness(path ?? ".");
       if (opts.json) { console.log(JSON.stringify(status, null, 2)); return; }
+      const active = new Set(readConfig(repo).enabled);
       console.log("Harnesses (orchestrate + curate):");
       for (const h of status.installed) {
-        console.log(`  ${h.source.padEnd(12)} ${String(h.nodeCapabilities).padStart(3)} caps  ${h.title}`);
+        const mark = active.has(h.source) ? "● on " : "○ off";
+        console.log(`  ${mark} ${h.source.padEnd(12)} ${String(h.capabilities.length).padStart(3)} agents  ${h.title}`);
+        for (const c of h.capabilities) {
+          const fires = c.activation === "prompt" && c.triggers?.length ? `  ← ${c.triggers.slice(0, 4).join(", ")}` : "";
+          console.log(`         ${c.kind.padEnd(5)} ${c.id.padEnd(28)} ${c.title}${fires}`);
+        }
       }
       console.log(`\nCapabilities: ${status.totals.nodeCapabilities} node-context, ${status.totals.promptIntents} prompt intents`);
       const lock = status.lock.present ? "present" : "absent (run 'telos doctor' to bootstrap)";

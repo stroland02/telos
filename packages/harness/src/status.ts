@@ -1,16 +1,29 @@
-import { Capability, CapabilitySource } from "./capability.js";
+import { Capability, CapabilityKind, CapabilitySource } from "./capability.js";
 import { PromptCapability } from "./router.js";
 import { HarnessInstall } from "./setup.js";
 import { HarnessLock } from "./lock.js";
 import { DriftReport, diffLock } from "./doctor.js";
 
+// One curated agent/skill a harness provides — the row the details view lists.
+// `activation` tells you HOW Telos picks it: "node" = matched from a code node's
+// graph context (layer/language/path), "prompt" = matched from the words you type
+// (the `triggers`, which the UserPromptSubmit hook routes on).
+export interface HarnessCapabilityRow {
+  id: string;
+  title: string;
+  kind: CapabilityKind; // "agent" | "skill"
+  activation: "node" | "prompt";
+  triggers?: string[]; // present for prompt-activated capabilities
+}
+
 // One installed harness, with how many node-context capabilities Telos curates
-// from it — the "what powers do I have" row.
+// from it ("what powers do I have") plus the full roster for the details view.
 export interface HarnessSourceStatus {
   source: CapabilitySource;
   title: string;
   repo: string;
   nodeCapabilities: number;
+  capabilities: HarnessCapabilityRow[];
 }
 
 // The cockpit's single source of truth: what's installed, how much is enabled,
@@ -31,11 +44,20 @@ export function buildHarnessStatus(args: {
   installs: HarnessInstall[];
 }): HarnessStatus {
   const { lockPath, lock, nodeCatalog, promptCatalog, installs } = args;
+  const rosterFor = (source: CapabilitySource): HarnessCapabilityRow[] => [
+    ...nodeCatalog
+      .filter((c) => c.source === source)
+      .map((c): HarnessCapabilityRow => ({ id: c.id, title: c.title, kind: c.kind, activation: "node" })),
+    ...promptCatalog
+      .filter((c) => c.source === source)
+      .map((c): HarnessCapabilityRow => ({ id: c.id, title: c.title, kind: c.kind, activation: "prompt", triggers: c.triggers })),
+  ];
   const installed: HarnessSourceStatus[] = installs.map((i) => ({
     source: i.source,
     title: i.title,
     repo: i.repo,
     nodeCapabilities: nodeCatalog.filter((c) => c.source === i.source).length,
+    capabilities: rosterFor(i.source),
   }));
   const drift: DriftReport = lock
     ? diffLock(lock, nodeCatalog)

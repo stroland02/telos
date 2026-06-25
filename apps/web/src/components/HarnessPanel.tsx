@@ -9,7 +9,7 @@
  * focus to the refresh button on open. Token-styled, no hard-coded hex.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { TelosApi } from "../api/client";
 import { HarnessStatus } from "../api/types";
 
@@ -20,6 +20,7 @@ export function HarnessPanel({
   const [status, setStatus] = useState<HarnessStatus | null>(null);
   const [enabled, setEnabled] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     setLoading(true);
@@ -88,32 +89,67 @@ export function HarnessPanel({
               <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)" }}>
                 <thead>
                   <tr style={{ color: "var(--text-faint)", textAlign: "left" }}>
-                    <Th>Harness</Th><Th right>Caps</Th><Th right>Active</Th>
+                    <Th>Harness</Th><Th right>Agents</Th><Th right>Active</Th>
                   </tr>
                 </thead>
                 <tbody>
                   {status.installed.map((h) => {
                     const on = enabled.includes(h.source);
+                    const isOpen = expanded === h.source;
+                    const caps = h.capabilities ?? [];
                     return (
-                      <tr key={h.source} style={{ borderTop: "1px solid var(--border)", color: "var(--text)" }}>
-                        <Td title={h.repo}>{h.title}</Td>
-                        <Td right>{h.nodeCapabilities}</Td>
-                        <Td right>
-                          <button
-                            onClick={() => toggle(h.source)}
-                            aria-pressed={on}
-                            aria-label={`${on ? "Disable" : "Enable"} ${h.source}`}
-                            style={{
-                              cursor: "pointer", borderRadius: "var(--r-sm)", padding: "1px 8px", fontFamily: "var(--font-mono)", fontSize: 11,
-                              background: on ? "var(--accent-soft)" : "none",
-                              border: `1px solid ${on ? "var(--accent)" : "var(--border)"}`,
-                              color: on ? "var(--accent)" : "var(--text-muted)", outline: "none",
-                            }}
-                          >
-                            {on ? "on" : "off"}
-                          </button>
-                        </Td>
-                      </tr>
+                      <Fragment key={h.source}>
+                        <tr style={{ borderTop: "1px solid var(--border)", color: "var(--text)" }}>
+                          <Td title={h.repo}>
+                            <button
+                              onClick={() => setExpanded(isOpen ? null : h.source)}
+                              aria-expanded={isOpen}
+                              aria-label={`${isOpen ? "Hide" : "Show"} ${h.source} agents`}
+                              style={{
+                                cursor: "pointer", background: "none", border: "none", padding: 0, font: "inherit",
+                                color: "var(--text)", display: "inline-flex", alignItems: "center", gap: 6,
+                              }}
+                            >
+                              <span style={{ color: "var(--text-faint)", width: 8, display: "inline-block" }}>{isOpen ? "▾" : "▸"}</span>
+                              {h.title}
+                            </button>
+                          </Td>
+                          <Td right>{caps.length}</Td>
+                          <Td right>
+                            <button
+                              onClick={() => toggle(h.source)}
+                              aria-pressed={on}
+                              aria-label={`${on ? "Disable" : "Enable"} ${h.source}`}
+                              style={{
+                                cursor: "pointer", borderRadius: "var(--r-sm)", padding: "1px 8px", fontFamily: "var(--font-mono)", fontSize: 11,
+                                background: on ? "var(--accent-soft)" : "none",
+                                border: `1px solid ${on ? "var(--accent)" : "var(--border)"}`,
+                                color: on ? "var(--accent)" : "var(--text-muted)", outline: "none",
+                              }}
+                            >
+                              {on ? "on" : "off"}
+                            </button>
+                          </Td>
+                        </tr>
+                        {isOpen && (
+                          <tr style={{ color: "var(--text)" }}>
+                            <td colSpan={3} style={{ padding: "0 var(--s-2) var(--s-2) 22px" }}>
+                              {caps.length === 0 && <span style={{ color: "var(--text-faint)", fontStyle: "italic" }}>No agents curated from this harness yet.</span>}
+                              {caps.map((c) => (
+                                <div key={c.id} style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "2px 0" }}>
+                                  <span style={{ color: c.activation === "prompt" ? "var(--accent)" : "var(--text-muted)", fontSize: 10, width: 38, flexShrink: 0 }}>
+                                    {c.kind}
+                                  </span>
+                                  <span style={{ color: "var(--text)", flexShrink: 0 }}>{c.id}</span>
+                                  <span style={{ color: "var(--text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {c.title}{c.triggers?.length ? ` · fires on: ${c.triggers.slice(0, 4).join(", ")}` : ""}
+                                  </span>
+                                </div>
+                              ))}
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     );
                   })}
                 </tbody>

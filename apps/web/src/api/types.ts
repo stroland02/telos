@@ -39,7 +39,8 @@ export interface Finding { nodeId: string; file: string; severity: "info" | "war
 export interface ResolveState { findings: Finding[]; scanned: number; startedAt: number; done: boolean; }
 
 // ── Harness cockpit: what's installed / enabled / drifted ────────────────────
-export interface HarnessSourceStatus { source: string; title: string; repo: string; nodeCapabilities: number; }
+export interface HarnessCapabilityRow { id: string; title: string; kind: string; activation: "node" | "prompt"; triggers?: string[]; }
+export interface HarnessSourceStatus { source: string; title: string; repo: string; nodeCapabilities: number; capabilities: HarnessCapabilityRow[]; }
 export interface HarnessStatus {
   installed: HarnessSourceStatus[];
   totals: { nodeCapabilities: number; promptIntents: number };
