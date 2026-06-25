@@ -5,7 +5,7 @@ import { NavigationState } from "../graph/useNavigation";
 import { toFlowGraph } from "../graph/layout";
 import { TelosNode, setCurrentDensity } from "./TelosNode";
 import { LayerFilter, LAYER_ORDER } from "./LayerFilter";
-import { PathFinderBar, PATH_FINDER_IDLE, bfsPath } from "./PathFinder";
+import { PATH_FINDER_IDLE, bfsPath } from "./PathFinder";
 import type { PathFinderState } from "./PathFinder";
 import { ExportButton } from "./ExportButton";
 import { TourBar } from "./TourBar";
@@ -273,13 +273,6 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
     [filteredNodes, pathNodeSet, isPathActive, trace, replayNodeId, hotIntensity, forge],
   );
 
-  // Source node label for PathFinderBar prompt.
-  const sourceLabel = useMemo(() => {
-    if (!pfState.sourceId) return undefined;
-    const n = flow.nodes.find((x) => x.id === pfState.sourceId);
-    return (n?.data as { label?: string })?.label;
-  }, [pfState.sourceId, flow.nodes]);
-
   const handleNodeClick = useCallback(
     (_: unknown, node: { id: string }) => {
       const v = nav.view?.nodes.find((x) => x.id === node.id);
@@ -402,15 +395,6 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
               Stacked vertically with consistent 8px gap. Both controls share
               one Panel so they're anchored together and never overlap the
               top-right panel regardless of how narrow the map column gets. */}
-          <Panel position="top-left" style={{ margin: "var(--s-2)", display: "flex", flexDirection: "column", gap: "var(--s-2)", alignItems: "flex-start" }}>
-            {/* Path-finder control bar */}
-            <PathFinderBar
-              state={pfState}
-              onActivate={() => setPfState({ active: true, sourceId: null, path: null, noPath: false })}
-              onReset={() => setPfState(PATH_FINDER_IDLE)}
-              sourceLabel={sourceLabel}
-            />
-          </Panel>
 
           {/* ── Top-right panel: Tour + Export ─────────────────────────────
               Anchored to top-right, 8px margin. Never overlaps top-left panel
