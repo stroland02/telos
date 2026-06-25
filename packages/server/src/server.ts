@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import type { ServerResponse } from "node:http";
 import { TraceAggregator, TraceBuffer, LogBuffer, MetricBuffer, ProfileBuffer, ProcessBuffer, FileNodeRef, ProcessSample, NodeIndex, GraphDiff, parseOtlpTraces, parseOtlpLogs, parseOtlpMetrics, parseFoldedStacks, tagProcesses } from "@telos/engine";
+import { buildHarnessStatus, DEFAULT_CATALOG, PROMPT_CATALOG, HARNESS_INSTALLS, parseLock, type HarnessLock } from "@telos/harness";
 
 /** Latest Forge build-loop checkpoint reflected onto the map. Ephemeral. */
 export type ForgeState = { run: string; turn: number; costUsd: number; stop: string | null; diff: GraphDiff } | null;
@@ -40,6 +41,21 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
   app.get("/api/health", async () => ({ status: "ok" }));
 
   app.get("/api/overview", async () => provider.getOverview());
+
+  // Harness cockpit: installed harnesses + enabled capability counts + drift,
+  // so the web client can show "what powers are active" at a glance.
+  app.get("/api/harness", async () => {
+    const repoRoot = provider.repoRoot;
+    const lockPath = repoRoot ? resolve(repoRoot, ".telos", "harness.lock") : ".telos/harness.lock";
+    const lock: HarnessLock | null = existsSync(lockPath) ? parseLock(readFileSync(lockPath, "utf-8")) : null;
+    return buildHarnessStatus({
+      lockPath,
+      lock,
+      nodeCatalog: DEFAULT_CATALOG,
+      promptCatalog: PROMPT_CATALOG,
+      installs: HARNESS_INSTALLS,
+    });
+  });
 
   app.get<{ Querystring: { limit?: string } }>("/api/tour", async (req, reply) => {
     if (!provider.getTour) return reply.code(404).send({ error: "tour unavailable" });

@@ -41,6 +41,19 @@ describe("graph routes", () => {
     await app.close(); svc.close();
   });
 
+  it("GET /api/harness returns the cockpit status", async () => {
+    const svc = service();
+    const app = buildServer(svc);
+    const res = await app.inject({ method: "GET", url: "/api/harness" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(Array.isArray(body.installed)).toBe(true);
+    expect(body.installed.length).toBeGreaterThan(0);
+    expect(body.totals.nodeCapabilities).toBeGreaterThan(0);
+    expect(body.drift.status).toBe("ok");
+    await app.close(); svc.close();
+  });
+
   it("GET /api/cluster/:id drills down, 404 on unknown", async () => {
     const svc = service();
     const app = buildServer(svc);
