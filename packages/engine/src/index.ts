@@ -1,4 +1,6 @@
 export { scan, scanGraph } from "./pipeline.js";
+export { discoverLanguages, LANGUAGE_MANIFESTS, LANGUAGES_DIR } from "./languages/registry.js";
+export type { LangManifest } from "./languages/registry.js";
 export { GraphStore } from "./store.js";
 export { diffGraphs } from "./diff.js";
 export type { GraphDiff } from "./diff.js";

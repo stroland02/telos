@@ -14,6 +14,10 @@ export interface LangManifest {
 
 const LANGS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "languages");
 
+/** Absolute path to the engine's languages/ directory — the default target for
+ *  `telos add-language` scaffolding. */
+export const LANGUAGES_DIR = LANGS_DIR;
+
 /** Read every languages/*\/lang.json under `dir`. A folder without a manifest is
  *  skipped (lets a scaffold create the folder before the manifest is final). A
  *  present-but-malformed manifest throws with its path — never silently dropped. */
