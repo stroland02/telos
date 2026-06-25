@@ -6,6 +6,7 @@ export { diffGraphs } from "./diff.js";
 export type { GraphDiff } from "./diff.js";
 export { buildContextPack, renderContextPack } from "./context.js";
 export { estimateTokens, measureSavings, type SavingsReport } from "./measure.js";
+export { assetRoot, grammarsDir, languagesDir, webDistDir } from "./assets.js";
 export type { ContextPack, ContextPackNode } from "./context.js";
 export * from "./schema.js";
 export * from "./aggregator.js";

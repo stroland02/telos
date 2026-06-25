@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { resolve, join, dirname } from "node:path";
+import { resolve, join } from "node:path";
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { scan, GraphStore, enrichGraph, heuristicEnricher, createLlmEnricher, buildTour, askGraph, ProcessSample, LANGUAGES_DIR, buildContextPack, renderContextPack, measureSavings, type ContextPack, type SavingsReport, type TelosNode } from "@telos/engine";
+import { scan, GraphStore, enrichGraph, heuristicEnricher, createLlmEnricher, buildTour, askGraph, ProcessSample, LANGUAGES_DIR, buildContextPack, renderContextPack, measureSavings, webDistDir, type ContextPack, type SavingsReport, type TelosNode } from "@telos/engine";
 import { addLanguage } from "./add-language.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -417,9 +417,9 @@ export async function runServe(opts: { path: string; port: number; open?: boolea
   if (!existsSync(dbPath)) {
     throw new Error(`No graph found at ${dbPath}. Run 'telos scan ${opts.path}' first.`);
   }
-  // packages/cli/dist/main.js -> ../../../apps/web/dist
-  const here = dirname(fileURLToPath(import.meta.url));
-  const webDist = resolve(here, "..", "..", "..", "apps", "web", "dist");
+  // Resolved via the shared asset-root so it works both in the dev workspace
+  // (apps/web/dist) and in the bundled published package (<root>/web).
+  const webDist = webDistDir();
   const service = GraphService.fromDb(dbPath, repo);
   const app = buildServer(service, existsSync(webDist) ? { staticDir: webDist } : {});
   const address = await app.listen({ port: opts.port, host: "127.0.0.1" });

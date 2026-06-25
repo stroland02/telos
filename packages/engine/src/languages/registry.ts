@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync, existsSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { languagesDir } from "../assets.js";
 
 // A language is one folder under languages/<id>/ described by a lang.json
 // manifest. The registry auto-discovers these, so adding a language is a data
@@ -12,7 +12,7 @@ export interface LangManifest {
   aliasOf?: string; // reuse another language's extract.scm / layer-hints.json
 }
 
-const LANGS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "languages");
+const LANGS_DIR = languagesDir();
 
 /** Absolute path to the engine's languages/ directory — the default target for
  *  `telos add-language` scaffolding. */

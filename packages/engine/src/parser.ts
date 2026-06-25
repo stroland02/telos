@@ -1,10 +1,10 @@
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { createRequire } from "node:module";
 import type WebTreeSitter from "web-tree-sitter";
 import { LANGUAGE_GRAMMAR } from "./languages/registry.js";
+import { grammarsDir } from "./assets.js";
 
-const GRAMMARS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "grammars");
+const GRAMMARS_DIR = grammarsDir();
 
 // web-tree-sitter is a CJS module. Use createRequire for reliable interop
 // across both native Node ESM and Vitest's transform environments.
