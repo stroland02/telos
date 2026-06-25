@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, runTop, buildDemoProcesses, buildProgram, runContext, runMeasure, runHarness, runStatusLine, runResolveCli, telosInvocation } from "./main.js";
+import { runScan, runEnrich, runTraceDemo, buildDemoOtlp, runTop, buildDemoProcesses, buildProgram, runContext, runMeasure, runHarness, runHarnessVerify, runStatusLine, runResolveCli, telosInvocation } from "./main.js";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -73,6 +73,15 @@ describe("runContext", () => {
     expect(pack.totals.nodes).toBeGreaterThan(0);
     expect(pack.entryPoints.length).toBeLessThanOrEqual(5);
     expect(Array.isArray(pack.layers)).toBe(true);
+  });
+});
+
+describe("runHarnessVerify", () => {
+  it("all routing checks pass (prompt → capability, node → agent)", () => {
+    const v = runHarnessVerify();
+    expect(v.cases.length).toBeGreaterThan(0);
+    expect(v.failed).toBe(0);
+    expect(v.passed).toBe(v.cases.length);
   });
 });
 

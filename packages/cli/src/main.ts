@@ -3,13 +3,13 @@ import { Command } from "commander";
 import { resolve, join, dirname } from "node:path";
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { scan, GraphStore, enrichGraph, heuristicEnricher, createLlmEnricher, buildTour, askGraph, ProcessSample, LANGUAGES_DIR, buildContextPack, renderContextPack, measureSavings, type ContextPack, type SavingsReport } from "@telos/engine";
+import { scan, GraphStore, enrichGraph, heuristicEnricher, createLlmEnricher, buildTour, askGraph, ProcessSample, LANGUAGES_DIR, buildContextPack, renderContextPack, measureSavings, type ContextPack, type SavingsReport, type TelosNode } from "@telos/engine";
 import { addLanguage } from "./add-language.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
-import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus, activate, deactivate, statusLineText, routeForHook, readConfig, setEnabled, ALL_SOURCES, type CapabilitySource } from "@telos/harness";
+import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, recommend, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus, activate, deactivate, statusLineText, routeForHook, readConfig, setEnabled, ALL_SOURCES, type CapabilitySource } from "@telos/harness";
 import { runForge, stubDriver, claudeAgentDriver, ForgeRunResult } from "@telos/forge";
 import { runResolve, stubReviewDriver, claudeReviewDriver, type ResolveState } from "@telos/resolve";
 import { pathToFileURL } from "node:url";
@@ -129,6 +129,55 @@ export function runContext(path: string, opts: { limit?: number } = {}): Context
   } finally {
     store.close();
   }
+}
+
+/** Verify the harness routes correctly end-to-end: representative developer
+ *  prompts must reach the right curated capabilities, and code nodes must
+ *  recommend the right review agents. Pure over the catalogs — provable, fast. */
+export interface VerifyCase { name: string; ok: boolean; detail: string }
+export interface VerifyResult { cases: VerifyCase[]; passed: number; failed: number }
+export function runHarnessVerify(): VerifyResult {
+  const cases: VerifyCase[] = [];
+
+  // Prompt-intent routing: the words a developer types → curated capabilities.
+  const promptCases: { prompt: string; expect: string[] }[] = [
+    { prompt: "optimize the slow database query", expect: ["ecc:performance-optimizer", "ecc:database-reviewer"] },
+    { prompt: "add an end-to-end test and check accessibility", expect: ["ecc:e2e-runner", "ecc:a11y-architect"] },
+    { prompt: "there's a bug, the build is failing with a stack trace", expect: ["superpowers:systematic-debugging"] },
+    { prompt: "review this for security vulnerabilities before merging", expect: ["ecc:security-review"] },
+    { prompt: "build a new feature for user profiles", expect: ["superpowers:brainstorming"] },
+  ];
+  for (const c of promptCases) {
+    const routed = routePrompt(c.prompt, PROMPT_CATALOG).map((r) => r.capability.id);
+    const missing = c.expect.filter((e) => !routed.includes(e));
+    cases.push({
+      name: `prompt "${c.prompt}"`,
+      ok: missing.length === 0,
+      detail: missing.length ? `missing ${missing.join(", ")} (got ${routed.slice(0, 4).join(", ") || "none"})` : `→ ${c.expect.join(", ")}`,
+    });
+  }
+
+  // Node-context recommendation: a code node → the right review agents.
+  const node = (over: Partial<TelosNode>): TelosNode => ({
+    id: "n", kind: "function", name: "x", qualifiedName: "x", language: "typescript",
+    path: "src/x.ts", lineStart: 1, lineEnd: 1, layer: "util", fanIn: 0, fanOut: 0, lines: 1, complexity: 1, summary: null, ...over,
+  });
+  const nodeCases: { name: string; node: TelosNode; expect: string }[] = [
+    { name: "python models file → django-reviewer", node: node({ language: "python", path: "app/models.py", layer: "data" }), expect: "ecc:django-reviewer" },
+    { name: "data-layer node → database-reviewer", node: node({ layer: "data" }), expect: "ecc:database-reviewer" },
+    { name: "auth-named node → security-reviewer", node: node({ name: "login", qualifiedName: "auth.login" }), expect: "ecc:security-reviewer" },
+  ];
+  for (const c of nodeCases) {
+    const recs = recommend(c.node).map((r) => r.id);
+    cases.push({
+      name: `node ${c.name}`,
+      ok: recs.includes(c.expect),
+      detail: recs.includes(c.expect) ? `→ ${c.expect}` : `missing ${c.expect} (got ${recs.join(", ") || "none"})`,
+    });
+  }
+
+  const failed = cases.filter((c) => !c.ok).length;
+  return { cases, passed: cases.length - failed, failed };
 }
 
 /** Prove the warm-start brief is cheaper than reading the repo cold. Sums the
@@ -435,11 +484,23 @@ export function buildProgram(): Command {
       if (r.missing > 0) console.log(`  (note: ${r.missing} file(s) not found on disk were skipped in the baseline)`);
       console.log("\n  An agent that starts from this brief skips reading the repo cold to orient.");
     });
-  program.command("harness [path]").description("Show the harness cockpit; --enable/--disable selects which harnesses are active (autopilot)")
+  program.command("harness [path]").description("Show the harness cockpit; --enable/--disable selects which harnesses are active (autopilot); --verify proves routing")
     .option("--json", "emit the raw HarnessStatus JSON", false)
     .option("--enable <list>", "comma-separated harnesses to turn on (ecc,superpowers,headroom)")
     .option("--disable <list>", "comma-separated harnesses to turn off")
-    .action((path: string | undefined, opts: { json: boolean; enable?: string; disable?: string }) => {
+    .option("--verify", "run end-to-end routing checks (prompt → capability, node → agent)", false)
+    .action((path: string | undefined, opts: { json: boolean; enable?: string; disable?: string; verify?: boolean }) => {
+      if (opts.verify) {
+        const v = runHarnessVerify();
+        if (opts.json) { console.log(JSON.stringify(v, null, 2)); }
+        else {
+          console.log("Harness routing verification\n");
+          for (const c of v.cases) console.log(`  ${c.ok ? "✓" : "✗"} ${c.name}\n      ${c.detail}`);
+          console.log(`\n  ${v.passed}/${v.cases.length} checks passed${v.failed ? ` — ${v.failed} FAILED` : ""}.`);
+        }
+        if (v.failed > 0) process.exitCode = 1;
+        return;
+      }
       const repo = resolve(path ?? ".");
       const parse = (s?: string) => (s ?? "").split(",").map((x) => x.trim()).filter((x): x is CapabilitySource => (ALL_SOURCES as string[]).includes(x));
       let changed = false;
