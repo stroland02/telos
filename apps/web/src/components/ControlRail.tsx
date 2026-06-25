@@ -103,7 +103,7 @@ export function ControlRail({
         )}
 
         {!collapsed && explorerOpen && (
-          <div style={{ display: "flex", flexDirection: "column", maxHeight: "40vh", margin: "var(--s-1) 0", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
+          <div style={{ display: "flex", flexDirection: "column", height: "min(38vh, 340px)", margin: "var(--s-1) 0", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
             <FileTree paths={filePaths} selectedPath={selectedFile} onSelectFile={onSelectFile} />
           </div>
         )}

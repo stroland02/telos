@@ -368,13 +368,14 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
           {/* Zoom controls — bottom-center; 16px bottom inset (uniform with
               the layer filter and mini-map so all three baselines align). */}
           <Controls
-            position="bottom-center"
+            position="bottom-right"
             style={{
               background: "var(--surface)",
               border: "1px solid var(--border)",
               borderRadius: "var(--r-md)",
               boxShadow: "none",
               marginBottom: "var(--s-4)",
+              marginRight: showMinimap ? 224 : "var(--s-4)", // sit just left of the mini-map
             }}
           />
 
@@ -473,7 +474,7 @@ export function MapView({ nav, api, density, theme, onOpenNode, registerFitView,
           {/* ── Top-right panel: Tour + Export ─────────────────────────────
               Anchored to top-right, 8px margin. Never overlaps top-left panel
               because RF Panels each sit in their own corner. */}
-          <Panel position="top-right" style={{ margin: "var(--s-2)", display: "flex", gap: "var(--s-2)", alignItems: "center" }}>
+          <Panel position="bottom-center" style={{ margin: "var(--s-4)", display: "flex", gap: "var(--s-2)", alignItems: "center" }}>
             <TourBar
               nodes={filteredNodes}
               active={tourActive}
