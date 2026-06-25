@@ -15,6 +15,7 @@ beforeEach(() => {
       if (url.includes("/api/trace/state")) return { nodes: [], edges: [], unmapped: 0, unmappedEdges: 0, windowMs: 30000 };
       if (url.includes("/api/processes")) return { processes: [] };
       if (url.includes("/api/context")) return { brief: "" };
+      if (url.includes("/api/harness/config")) return { enabled: [] };
       if (url.includes("/api/activate")) return { statusLinePresent: false, harnessLockPresent: false, settingsPath: "" };
       return { results: [] };
     },

@@ -39,6 +39,9 @@ export interface TelosApi {
   /** Harness engagement: write/remove the Claude Code statusline. */
   activate(deactivate?: boolean): Promise<{ statusLinePresent: boolean }>;
   activationState(): Promise<{ statusLinePresent: boolean }>;
+  /** Which harnesses are selected/active (autopilot). */
+  harnessConfig(): Promise<{ enabled: string[] }>;
+  harnessSelect(source: string, enabled: boolean): Promise<{ enabled: string[] }>;
 }
 
 export function createApi(baseUrl = ""): TelosApi {
@@ -118,5 +121,13 @@ export function createApi(baseUrl = ""): TelosApi {
       return (await res.json()) as { statusLinePresent: boolean };
     },
     activationState: () => get<{ statusLinePresent: boolean }>("/api/activate/state"),
+    harnessConfig: () => get<{ enabled: string[] }>("/api/harness/config"),
+    harnessSelect: async (source, enabled) => {
+      const res = await fetch(`${baseUrl}/api/harness/select`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source, enabled }),
+      });
+      if (!res.ok) throw new Error(`harnessSelect -> ${res.status}`);
+      return (await res.json()) as { enabled: string[] };
+    },
   };
 }

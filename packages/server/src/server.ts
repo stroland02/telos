@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import type { ServerResponse } from "node:http";
 import { TraceAggregator, TraceBuffer, LogBuffer, MetricBuffer, ProfileBuffer, ProcessBuffer, FileNodeRef, ProcessSample, NodeIndex, GraphDiff, parseOtlpTraces, parseOtlpLogs, parseOtlpMetrics, parseFoldedStacks, tagProcesses } from "@telos/engine";
-import { buildHarnessStatus, DEFAULT_CATALOG, PROMPT_CATALOG, HARNESS_INSTALLS, parseLock, type HarnessLock, activate, deactivate, activationState } from "@telos/harness";
+import { buildHarnessStatus, DEFAULT_CATALOG, PROMPT_CATALOG, HARNESS_INSTALLS, parseLock, type HarnessLock, activate, deactivate, activationState, readConfig, setEnabled, type CapabilitySource } from "@telos/harness";
 
 /** Latest Forge build-loop checkpoint reflected onto the map. Ephemeral. */
 export type ForgeState = { run: string; turn: number; costUsd: number; stop: string | null; diff: GraphDiff } | null;
@@ -66,6 +66,14 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
     if (!provider.repoRoot) return noRepo;
     const body = (req.body ?? {}) as { deactivate?: boolean };
     return body.deactivate ? deactivate(provider.repoRoot) : activate(provider.repoRoot);
+  });
+
+  // Per-harness selection (autopilot): which harnesses Telos routes to.
+  app.get("/api/harness/config", async () => (provider.repoRoot ? readConfig(provider.repoRoot) : { enabled: [] }));
+  app.post("/api/harness/select", async (req) => {
+    if (!provider.repoRoot) return { enabled: [] };
+    const b = (req.body ?? {}) as { source?: string; enabled?: boolean };
+    return setEnabled(provider.repoRoot, b.source as CapabilitySource, !!b.enabled);
   });
 
   // Harness cockpit: installed harnesses + enabled capability counts + drift,

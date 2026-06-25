@@ -73,6 +73,15 @@ describe("graph routes", () => {
     await app.close(); svc.close();
   });
 
+  it("GET /api/harness/config returns the enabled set", async () => {
+    const svc = service();
+    const app = buildServer(svc);
+    const res = await app.inject({ method: "GET", url: "/api/harness/config" });
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray(res.json().enabled)).toBe(true);
+    await app.close(); svc.close();
+  });
+
   it("GET /api/activate/state returns the engagement shape", async () => {
     const svc = service();
     const app = buildServer(svc);

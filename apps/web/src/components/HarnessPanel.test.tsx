@@ -5,7 +5,7 @@ import type { TelosApi } from "../api/client";
 import type { HarnessStatus } from "../api/types";
 
 function api(status: HarnessStatus): TelosApi {
-  return { harnessStatus: vi.fn().mockResolvedValue(status) } as unknown as TelosApi;
+  return { harnessStatus: vi.fn().mockResolvedValue(status), harnessConfig: vi.fn().mockResolvedValue({ enabled: ["ecc"] }), harnessSelect: vi.fn().mockResolvedValue({ enabled: [] }) } as unknown as TelosApi;
 }
 
 const status: HarnessStatus = {

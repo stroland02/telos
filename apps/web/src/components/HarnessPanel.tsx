@@ -18,6 +18,7 @@ export function HarnessPanel({
 }: { open: boolean; api: TelosApi; onClose: () => void }) {
   const refreshRef = useRef<HTMLButtonElement>(null);
   const [status, setStatus] = useState<HarnessStatus | null>(null);
+  const [enabled, setEnabled] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(() => {
@@ -26,7 +27,13 @@ export function HarnessPanel({
       .then(setStatus)
       .catch(() => setStatus(null))
       .finally(() => setLoading(false));
+    api.harnessConfig().then((c) => setEnabled(c.enabled)).catch(() => setEnabled([]));
   }, [api]);
+
+  const toggle = useCallback((source: string) => {
+    const on = !enabled.includes(source);
+    api.harnessSelect(source, on).then((c) => setEnabled(c.enabled)).catch(() => {});
+  }, [api, enabled]);
 
   useEffect(() => {
     if (!open) return;
@@ -81,16 +88,34 @@ export function HarnessPanel({
               <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)" }}>
                 <thead>
                   <tr style={{ color: "var(--text-faint)", textAlign: "left" }}>
-                    <Th>Harness</Th><Th right>Capabilities</Th>
+                    <Th>Harness</Th><Th right>Caps</Th><Th right>Active</Th>
                   </tr>
                 </thead>
                 <tbody>
-                  {status.installed.map((h) => (
-                    <tr key={h.source} style={{ borderTop: "1px solid var(--border)", color: "var(--text)" }}>
-                      <Td title={h.repo}>{h.title}</Td>
-                      <Td right>{h.nodeCapabilities}</Td>
-                    </tr>
-                  ))}
+                  {status.installed.map((h) => {
+                    const on = enabled.includes(h.source);
+                    return (
+                      <tr key={h.source} style={{ borderTop: "1px solid var(--border)", color: "var(--text)" }}>
+                        <Td title={h.repo}>{h.title}</Td>
+                        <Td right>{h.nodeCapabilities}</Td>
+                        <Td right>
+                          <button
+                            onClick={() => toggle(h.source)}
+                            aria-pressed={on}
+                            aria-label={`${on ? "Disable" : "Enable"} ${h.source}`}
+                            style={{
+                              cursor: "pointer", borderRadius: "var(--r-sm)", padding: "1px 8px", fontFamily: "var(--font-mono)", fontSize: 11,
+                              background: on ? "var(--accent-soft)" : "none",
+                              border: `1px solid ${on ? "var(--accent)" : "var(--border)"}`,
+                              color: on ? "var(--accent)" : "var(--text-muted)", outline: "none",
+                            }}
+                          >
+                            {on ? "on" : "off"}
+                          </button>
+                        </Td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               <div style={{ padding: "var(--s-3) var(--s-2)", fontSize: "var(--t-meta-size)", color: "var(--text-muted)", fontFamily: "var(--font-ui)" }}>
