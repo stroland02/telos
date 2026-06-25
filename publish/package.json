@@ -1,0 +1,28 @@
+{
+  "name": "telos",
+  "version": "0.1.0",
+  "description": "Telos, the Code Sentinel — scan any codebase into a universal architecture graph, explore it as a dark semantic-zoom map, feed it to agents over MCP, and watch it light up with live runtime signals.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Sebastian Roland",
+  "homepage": "https://github.com/stroland02/telos",
+  "repository": { "type": "git", "url": "https://github.com/stroland02/telos.git" },
+  "keywords": ["code-graph", "architecture", "visualization", "mcp", "tree-sitter", "static-analysis", "agents", "observability"],
+  "bin": { "telos": "dist/main.js" },
+  "engines": { "node": ">=20" },
+  "files": ["dist", "grammars", "languages", "web", "README.md", "LICENSE"],
+  "scripts": {
+    "assemble": "node build.mjs"
+  },
+  "dependencies": {
+    "@fastify/static": "^6.12.0",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "better-sqlite3": "^11.0.0",
+    "commander": "^12.0.0",
+    "fast-glob": "^3.3.0",
+    "fastify": "^4.28.0",
+    "ignore": "^5.3.0",
+    "open": "^10.1.0",
+    "web-tree-sitter": "^0.22.0"
+  }
+}

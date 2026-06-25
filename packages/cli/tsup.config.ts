@@ -17,10 +17,17 @@ export default defineConfig({
   bundle: true,
   splitting: false,
   clean: true,
-  // Keep native/heavy deps external; bundle the @telos/* workspace packages in.
+  // tsup auto-externalizes everything in `dependencies` — but the @telos/*
+  // workspace packages must be bundled IN (they're not published separately).
+  noExternal: [/^@telos\//],
+  // Keep native/heavy deps external, plus CJS deps that dynamic-require Node
+  // builtins (fast-glob, ignore) — bundling those into ESM breaks `require`.
+  // All of these are declared in the published package's dependencies.
   external: [
     "better-sqlite3",
     "web-tree-sitter",
+    "fast-glob",
+    "ignore",
     "fastify",
     "@fastify/static",
     "commander",
