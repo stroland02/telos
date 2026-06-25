@@ -1,4 +1,4 @@
-import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot, ProcessSample, ForgeState } from "./types";
+import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot, ProcessSample, ForgeState, HarnessStatus } from "./types";
 
 export interface TelosApi {
   overview(): Promise<GraphView>;
@@ -28,6 +28,8 @@ export interface TelosApi {
   processes(limit?: number): Promise<ProcessSample[]>;
   /** Subscribe to the Forge build-loop SSE stream; returns an unsubscribe fn. */
   subscribeForge(onState: (s: ForgeState) => void, onError?: () => void): () => void;
+  /** Harness cockpit: installed harnesses, enabled capability counts, drift. */
+  harnessStatus(): Promise<HarnessStatus>;
 }
 
 export function createApi(baseUrl = ""): TelosApi {
@@ -88,5 +90,6 @@ export function createApi(baseUrl = ""): TelosApi {
       es.onerror = () => onError?.();
       return () => es.close();
     },
+    harnessStatus: () => get<HarnessStatus>("/api/harness"),
   };
 }

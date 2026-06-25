@@ -33,3 +33,12 @@ export interface ProfileSnapshot { nodes: HotNode[]; totalSamples: number; unmat
 export interface ProcessSample { pid: number; ppid?: number; name: string; cmd?: string; cpu: number; memMb: number; nodeId?: string | null; }
 export interface ForgeDiff { added: { nodes: string[]; edges: string[] }; removed: { nodes: string[]; edges: string[] }; changed: string[]; }
 export interface ForgeState { run: string; turn: number; costUsd: number; stop: string | null; diff: ForgeDiff; }
+
+// ── Harness cockpit: what's installed / enabled / drifted ────────────────────
+export interface HarnessSourceStatus { source: string; title: string; repo: string; nodeCapabilities: number; }
+export interface HarnessStatus {
+  installed: HarnessSourceStatus[];
+  totals: { nodeCapabilities: number; promptIntents: number };
+  drift: { status: string; missing: string[]; added: string[] };
+  lock: { present: boolean; path: string };
+}
