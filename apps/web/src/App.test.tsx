@@ -11,6 +11,7 @@ beforeEach(() => {
       if (url.includes("/overview")) return { nodes: [{ id: "layer:api", label: "api", level: "layer", layer: "api", symbolCount: 1, fanIn: 0, fanOut: 0, complexity: 0 }], edges: [] };
       if (url.includes("/files")) return { files: [] };
       if (url.includes("/api/stats")) return { nodes: 1, edges: 0, files: 1, languages: ["typescript"], enriched: 0 };
+      if (url.includes("/api/harness/activity")) return { entries: [], tally: [] };
       if (url.includes("/api/harness")) return { installed: [], totals: { nodeCapabilities: 0, promptIntents: 0 }, drift: { status: "ok", missing: [], added: [] }, lock: { present: false, path: "" } };
       if (url.includes("/api/trace/state")) return { nodes: [], edges: [], unmapped: 0, unmappedEdges: 0, windowMs: 30000 };
       if (url.includes("/api/processes")) return { processes: [] };

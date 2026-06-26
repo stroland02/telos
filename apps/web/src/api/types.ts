@@ -51,6 +51,10 @@ export interface HarnessStatus {
 // ── Token savings: cold-read baseline vs the warm-start brief ────────────────
 export interface TokenSavings { baselineTokens: number; packTokens: number; reductionPct: number; ratio: number; costSavedUsd: number; files: number; missing: number; }
 
+// ── Harness activity feed: recent orchestrations + which agents fired most ───
+export interface ActivityEntry { ts: number; promptSnippet: string; intent: string; agents: string[]; sources: string[]; }
+export interface ActivityFeed { entries: ActivityEntry[]; tally: { id: string; count: number }[]; }
+
 // ── Control rail status (assembled from existing reads/streams) ──────────────
 export interface GraphStats { nodes: number; edges: number; files: number; languages: string[]; enriched: number; }
 export interface TelosStatus {

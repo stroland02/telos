@@ -3,10 +3,17 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HarnessPanel } from "./HarnessPanel";
 import type { TelosApi } from "../api/client";
-import type { HarnessStatus } from "../api/types";
+import type { HarnessStatus, ActivityFeed } from "../api/types";
 
-function api(status: HarnessStatus): TelosApi {
-  return { harnessStatus: vi.fn().mockResolvedValue(status), harnessConfig: vi.fn().mockResolvedValue({ enabled: ["ecc"] }), harnessSelect: vi.fn().mockResolvedValue({ enabled: [] }) } as unknown as TelosApi;
+const emptyFeed: ActivityFeed = { entries: [], tally: [] };
+
+function api(status: HarnessStatus, activity: ActivityFeed = emptyFeed): TelosApi {
+  return {
+    harnessStatus: vi.fn().mockResolvedValue(status),
+    harnessConfig: vi.fn().mockResolvedValue({ enabled: ["ecc"] }),
+    harnessSelect: vi.fn().mockResolvedValue({ enabled: [] }),
+    harnessActivity: vi.fn().mockResolvedValue(activity),
+  } as unknown as TelosApi;
 }
 
 const status: HarnessStatus = {
@@ -45,5 +52,15 @@ describe("HarnessPanel", () => {
     expect(await screen.findByText("ecc:database-reviewer")).toBeTruthy();
     expect(screen.getByText("ecc:performance-optimizer")).toBeTruthy();
     expect(screen.getByText(/fires on: optimize, slow/)).toBeTruthy();
+  });
+
+  it("shows the activity feed and an agents-fired leaderboard", async () => {
+    const feed: ActivityFeed = {
+      entries: [{ ts: Date.now(), promptSnippet: "build a feature", intent: "feature build", agents: ["superpowers:brainstorming", "ecc:code-reviewer"], sources: ["superpowers", "ecc"] }],
+      tally: [{ id: "ecc:code-reviewer", count: 3 }],
+    };
+    render(<HarnessPanel open api={api(status, feed)} onClose={() => {}} />);
+    await waitFor(() => expect(screen.getByText("feature build")).toBeTruthy());
+    expect(screen.getByText(/ecc:code-reviewer · 3/)).toBeTruthy();
   });
 });

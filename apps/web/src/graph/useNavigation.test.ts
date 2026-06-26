@@ -42,6 +42,7 @@ function fakeApi(overrides: Partial<TelosApi> = {}): TelosApi {
     activationState: vi.fn().mockResolvedValue({ statusLinePresent: false }),
     harnessConfig: vi.fn().mockResolvedValue({ enabled: [] }),
     harnessSelect: vi.fn().mockResolvedValue({ enabled: [] }),
+    harnessActivity: vi.fn().mockResolvedValue({ entries: [], tally: [] }),
     ...overrides,
   };
 }

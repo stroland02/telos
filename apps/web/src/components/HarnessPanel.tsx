@@ -11,8 +11,8 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { TelosApi } from "../api/client";
-import { HarnessStatus } from "../api/types";
-import { Panel, Button } from "./ui";
+import { HarnessStatus, ActivityFeed } from "../api/types";
+import { Panel, Button, Badge } from "./ui";
 
 export function HarnessPanel({
   open, api, onClose,
@@ -20,6 +20,7 @@ export function HarnessPanel({
   const refreshRef = useRef<HTMLButtonElement>(null);
   const [status, setStatus] = useState<HarnessStatus | null>(null);
   const [enabled, setEnabled] = useState<string[]>([]);
+  const [activity, setActivity] = useState<ActivityFeed | null>(null);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -30,6 +31,7 @@ export function HarnessPanel({
       .catch(() => setStatus(null))
       .finally(() => setLoading(false));
     api.harnessConfig().then((c) => setEnabled(c.enabled)).catch(() => setEnabled([]));
+    api.harnessActivity().then(setActivity).catch(() => setActivity(null));
   }, [api]);
 
   const toggle = useCallback((source: string) => {
@@ -133,11 +135,55 @@ export function HarnessPanel({
                 <div>Lock: {status.lock.present ? "present" : "absent — run telos doctor"}</div>
                 <div>Drift: <span style={{ color: drift?.status === "drift" ? "var(--warn, #d29922)" : "var(--ok, #3fb950)" }}>{driftLabel}</span></div>
               </div>
+              <ActivitySection feed={activity} />
             </>
           )}
         </div>
     </Panel>
   );
+}
+
+/** Recent orchestrations + an "agents fired" leaderboard — proof the harnesses
+ *  are doing real work over time. Fed by GET /api/harness/activity. */
+function ActivitySection({ feed }: { feed: ActivityFeed | null }) {
+  const entries = feed?.entries ?? [];
+  const tally = feed?.tally ?? [];
+  return (
+    <div style={{ borderTop: "1px solid var(--border)", padding: "var(--s-3) var(--s-2)", fontFamily: "var(--font-ui)" }}>
+      <div style={{ color: "var(--text)", fontSize: "var(--t-body-size, 14px)", marginBottom: "var(--s-2)" }}>
+        Activity <span style={{ color: "var(--text-faint)" }}>(recent orchestrations)</span>
+      </div>
+      {entries.length === 0 && (
+        <div style={{ fontSize: "var(--t-meta-size)", color: "var(--text-faint)", fontStyle: "italic" }}>
+          No orchestrations yet — Telos records each prompt it routes through the hook.
+        </div>
+      )}
+      {tally.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: "var(--s-2)" }}>
+          {tally.slice(0, 6).map((t) => (
+            <Badge key={t.id} tone="accent">{t.id} · {t.count}</Badge>
+          ))}
+        </div>
+      )}
+      {entries.slice(0, 8).map((e, i) => (
+        <div key={`${e.ts}-${i}`} style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "2px 0", fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)" }}>
+          <span style={{ color: "var(--text-faint)", flexShrink: 0, width: 56 }}>{relTime(e.ts)}</span>
+          <span style={{ color: "var(--accent)", flexShrink: 0 }}>{e.intent}</span>
+          <span style={{ color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {e.agents.join(", ")}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function relTime(ts: number): string {
+  const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
 }
 
 function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {

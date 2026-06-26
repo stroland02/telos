@@ -1,4 +1,4 @@
-import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot, ProcessSample, ForgeState, HarnessStatus, GraphStats, ResolveState, TokenSavings } from "./types";
+import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot, ProcessSample, ForgeState, HarnessStatus, GraphStats, ResolveState, TokenSavings, ActivityFeed } from "./types";
 
 export interface TelosApi {
   overview(): Promise<GraphView>;
@@ -44,6 +44,8 @@ export interface TelosApi {
   /** Which harnesses are selected/active (autopilot). */
   harnessConfig(): Promise<{ enabled: string[] }>;
   harnessSelect(source: string, enabled: boolean): Promise<{ enabled: string[] }>;
+  /** Recent harness orchestrations + agent tally for the activity feed. */
+  harnessActivity(): Promise<ActivityFeed>;
 }
 
 export function createApi(baseUrl = ""): TelosApi {
@@ -132,5 +134,6 @@ export function createApi(baseUrl = ""): TelosApi {
       if (!res.ok) throw new Error(`harnessSelect -> ${res.status}`);
       return (await res.json()) as { enabled: string[] };
     },
+    harnessActivity: () => get<ActivityFeed>("/api/harness/activity"),
   };
 }
