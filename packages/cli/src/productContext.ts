@@ -13,8 +13,11 @@ export function productContextFromGraph(path: string): ProductContext {
   const dbPath = join(resolve(path), ".telos", "graph.db");
   if (!existsSync(dbPath)) return empty;
 
-  const store = GraphStore.open(dbPath);
+  // Open is inside the guard too: a corrupt/locked db must degrade to empty, not
+  // throw and break the prompt path.
+  let store: ReturnType<typeof GraphStore.open> | undefined;
   try {
+    store = GraphStore.open(dbPath);
     const { nodes } = store.loadGraph();
     const languages = new Set<string>();
     const layers = new Set<string>();
@@ -26,6 +29,6 @@ export function productContextFromGraph(path: string): ProductContext {
   } catch {
     return empty;
   } finally {
-    store.close();
+    try { store?.close(); } catch { /* already broken */ }
   }
 }

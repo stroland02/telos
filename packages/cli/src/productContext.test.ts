@@ -10,6 +10,22 @@ describe("productContextFromGraph", () => {
     });
   });
 
+  it("degrades to empty (never throws) on a corrupt graph.db", async () => {
+    const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const dir = mkdtempSync(join(tmpdir(), "telos-corrupt-"));
+    try {
+      mkdirSync(join(dir, ".telos"), { recursive: true });
+      writeFileSync(join(dir, ".telos", "graph.db"), "this is not a sqlite database");
+      expect(productContextFromGraph(dir)).toEqual({ languages: [], layers: [], changedFiles: [] });
+    } finally {
+      // On Windows the sqlite driver may briefly hold the corrupt file handle;
+      // tolerate the cleanup EPERM (the assertion above is what matters).
+      try { rmSync(dir, { recursive: true, force: true }); } catch { /* OS will reclaim temp */ }
+    }
+  });
+
   it("reads languages from the repo's own scanned graph when present", () => {
     // The repo root has a .telos/graph.db from prior scans in this workspace.
     const ctx = productContextFromGraph(".");
