@@ -40,6 +40,8 @@ export interface GraphProvider {
   getMeasure?(limit?: number): { baselineTokens: number; packTokens: number; reductionPct: number; ratio: number; costSavedUsd: number; files: number; missing: number };
   /** Optional: lightweight graph stats for the control rail footer. */
   getStats?(): { nodes: number; edges: number; files: number; languages: string[]; enriched: number };
+  /** Optional: recent harness orchestrations + agent tally for the activity feed. */
+  getActivity?(limit?: number): { entries: { ts: number; promptSnippet: string; intent: string; agents: string[]; sources: string[] }[]; tally: { id: string; count: number }[] };
   repoRoot: string | null;
 }
 
@@ -84,6 +86,13 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
     if (!provider.repoRoot) return { enabled: [] };
     const b = (req.body ?? {}) as { source?: string; enabled?: boolean };
     return setEnabled(provider.repoRoot, b.source as CapabilitySource, !!b.enabled);
+  });
+
+  // Harness activity feed: recent orchestrations + which agents fired most,
+  // so the web client can prove the harnesses are doing real work over time.
+  app.get("/api/harness/activity", async (req) => {
+    const limit = Number((req.query as { limit?: string }).limit) || undefined;
+    return provider.getActivity ? provider.getActivity(limit) : { entries: [], tally: [] };
   });
 
   // Harness cockpit: installed harnesses + enabled capability counts + drift,

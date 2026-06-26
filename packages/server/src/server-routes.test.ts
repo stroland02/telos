@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { GraphStore, TelosGraph } from "@telos/engine";
+import { recordActivity } from "@telos/harness";
 import { buildServer } from "./server.js";
 import { GraphService } from "./graphService.js";
 
@@ -82,6 +83,33 @@ describe("graph routes", () => {
     const get = await app.inject({ method: "GET", url: "/api/resolve/state" });
     expect(get.json().state.scanned).toBe(1);
     expect(get.json().state.findings[0].nodeId).toBe("s2");
+    await app.close(); svc.close();
+  });
+
+  it("GET /api/harness/activity returns recorded orchestrations + tally", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "telos-activity-routes-"));
+    dirs.push(dir);
+    const dbPath = join(dir, "graph.db");
+    const store = GraphStore.open(dbPath);
+    store.save(graph);
+    store.close();
+    recordActivity(join(dir, ".telos"), { ts: 1, promptSnippet: "build x", intent: "feature build", agents: ["ecc:code-reviewer"], sources: ["ecc"] });
+    const svc = GraphService.fromDb(dbPath, dir);
+    const app = buildServer(svc);
+    const res = await app.inject({ method: "GET", url: "/api/harness/activity" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.entries[0].intent).toBe("feature build");
+    expect(body.tally[0]).toEqual({ id: "ecc:code-reviewer", count: 1 });
+    await app.close(); svc.close();
+  });
+
+  it("GET /api/harness/activity is empty without a repoRoot", async () => {
+    const svc = service();
+    const app = buildServer(svc);
+    const res = await app.inject({ method: "GET", url: "/api/harness/activity" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ entries: [], tally: [] });
     await app.close(); svc.close();
   });
 

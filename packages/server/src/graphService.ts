@@ -7,7 +7,7 @@ import {
   buildContextPack, renderContextPack, measureSavings, type SavingsReport,
   TelosGraph, TelosNode, AggregatedGraph, GraphView, NodeDetail,
 } from "@telos/engine";
-import { recommend } from "@telos/harness";
+import { recommend, readActivity, type ActivityFeed } from "@telos/harness";
 import { GraphProvider, TraceHub } from "./server.js";
 
 export interface MeasureResult extends SavingsReport { files: number; missing: number }
@@ -56,6 +56,12 @@ export class GraphService implements GraphProvider {
     }
     const packText = renderContextPack(buildContextPack(this.graph, { limit }));
     return { ...measureSavings({ baselineChars, packText }), files, missing };
+  }
+
+  /** Recent harness orchestrations + agent tally, read from .telos/activity.jsonl. */
+  getActivity(limit?: number): ActivityFeed {
+    if (!this.repoRoot) return { entries: [], tally: [] };
+    return readActivity(join(this.repoRoot, ".telos"), limit);
   }
   getStats(): { nodes: number; edges: number; files: number; languages: string[]; enriched: number } {
     const nodes = this.graph.nodes;
