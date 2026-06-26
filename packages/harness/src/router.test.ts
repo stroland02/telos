@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { routePrompt, PromptCapability, PROMPT_CATALOG } from "./router.js";
+import { routePrompt, PromptCapability, PROMPT_CATALOG, scoreCapability, routeRoster } from "./router.js";
+import type { DiscoveredCapability, HarnessRoster } from "./discover.js";
 
 const CAT: PromptCapability[] = [
   { id: "superpowers:brainstorming", kind: "skill", source: "superpowers", title: "Brainstorm", triggers: ["build", "create"] },
@@ -67,5 +68,39 @@ describe("routeForHook", () => {
   it("excludes capabilities from disabled sources", () => {
     // headroom:compress triggers on "compress"; with only ecc enabled it must not appear
     expect(routeForHook("please compress the context", ["ecc"])).not.toMatch(/headroom/);
+  });
+});
+
+const cap = (id: string, source: string, description: string, triggers: string[]): DiscoveredCapability => ({
+  id, kind: "agent", source, title: id, description, triggers,
+});
+const ROSTER: HarnessRoster = {
+  capabilities: [
+    cap("ecc:react-reviewer", "ecc", "Review react component rendering and hooks", ["react", "component"]),
+    cap("ecc:python-reviewer", "ecc", "Review python migration and schema", ["python", "migration"]),
+  ],
+  sources: [],
+  scannedAt: 0,
+};
+
+describe("scoreCapability + routeRoster (H2)", () => {
+  it("ranks the capability whose triggers/description match the prompt first", () => {
+    const r = routeRoster("fix the react component render", ROSTER, ["ecc"]);
+    expect(r[0].capability.id).toBe("ecc:react-reviewer");
+  });
+
+  it("lets product context flip the ranking", () => {
+    const prompt = "review the migration";
+    const ctx = { languages: ["python"], layers: [], changedFiles: [] };
+    const withCtx = routeRoster(prompt, ROSTER, ["ecc"], ctx);
+    expect(withCtx[0].capability.id).toBe("ecc:python-reviewer");
+    // the +3 language boost is real
+    const pyCap = ROSTER.capabilities[1];
+    expect(scoreCapability(prompt, pyCap, ctx)).toBeGreaterThan(scoreCapability(prompt, pyCap));
+  });
+
+  it("excludes disabled sources and empty prompts", () => {
+    expect(routeRoster("react", ROSTER, [])).toEqual([]);
+    expect(routeRoster("", ROSTER, ["ecc"])).toEqual([]);
   });
 });

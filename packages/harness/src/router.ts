@@ -1,4 +1,5 @@
 import { CapabilityKind, CapabilitySource } from "./capability.js";
+import type { DiscoveredCapability, HarnessRoster } from "./discover.js";
 
 /**
  * A capability the router can suggest from the *prompt* a developer writes
@@ -62,4 +63,72 @@ export function routeForHook(
   const routed = routePrompt(prompt, catalog.filter((c) => allowed.has(c.source))).slice(0, limit);
   if (routed.length === 0) return "";
   return `Telos: for this task, use ${routed.map((r) => r.capability.id).join(", ")}.`;
+}
+
+// ---------------------------------------------------------------------------
+// Roster-based routing (H2): score the *live* discovered roster against the
+// prompt and the product graph, instead of the small hand-typed PROMPT_CATALOG.
+// ---------------------------------------------------------------------------
+
+/** What the product actually is, derived from the Telos graph, used to bias routing. */
+export interface ProductContext {
+  languages: string[];
+  layers: string[];
+  changedFiles: string[];
+}
+
+export interface RoutedRosterCapability {
+  capability: DiscoveredCapability;
+  score: number;
+}
+
+const STOP = new Set(["the", "and", "for", "with", "that", "this", "you", "your", "are", "from", "into", "a", "to", "of", "in", "on", "it", "is", "be", "do", "my", "we"]);
+
+function tokens(text: string): string[] {
+  return (text.toLowerCase().match(/[a-z][a-z0-9-]{2,}/g) ?? []).filter((t) => !STOP.has(t));
+}
+
+/**
+ * Deterministic relevance score for one capability against a prompt + product.
+ *  +2 per trigger substring found in the prompt,
+ *  +1 per term shared between the prompt and the capability's description/name,
+ *  +3 when a product language/layer appears in the capability id or description.
+ */
+export function scoreCapability(prompt: string, cap: DiscoveredCapability, ctx?: ProductContext): number {
+  const p = prompt.toLowerCase();
+  let score = 0;
+  for (const t of cap.triggers) if (p.includes(t)) score += 2;
+
+  const promptTerms = new Set(tokens(prompt));
+  const capTerms = new Set([...tokens(cap.description), ...tokens(cap.title), ...tokens(cap.id)]);
+  for (const t of promptTerms) if (capTerms.has(t)) score += 1;
+
+  if (ctx) {
+    const hay = `${cap.id} ${cap.description}`.toLowerCase();
+    for (const lang of ctx.languages) if (lang && hay.includes(lang.toLowerCase())) score += 3;
+    for (const layer of ctx.layers) if (layer && hay.includes(layer.toLowerCase())) score += 3;
+  }
+  return score;
+}
+
+/**
+ * Rank the live roster for a prompt, restricted to enabled sources. Returns only
+ * positive matches, most-relevant first (ties broken by id). Empty enabledSources
+ * or empty prompt → no matches.
+ */
+export function routeRoster(
+  prompt: string,
+  roster: HarnessRoster,
+  enabledSources: string[],
+  ctx?: ProductContext,
+  limit = 3,
+): RoutedRosterCapability[] {
+  if (!prompt.trim() || enabledSources.length === 0) return [];
+  const allowed = new Set(enabledSources);
+  return roster.capabilities
+    .filter((c) => allowed.has(c.source))
+    .map((capability) => ({ capability, score: scoreCapability(prompt, capability, ctx) }))
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score || a.capability.id.localeCompare(b.capability.id))
+    .slice(0, limit);
 }
