@@ -25,6 +25,15 @@ export interface SavingsReport {
   ratio: number;
   /** Estimated input-cost saved per warm-start at the given $/Mtok rate. */
   costSavedUsd: number;
+  /**
+   * HONEST baseline: tokens to read just the handful of most-central files a
+   * *smart* agent would open to orient (not the whole repo). 0 when not supplied.
+   * The exhaustive `baselineTokens` is a best-case upper bound; this is the
+   * realistic, defensible comparison.
+   */
+  selectiveBaselineTokens: number;
+  /** Brief size relative to the selective baseline (selective / pack), 1 when none. */
+  selectiveRatio: number;
 }
 
 /**
@@ -37,6 +46,8 @@ export function measureSavings(args: {
   baselineChars: number;
   packText: string;
   usdPerMtokInput?: number;
+  /** Chars of just the most-central files a smart agent reads to orient. */
+  selectiveBaselineChars?: number;
 }): SavingsReport {
   const usdPerMtok = args.usdPerMtokInput ?? 3.0;
   const baselineTokens = Math.ceil(Math.max(0, args.baselineChars) / 4);
@@ -46,5 +57,8 @@ export function measureSavings(args: {
     : 0;
   const ratio = baselineTokens > 0 && packTokens > 0 ? baselineTokens / packTokens : 1;
   const costSavedUsd = Math.max(0, baselineTokens - packTokens) / 1_000_000 * usdPerMtok;
-  return { baselineTokens, packTokens, reductionPct, ratio, costSavedUsd };
+  const selectiveBaselineTokens = Math.ceil(Math.max(0, args.selectiveBaselineChars ?? 0) / 4);
+  const selectiveRatio = selectiveBaselineTokens > 0 && packTokens > 0
+    ? selectiveBaselineTokens / packTokens : 1;
+  return { baselineTokens, packTokens, reductionPct, ratio, costSavedUsd, selectiveBaselineTokens, selectiveRatio };
 }

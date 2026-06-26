@@ -120,6 +120,9 @@ describe("runMeasure", () => {
     expect(r.baselineTokens).toBeGreaterThan(0); // real source was sized
     expect(r.packTokens).toBeGreaterThan(0);
     expect(r.reductionPct).toBeGreaterThanOrEqual(0); // savings are a large-repo property
+    // The honest selective baseline is computed and never exceeds the exhaustive one.
+    expect(r.selectiveBaselineTokens).toBeGreaterThanOrEqual(0);
+    expect(r.selectiveBaselineTokens).toBeLessThanOrEqual(r.baselineTokens);
     // The savings MATH itself (positive reduction at scale) is covered in engine/measure.test.ts.
   });
 });

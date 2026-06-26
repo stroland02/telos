@@ -31,4 +31,19 @@ describe("measureSavings", () => {
     // 1,000,000 baseline tokens saved * $10/Mtok = $10
     expect(r.costSavedUsd).toBeCloseTo(10, 5);
   });
+
+  it("reports an HONEST selective baseline alongside the exhaustive one", () => {
+    // Exhaustive = all files (400k chars); selective = the few central files (40k chars).
+    const r = measureSavings({ baselineChars: 400_000, selectiveBaselineChars: 40_000, packText: "x".repeat(4_000) });
+    expect(r.baselineTokens).toBe(100_000);          // read everything
+    expect(r.selectiveBaselineTokens).toBe(10_000);  // read just the central files
+    expect(Math.round(r.ratio)).toBe(100);           // best-case headline
+    expect(Math.round(r.selectiveRatio)).toBe(10);   // honest, realistic ratio
+  });
+
+  it("selective fields default to a neutral 0/1 when not supplied", () => {
+    const r = measureSavings({ baselineChars: 400_000, packText: "x".repeat(4_000) });
+    expect(r.selectiveBaselineTokens).toBe(0);
+    expect(r.selectiveRatio).toBe(1);
+  });
 });

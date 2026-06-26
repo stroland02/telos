@@ -194,16 +194,27 @@ export function runMeasure(path: string, opts: { limit?: number; rate?: number }
   const store = GraphStore.open(dbPath);
   try {
     const graph = store.loadGraph();
+    const limit = Math.max(1, opts.limit ?? 12);
     let baselineChars = 0, files = 0, missing = 0;
+    const fileSizes: { score: number; size: number }[] = [];
     for (const n of graph.nodes) {
       if (n.kind !== "file") continue;
       files++;
-      try { baselineChars += statSync(join(repo, n.path)).size; }
-      catch { missing++; }
+      try {
+        const size = statSync(join(repo, n.path)).size;
+        baselineChars += size;
+        // Centrality proxy: how many things depend on it + how complex it is.
+        fileSizes.push({ score: (n.fanIn ?? 0) + (n.complexity ?? 0) + (n.lines ?? 0) / 100, size });
+      } catch { missing++; }
     }
-    const limit = Math.max(1, opts.limit ?? 12);
+    // HONEST baseline: the on-disk size of just the `limit` most-central files a
+    // smart agent would open to orient — not the whole repo.
+    const selectiveBaselineChars = fileSizes
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .reduce((sum, f) => sum + f.size, 0);
     const packText = renderContextPack(buildContextPack(graph, { limit }));
-    const report = measureSavings({ baselineChars, packText, usdPerMtokInput: opts.rate });
+    const report = measureSavings({ baselineChars, packText, usdPerMtokInput: opts.rate, selectiveBaselineChars });
     return { ...report, files, missing, limit, packText };
   } finally {
     store.close();
@@ -478,12 +489,14 @@ export function buildProgram(): Command {
       }
       const fmt = (n: number) => n.toLocaleString("en-US");
       console.log("Telos context-memory — token savings\n");
-      console.log(`  Cold read (${r.files} source files): ~${fmt(r.baselineTokens)} tokens`);
-      console.log(`  Telos warm-start brief:             ~${fmt(r.packTokens)} tokens`);
-      console.log(`  Reduction:                          ${r.reductionPct.toFixed(1)}%  (${r.ratio.toFixed(1)}× smaller)`);
-      console.log(`  Est. input cost saved / warm-start: $${r.costSavedUsd.toFixed(4)}  (@ $${opts.rate}/Mtok)`);
+      console.log(`  Telos warm-start brief:               ~${fmt(r.packTokens)} tokens`);
+      console.log("");
+      console.log(`  vs reading the ${r.limit} most-central files (realistic): ~${fmt(r.selectiveBaselineTokens)} tokens  →  ${r.selectiveRatio.toFixed(1)}× smaller`);
+      console.log(`  vs reading all ${r.files} source files (best case):      ~${fmt(r.baselineTokens)} tokens  →  ${r.ratio.toFixed(1)}× smaller`);
+      console.log(`  Est. input cost saved / warm-start:   $${r.costSavedUsd.toFixed(4)}  (@ $${opts.rate}/Mtok, vs all files)`);
       if (r.missing > 0) console.log(`  (note: ${r.missing} file(s) not found on disk were skipped in the baseline)`);
-      console.log("\n  An agent that starts from this brief skips reading the repo cold to orient.");
+      console.log("\n  Honest read: the realistic ratio is what a smart agent saves by orienting from the");
+      console.log("  brief instead of opening the central files; the best-case assumes reading everything.");
     });
   program.command("harness [path]").description("Show the harness cockpit; --enable/--disable selects which harnesses are active (autopilot); --verify proves routing")
     .option("--json", "emit the raw HarnessStatus JSON", false)
