@@ -12,3 +12,4 @@ export * from "./discover.js";
 export * from "./roster.js";
 export * from "./workflows.js";
 export * from "./renderPlan.js";
+export * from "./activity.js";

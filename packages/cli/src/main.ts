@@ -9,7 +9,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
-import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, recommend, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus, activate, deactivate, statusLineText, routeForHook, readConfig, setEnabled, ALL_SOURCES, type CapabilitySource, loadRoster, planWorkflow, renderPlan } from "@telos/harness";
+import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, recommend, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus, activate, deactivate, statusLineText, routeForHook, readConfig, setEnabled, ALL_SOURCES, type CapabilitySource, loadRoster, planWorkflow, renderPlan, recordActivity } from "@telos/harness";
 import { productContextFromGraph } from "./productContext.js";
 import { runForge, stubDriver, claudeAgentDriver, ForgeRunResult } from "@telos/forge";
 import { runResolve, stubReviewDriver, claudeReviewDriver, type ResolveState } from "@telos/resolve";
@@ -703,7 +703,17 @@ export function buildProgram(): Command {
         const hookCtx = productContextFromGraph(cwd);
         const plan = planWorkflow(userPrompt, loadRoster({ telosDir: join(cwd, ".telos") }), enabled, hookCtx);
         const block = renderPlan(plan, hookCtx);
-        if (block) console.log(block); // injected as context for this prompt
+        if (block) {
+          console.log(block); // injected as context for this prompt
+          const agents = plan.steps.flatMap((s) => s.agents.map((a) => a.id));
+          recordActivity(join(cwd, ".telos"), {
+            ts: Date.now(),
+            promptSnippet: userPrompt.slice(0, 120),
+            intent: plan.intent,
+            agents,
+            sources: [...new Set(agents.map((id) => id.split(":")[0]))],
+          });
+        }
         return;
       }
 
