@@ -1,5 +1,5 @@
 import type { DiscoveredCapability, HarnessRoster } from "./discover.js";
-import { routeRoster, type ProductContext } from "./router.js";
+import { routePrompt, PROMPT_CATALOG, type ProductContext } from "./router.js";
 
 // A role is an abstract slot in a workflow ("the language reviewer"); the planner
 // resolves it to a concrete discovered capability using the product graph, so a
@@ -14,7 +14,8 @@ export type WorkflowRole =
   | "debugger"
   | "perf"
   | "db-reviewer"
-  | "compressor";
+  | "compressor"
+  | "doc";
 
 export interface WorkflowStep {
   phase: string;
@@ -52,7 +53,9 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     title: "Feature build",
     intent: "feature build",
     sources: ["superpowers", "ecc"],
-    triggers: ["build", "create", "add a feature", "new feature", "implement", "feature"],
+    // Require a concrete "build/add/implement a THING" phrasing — bare "build"
+    // or "feature" over-triggered on meta-prompts ("keep building", "this feature").
+    triggers: ["build a", "build an", "create a", "create an", "add a new", "new feature", "add a feature", "implement a", "implement the", "add support for", "let's build", "let me build"],
     steps: [
       { phase: "design", parallel: false, roles: ["designer"] },
       { phase: "plan", parallel: false, roles: ["planner"] },
@@ -98,8 +101,24 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     title: "Context compression",
     intent: "context compression",
     sources: ["headroom"],
-    triggers: ["too many tokens", "compress", "too long", "reduce cost", "context too"],
+    triggers: ["too many tokens", "compress the context", "reduce token", "context too long"],
     steps: [{ phase: "compress", parallel: false, roles: ["compressor"] }],
+  },
+  {
+    id: "test",
+    title: "Testing",
+    intent: "testing",
+    sources: ["superpowers", "ecc"],
+    triggers: ["write tests", "write unit tests", "add tests", "test coverage", "unit test", "tdd"],
+    steps: [{ phase: "test", parallel: false, roles: ["tester"] }],
+  },
+  {
+    id: "docs",
+    title: "Documentation",
+    intent: "documentation",
+    sources: ["ecc"],
+    triggers: ["update the readme", "update docs", "write docs", "documentation", "changelog", "readme"],
+    steps: [{ phase: "docs", parallel: false, roles: ["doc"] }],
   },
 ];
 
@@ -115,6 +134,7 @@ const ROLE_PREFERENCES: Record<Exclude<WorkflowRole, "language-reviewer">, strin
   perf: ["ecc:performance-optimizer"],
   "db-reviewer": ["ecc:database-reviewer"],
   compressor: ["headroom:compress"],
+  doc: ["ecc:doc-updater"],
 };
 
 function languageReviewerId(ctx?: ProductContext): string[] {
@@ -169,6 +189,7 @@ function whyFor(role: WorkflowRole): string {
     perf: "profile the hot path",
     "db-reviewer": "check the data layer",
     compressor: "cut context tokens",
+    doc: "update the docs",
   };
   return reasons[role];
 }
@@ -202,15 +223,20 @@ export function planWorkflow(
     }
   }
 
-  // Fallback: flat assist routing.
-  const routed = routeRoster(prompt, roster, enabledSources, ctx, 3);
-  if (routed.length === 0) {
-    return { intent: "assist", template: null, steps: [], rationale: "no matching capabilities" };
+  // Fallback: route over the CURATED prompt catalog (14 vetted intents), NOT the
+  // full 352-capability roster — scoring all of them by description overlap surfaces
+  // noise (e.g. "ecc:gget" for "how do I run the dev server?"). When nothing in the
+  // curated set matches, return an empty plan so the hook injects NOTHING — silence
+  // beats a wrong, token-wasting suggestion on questions/explanations.
+  const allowed = new Set(enabledSources);
+  const curated = routePrompt(prompt, PROMPT_CATALOG.filter((c) => allowed.has(c.source))).slice(0, 3);
+  if (curated.length === 0) {
+    return { intent: "assist", template: null, steps: [], rationale: "no confident match — staying silent" };
   }
   return {
     intent: "assist",
     template: null,
-    steps: [{ phase: "assist", parallel: true, agents: routed.map((r) => ({ id: r.capability.id, why: "relevant to this prompt" })) }],
-    rationale: "best-matching capabilities for this prompt",
+    steps: [{ phase: "assist", parallel: true, agents: curated.map((r) => ({ id: r.capability.id, why: "relevant to this prompt" })) }],
+    rationale: "curated capabilities for this prompt",
   };
 }

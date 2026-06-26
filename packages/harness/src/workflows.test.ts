@@ -19,6 +19,7 @@ const ROSTER: HarnessRoster = {
     cap("ecc:python-reviewer", "ecc"),
     cap("ecc:performance-optimizer", "ecc"),
     cap("ecc:database-reviewer", "ecc"),
+    cap("ecc:doc-updater", "ecc"),
   ],
   sources: [],
   scannedAt: 0,
@@ -50,6 +51,36 @@ describe("planWorkflow", () => {
     const plan = planWorkflow("explain how the authentication token works", ROSTER, ALL);
     expect(plan.template).toBeNull();
     expect(plan.intent).toBe("assist");
+  });
+
+  // ── Routing-quality hardening (audit remediation) ──────────────────────────
+  it("routes write-tests to the test template, docs to the docs template", () => {
+    expect(planWorkflow("write unit tests for the graph store", ROSTER, ALL).template).toBe("test");
+    expect(planWorkflow("update the readme with the new commands", ROSTER, ALL).template).toBe("docs");
+  });
+
+  it("does NOT classify meta/QA prompts containing 'build' as feature-build", () => {
+    expect(planWorkflow("let's keep building upon the tests and audit things", ROSTER, ALL).template).not.toBe("feature-build");
+    expect(planWorkflow("a serious quality audit testing phase", ROSTER, ALL).template).not.toBe("feature-build");
+    // but concrete build requests still work
+    expect(planWorkflow("build a new settings page", ROSTER, ALL).template).toBe("feature-build");
+    expect(planWorkflow("add a new dashboard feature with a chart", ROSTER, ALL).template).toBe("feature-build");
+  });
+
+  it("stays SILENT (empty plan) when nothing confident matches — no token-wasting garbage", () => {
+    for (const q of ["how do I run the dev server?", "what does the resolver actually do?", "rename the variable userId to accountId"]) {
+      const plan = planWorkflow(q, ROSTER, ALL);
+      expect(plan.steps.flatMap((s) => s.agents)).toEqual([]); // injects nothing
+    }
+  });
+
+  it("fallback only ever surfaces curated capabilities, never arbitrary roster skills", () => {
+    // "optimize" hits the perf template; a vague prompt with a curated keyword
+    // ("security") routes to the curated agent, not a random roster entry.
+    const plan = planWorkflow("think about the security of this", ROSTER, ALL);
+    const ids = plan.steps.flatMap((s) => s.agents.map((a) => a.id));
+    expect(ids.every((id) => id.startsWith("superpowers:") || id.startsWith("ecc:") || id.startsWith("headroom:"))).toBe(true);
+    expect(ids).not.toContain("ecc:gget");
   });
 
   it("drops roles whose source is disabled", () => {
