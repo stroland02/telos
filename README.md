@@ -50,6 +50,9 @@ The same graph is consumed **many ways**:
 - **Semantic brain** — heuristic or local-LLM (Ollama) enrichment fills summaries, layers, and a
   dependency-ordered tour.
 - **Harness cockpit** — orchestrate + curate ECC / Superpowers / Headroom, with drift detection.
+- **Dynamic harness orchestration** — Telos scans your *installed* agents/skills (350+ across the
+  three harnesses), and for each prompt plans a product-aware multi-agent workflow, injects a visible
+  plan into the chat, and records every orchestration to a live activity feed.
 - **Mission-control sidebar** — search, view controls, every feature, and live status in one rail.
 
 ## 🚀 Quick start
@@ -142,6 +145,7 @@ apps/
 - ✅ **Phase 3** — semantic brain (enrich/tour/ask) + local-LLM enrichment
 - ✅ **Phase 4 (slice 1)** — Telos Forge build loop
 - ✅ **Distribution** — packaged for `npm i -g telos`
+- ✅ **Dynamic harness orchestration** — live roster scan, product-aware multi-agent planner, in-chat plan + activity feed
 - 🔜 **More languages** — Go, Rust, Java, … via `telos add-language`
 
 ## 🛠️ Development
