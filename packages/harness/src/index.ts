@@ -8,3 +8,5 @@ export * from "./setup.js";
 export * from "./status.js";
 export * from "./activate.js";
 export * from "./config.js";
+export * from "./discover.js";
+export * from "./roster.js";

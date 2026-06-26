@@ -3,6 +3,7 @@ import { PromptCapability } from "./router.js";
 import { HarnessInstall } from "./setup.js";
 import { HarnessLock } from "./lock.js";
 import { DriftReport, diffLock } from "./doctor.js";
+import type { HarnessRoster } from "./discover.js";
 
 // One curated agent/skill a harness provides — the row the details view lists.
 // `activation` tells you HOW Telos picks it: "node" = matched from a code node's
@@ -42,8 +43,15 @@ export function buildHarnessStatus(args: {
   nodeCatalog: Capability[];
   promptCatalog: PromptCapability[];
   installs: HarnessInstall[];
+  roster?: HarnessRoster;
 }): HarnessStatus {
-  const { lockPath, lock, nodeCatalog, promptCatalog, installs } = args;
+  const { lockPath, lock, nodeCatalog, promptCatalog, installs, roster } = args;
+  // When a live roster is supplied, the per-harness capability count reflects what
+  // is actually installed on disk (agents + skills) rather than the curated catalog.
+  const liveCount = (source: CapabilitySource): number | undefined => {
+    const info = roster?.sources.find((s) => s.source === source && s.state === "installed");
+    return info ? info.counts.agents + info.counts.skills : undefined;
+  };
   const rosterFor = (source: CapabilitySource): HarnessCapabilityRow[] => [
     ...nodeCatalog
       .filter((c) => c.source === source)
@@ -56,7 +64,7 @@ export function buildHarnessStatus(args: {
     source: i.source,
     title: i.title,
     repo: i.repo,
-    nodeCapabilities: nodeCatalog.filter((c) => c.source === i.source).length,
+    nodeCapabilities: liveCount(i.source) ?? nodeCatalog.filter((c) => c.source === i.source).length,
     capabilities: rosterFor(i.source),
   }));
   const drift: DriftReport = lock
