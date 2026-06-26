@@ -59,12 +59,21 @@ describe("planWorkflow", () => {
     expect(planWorkflow("update the readme with the new commands", ROSTER, ALL).template).toBe("docs");
   });
 
-  it("does NOT classify meta/QA prompts containing 'build' as feature-build", () => {
+  it("does NOT classify meta/QA prompts as feature-build (substring-collision guard)", () => {
     expect(planWorkflow("let's keep building upon the tests and audit things", ROSTER, ALL).template).not.toBe("feature-build");
     expect(planWorkflow("a serious quality audit testing phase", ROSTER, ALL).template).not.toBe("feature-build");
-    // but concrete build requests still work
+    // "implement all" / "implement authentication" must NOT match the "implement a " trigger
+    expect(planWorkflow("implement all different testing strategies", ROSTER, ALL).template).not.toBe("feature-build");
+    expect(planWorkflow("explain how we implement authentication", ROSTER, ALL).template).not.toBe("feature-build");
+    // concrete build requests still work
     expect(planWorkflow("build a new settings page", ROSTER, ALL).template).toBe("feature-build");
     expect(planWorkflow("add a new dashboard feature with a chart", ROSTER, ALL).template).toBe("feature-build");
+    expect(planWorkflow("implement a dark-mode toggle", ROSTER, ALL).template).toBe("feature-build");
+  });
+
+  it("routes testing/QA work to the test template (incl. 'implement testing strategies')", () => {
+    expect(planWorkflow("implement all different testing strategies", ROSTER, ALL).template).toBe("test");
+    expect(planWorkflow("add integration test coverage", ROSTER, ALL).template).toBe("test");
   });
 
   it("stays SILENT (empty plan) when nothing confident matches — no token-wasting garbage", () => {

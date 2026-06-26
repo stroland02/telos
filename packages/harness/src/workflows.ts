@@ -53,9 +53,10 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     title: "Feature build",
     intent: "feature build",
     sources: ["superpowers", "ecc"],
-    // Require a concrete "build/add/implement a THING" phrasing — bare "build"
-    // or "feature" over-triggered on meta-prompts ("keep building", "this feature").
-    triggers: ["build a", "build an", "create a", "create an", "add a new", "new feature", "add a feature", "implement a", "implement the", "add support for", "let's build", "let me build"],
+    // Require a concrete "build/add/implement a THING" phrasing. Trailing spaces
+    // make the short-word triggers collision-safe: "implement a " does NOT match
+    // "implement all" / "implement authentication"; bare "build"/"feature" are out.
+    triggers: ["build a ", "build an ", "create a ", "create an ", "add a new ", "new feature", "add a feature", "implement a ", "implement support", "add support for", "scaffold a ", "let's build a", "let me build a"],
     steps: [
       { phase: "design", parallel: false, roles: ["designer"] },
       { phase: "plan", parallel: false, roles: ["planner"] },
@@ -109,7 +110,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     title: "Testing",
     intent: "testing",
     sources: ["superpowers", "ecc"],
-    triggers: ["write tests", "write unit tests", "add tests", "test coverage", "unit test", "tdd"],
+    triggers: ["write tests", "write unit tests", "add tests", "test coverage", "unit test", "tdd", "test suite", "testing strateg", "test strateg", "acceptance test", "integration test", "system test", "regression test", "quality assurance"],
     steps: [{ phase: "test", parallel: false, roles: ["tester"] }],
   },
   {
