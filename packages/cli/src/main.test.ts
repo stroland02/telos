@@ -34,6 +34,26 @@ describe("telos route command", () => {
     const names = buildProgram().commands.map((c) => c.name());
     expect(names).toContain("route");
   });
+
+  it("exposes the planner --hook and --legacy options", () => {
+    const route = buildProgram().commands.find((c) => c.name() === "route")!;
+    const flags = route.options.map((o) => o.long);
+    expect(flags).toContain("--hook");
+    expect(flags).toContain("--legacy");
+  });
+
+  it("prints an orchestration plan block or a no-match line for a prompt", async () => {
+    const out: string[] = [];
+    const spy = vi.spyOn(console, "log").mockImplementation((...a) => { out.push(a.join(" ")); });
+    try {
+      await buildProgram().parseAsync(["node", "telos", "route", "build a new feature"]);
+    } finally {
+      spy.mockRestore();
+    }
+    const text = out.join("\n");
+    expect(text === "" ? "No harness capability matched this prompt." : text)
+      .toMatch(/⟢ Telos|No harness capability matched/);
+  });
 });
 
 describe("telos setup command", () => {

@@ -9,7 +9,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
-import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, recommend, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus, activate, deactivate, statusLineText, routeForHook, readConfig, setEnabled, ALL_SOURCES, type CapabilitySource } from "@telos/harness";
+import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, recommend, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus, activate, deactivate, statusLineText, routeForHook, readConfig, setEnabled, ALL_SOURCES, type CapabilitySource, loadRoster, planWorkflow, renderPlan } from "@telos/harness";
+import { productContextFromGraph } from "./productContext.js";
 import { runForge, stubDriver, claudeAgentDriver, ForgeRunResult } from "@telos/forge";
 import { runResolve, stubReviewDriver, claudeReviewDriver, type ResolveState } from "@telos/resolve";
 import { pathToFileURL } from "node:url";
@@ -684,21 +685,33 @@ export function buildProgram(): Command {
       if (report.missing.length) console.warn(`  removed/renamed (pinned but gone): ${report.missing.join(", ")}`);
       if (report.added.length) console.warn(`  new (not yet pinned): ${report.added.join(", ")}`);
     });
-  program.command("route [prompt]").description("Suggest harness capabilities for a prompt; --hook reads a UserPromptSubmit event from stdin and prints a routing nudge")
-    .option("--hook", "act as a Claude Code UserPromptSubmit hook (stdin JSON in, one-line nudge out)", false)
-    .action(async (prompt: string | undefined, opts: { hook: boolean }) => {
+  program.command("route [prompt]").description("Plan a multi-agent harness workflow for a prompt; --hook reads a UserPromptSubmit event from stdin and injects the plan")
+    .option("--hook", "act as a Claude Code UserPromptSubmit hook (stdin JSON in, orchestration plan out)", false)
+    .option("--legacy", "use the old one-line routing nudge instead of the planner", false)
+    .action(async (prompt: string | undefined, opts: { hook: boolean; legacy: boolean }) => {
+      const cwd = resolve(".");
+      const enabled = readConfig(cwd).enabled;
+
       if (opts.hook) {
         let userPrompt = "";
         try { userPrompt = (JSON.parse(await readStdin()) as { prompt?: string }).prompt ?? ""; } catch { /* not JSON — emit nothing */ }
-        const line = routeForHook(userPrompt, readConfig(resolve(".")).enabled);
-        if (line) console.log(line); // injected as context for this prompt
+        if (opts.legacy) {
+          const line = routeForHook(userPrompt, enabled);
+          if (line) console.log(line);
+          return;
+        }
+        const hookCtx = productContextFromGraph(cwd);
+        const plan = planWorkflow(userPrompt, loadRoster({ telosDir: join(cwd, ".telos") }), enabled, hookCtx);
+        const block = renderPlan(plan, hookCtx);
+        if (block) console.log(block); // injected as context for this prompt
         return;
       }
+
       if (!prompt) { console.log("Provide a prompt, or use --hook for stdin mode."); return; }
-      const routed = routePrompt(prompt, PROMPT_CATALOG);
-      if (routed.length === 0) { console.log("No harness capability matched this prompt."); return; }
-      console.log("Suggested capabilities:");
-      for (const r of routed) console.log(`  ${r.capability.id} — ${r.capability.title}  (score ${r.score})`);
+      const ctx = productContextFromGraph(cwd);
+      const plan = planWorkflow(prompt, loadRoster({ telosDir: join(cwd, ".telos") }), enabled, ctx);
+      const block = renderPlan(plan, ctx);
+      console.log(block || "No harness capability matched this prompt.");
     });
   return program;
 }
