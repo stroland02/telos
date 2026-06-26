@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "type": "module",
   "bin": {
-    "telos": "dist/main.js"
+    "telos": "dist/main.js",
+    "telos-hook": "dist/hook.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

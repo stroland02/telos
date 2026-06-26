@@ -9,7 +9,7 @@ import { defineConfig } from "tsup";
  * produce a duplicate shebang and a syntax error).
  */
 export default defineConfig({
-  entry: { main: "src/main.ts" },
+  entry: { main: "src/main.ts", hook: "src/hook.ts" },
   outDir: "dist-bundle",
   format: ["esm"],
   target: "node20",

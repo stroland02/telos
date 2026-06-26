@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { resolve, join } from "node:path";
+import { resolve, join, dirname } from "node:path";
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { scan, GraphStore, enrichGraph, heuristicEnricher, createLlmEnricher, buildTour, askGraph, ProcessSample, LANGUAGES_DIR, buildContextPack, renderContextPack, measureSavings, webDistDir, type ContextPack, type SavingsReport, type TelosNode } from "@telos/engine";
@@ -11,13 +11,17 @@ import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
 import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, recommend, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus, activate, deactivate, statusLineText, routeForHook, readConfig, setEnabled, ALL_SOURCES, type CapabilitySource, loadRoster, planWorkflow, renderPlan, recordActivity } from "@telos/harness";
 import { productContextFromGraph } from "./productContext.js";
+import { writeProductContextCache } from "./productContextCache.js";
 import { runForge, stubDriver, claudeAgentDriver, ForgeRunResult } from "@telos/forge";
 import { runResolve, stubReviewDriver, claudeReviewDriver, type ResolveState } from "@telos/resolve";
 import { pathToFileURL } from "node:url";
 import open from "open";
 
 export async function runScan(path: string): Promise<{ nodeCount: number; edgeCount: number; dbPath: string }> {
-  const { dbPath, graph } = await scan(resolve(path));
+  const repo = resolve(path);
+  const { dbPath, graph } = await scan(repo);
+  // Refresh the engine-free product-context cache the fast hook reads per prompt.
+  writeProductContextCache(join(repo, ".telos"), productContextFromGraph(repo));
   return { nodeCount: graph.nodes.length, edgeCount: graph.edges.length, dbPath };
 }
 
@@ -85,6 +89,23 @@ export function telosInvocation(env: NodeJS.ProcessEnv = process.env): string {
   const dirs = (env.PATH ?? "").split(isWin ? ";" : ":").filter(Boolean);
   const onPath = dirs.some((dir) => exts.some((ext) => existsSync(join(dir, `telos${ext}`))));
   return onPath ? "telos" : `node "${fileURLToPath(import.meta.url)}"`;
+}
+
+/**
+ * How Claude Code should invoke the FAST per-prompt hook. Prefers the dedicated
+ * lightweight `telos-hook` bin (engine-free, ~150ms) when on PATH; falls back to
+ * `node "<dist/hook.js>"`, and finally to the full `telos route --hook` (~1s)
+ * only when neither is resolvable. Exported for testing.
+ */
+export function telosHookInvocation(env: NodeJS.ProcessEnv = process.env): string {
+  const isWin = process.platform === "win32";
+  const exts = isWin ? (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";") : [""];
+  const dirs = (env.PATH ?? "").split(isWin ? ";" : ":").filter(Boolean);
+  const onPath = dirs.some((dir) => exts.some((ext) => existsSync(join(dir, `telos-hook${ext}`))));
+  if (onPath) return "telos-hook";
+  const hookJs = join(dirname(fileURLToPath(import.meta.url)), "hook.js");
+  if (existsSync(hookJs)) return `node "${hookJs}"`;
+  return `${telosInvocation(env)} route --hook`;
 }
 
 export async function runStatusLine(path: string): Promise<string> {
@@ -558,7 +579,7 @@ export function buildProgram(): Command {
       const cmd = telosInvocation();
       const st = activate(repo, {
         statusLineCommand: `${cmd} status --line`,
-        hookCommand: `${cmd} route --hook`,
+        hookCommand: telosHookInvocation(), // fast engine-free per-prompt hook (~150ms vs ~1s)
       });
       runDoctor(join(repo, ".telos", "harness.lock"));
       console.log(`◇ Telos engaged — statusline + per-prompt routing hook written to ${st.settingsPath}`);

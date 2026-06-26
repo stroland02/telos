@@ -36,6 +36,7 @@ run("pnpm --filter @telos/cli bundle");
 // 2. Assemble the published layout.
 mkdirSync(join(here, "dist"), { recursive: true });
 copy("packages/cli/dist-bundle/main.js", "dist/main.js");
+copy("packages/cli/dist-bundle/hook.js", "dist/hook.js");
 copy("packages/engine/grammars", "grammars");
 copy("packages/engine/languages", "languages");
 copy("apps/web/dist", "web");
