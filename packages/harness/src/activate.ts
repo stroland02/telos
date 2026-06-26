@@ -73,13 +73,16 @@ function hookPresent(settings: Record<string, unknown>): boolean {
   return !!(hooks && Array.isArray(hooks.UserPromptSubmit) && (hooks.UserPromptSubmit as unknown[]).some(isTelosHookEntry));
 }
 
-/** Write the statusLine (and, when hookCommand is given, the UserPromptSubmit
- *  routing hook) into <repo>/.claude/settings.json, preserving all other keys. */
-export function activate(repoRoot: string, opts: { statusLineCommand?: string; hookCommand?: string } = {}): ActivationState {
+/** Write BOTH the statusLine and the UserPromptSubmit routing hook into
+ *  <repo>/.claude/settings.json, preserving all other keys. The routing hook is
+ *  what actually engages Telos on every prompt, so it is installed by default —
+ *  pass `hookCommand: null` only for the rare statusline-only case. */
+export function activate(repoRoot: string, opts: { statusLineCommand?: string; hookCommand?: string | null } = {}): ActivationState {
   const p = settingsPathFor(repoRoot);
   const settings = readSettings(p);
   settings.statusLine = { type: "command", command: opts.statusLineCommand ?? "telos status --line" };
-  if (opts.hookCommand) setUserPromptHook(settings, opts.hookCommand);
+  const hookCommand = opts.hookCommand === null ? null : (opts.hookCommand ?? "telos route --hook");
+  if (hookCommand) setUserPromptHook(settings, hookCommand);
   mkdirSync(dirname(p), { recursive: true });
   writeFileSync(p, JSON.stringify(settings, null, 2) + "\n");
   return activationState(repoRoot);

@@ -53,6 +53,24 @@ describe("activate / deactivate", () => {
 });
 
 describe("activate UserPromptSubmit hook", () => {
+  it("installs the routing hook BY DEFAULT (no opts) — regression: web Activate must engage routing", () => {
+    dir = mkdtempSync(join(tmpdir(), "telos-act-default-"));
+    const st = activate(dir); // no hookCommand — must still install the hook
+    expect(st.statusLinePresent).toBe(true);
+    expect(st.hookPresent).toBe(true);
+    const w = JSON.parse(readFileSync(join(dir, ".claude", "settings.json"), "utf8"));
+    expect(w.hooks.UserPromptSubmit[0].hooks[0].command).toBe("telos route --hook");
+  });
+
+  it("can be told to skip the hook with hookCommand: null", () => {
+    const d = mkdtempSync(join(tmpdir(), "telos-act-nohook-"));
+    try {
+      const st = activate(d, { hookCommand: null });
+      expect(st.statusLinePresent).toBe(true);
+      expect(st.hookPresent).toBe(false);
+    } finally { rmSync(d, { recursive: true, force: true }); }
+  });
+
   it("installs the routing hook, preserving other hooks; deactivate removes only ours", () => {
     const d = mkdtempSync(join(tmpdir(), "telos-hook-"));
     try {
