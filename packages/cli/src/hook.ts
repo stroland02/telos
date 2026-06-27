@@ -10,7 +10,7 @@
  * stdout: the orchestration plan block (or nothing when no confident match).
  */
 import { resolve, join } from "node:path";
-import { readConfig, loadRoster, planWorkflow, semanticRoute, renderPlan, recordActivity } from "@telos/harness";
+import { readConfig, loadRoster, planWorkflow, semanticRoute, augmentWithSpecialists, renderPlan, recordActivity } from "@telos/harness";
 import { readProductContextCache } from "./productContextCache.js";
 
 function readStdin(): Promise<string> {
@@ -44,7 +44,9 @@ async function main(): Promise<void> {
   // is the fallback when nothing clears the confidence threshold. Both stay
   // silent on a true no-match.
   const roster = loadRoster({ telosDir });
-  const plan = semanticRoute(prompt, roster, enabled, ctx) ?? planWorkflow(prompt, roster, enabled, ctx);
+  let plan = semanticRoute(prompt, roster, enabled, ctx) ?? planWorkflow(prompt, roster, enabled, ctx);
+  // Slice 2: surface the most relevant specific agents the template didn't name.
+  plan = augmentWithSpecialists(plan, prompt, roster, enabled);
   const block = renderPlan(plan, ctx);
   if (!block) return;
 
