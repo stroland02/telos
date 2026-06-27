@@ -2,12 +2,12 @@
 import { statSync } from "node:fs";
 import { join } from "node:path";
 import {
-  GraphStore, aggregate, overview, childrenOf, nodeDetail, resolveNode, buildTour, askGraph,
+  GraphStore, aggregate, overview, childrenOf, nodeDetail, resolveNode, buildTour,
   TraceAggregator, TraceBuffer, LogBuffer, MetricBuffer, ProfileBuffer, ProcessBuffer, buildNodeIndex,
   buildContextPack, renderContextPack, measureSavings, type SavingsReport,
   TelosGraph, TelosNode, AggregatedGraph, GraphView, NodeDetail,
 } from "@telos/engine";
-import { recommend, readActivity, type ActivityFeed } from "@telos/harness";
+import { recommend, readActivity, semanticAsk, type ActivityFeed } from "@telos/harness";
 import { GraphProvider, TraceHub } from "./server.js";
 
 export interface MeasureResult extends SavingsReport { files: number; missing: number }
@@ -83,7 +83,9 @@ export class GraphService implements GraphProvider {
   }
 
   getAnswers(q: string, limit?: number) {
-    return askGraph(this.graph, q, { limit }).map((a) => ({
+    // Hybrid semantic + keyword search (LLM phase B). Replaces keyword-only
+    // askGraph here; askGraph stays in the engine for MCP/keyword consumers.
+    return semanticAsk(this.graph, q, { limit }).map((a) => ({
       id: a.node.id, qualifiedName: a.node.qualifiedName, path: a.node.path,
       summary: a.node.summary, score: a.score,
     }));
