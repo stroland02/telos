@@ -61,7 +61,7 @@ The same graph is consumed **many ways**:
 
 ```bash
 # 1. Install the CLI
-npm i -g telos
+npm i -g @stroland02/telos   # installs the `telos` command
 
 # 2. Scan any codebase and open the living map
 telos scan /path/to/your-project
@@ -144,7 +144,7 @@ apps/
 - ✅ **Phase 2** — live OTel overlay (traces/metrics/logs/profiles) + OS processes
 - ✅ **Phase 3** — semantic brain (enrich/tour/ask) + local-LLM enrichment
 - ✅ **Phase 4 (slice 1)** — Telos Forge build loop
-- ✅ **Distribution** — packaged for `npm i -g telos`
+- ✅ **Distribution** — published to npm as `@stroland02/telos` (`npm i -g @stroland02/telos`)
 - ✅ **Dynamic harness orchestration** — live roster scan, product-aware multi-agent planner, in-chat plan + activity feed
 - 🔜 **More languages** — Go, Rust, Java, … via `telos add-language`
 
