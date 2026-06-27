@@ -1,125 +1,115 @@
-# Semantic Intent Routing (Local Embeddings) — Design
+# Semantic Intent Routing — Design (AS-BUILT)
 
 **Date:** 2026-06-27
-**Status:** Approved (design); implementing.
-**Phase:** LLM phase, slice 1 of N (routing first; other LLM applications deferred).
+**Status:** SHIPPED. This document reflects what was actually built.
+**Phase:** LLM phase, slice 1 (routing first; other LLM applications are separate slices).
 
 ## Goal
 
 Replace brittle keyword/substring routing with semantic similarity, so prompts
-route to the right workflow + agents by *meaning* — using a small, local,
-offline, cheap embedding model that honors a tight footprint and latency budget.
+route to the right workflow + agents by *meaning* — using a tiny, local, offline,
+zero-cost model that honors a strict footprint and latency budget.
 
 ## Motivation
 
-`router.ts` scores capabilities by keyword/substring overlap. This collides:
-"begin LLM phase" routed to a code-`review`; "implement all" matched
-"implement a"; "aria" matched "variable". Every fix has been manual
-trigger-tuning. Semantic embeddings rank by intent, not surface tokens, and
-generalize without hand-maintained trigger lists.
+`router.ts`/`workflows.ts` selected templates by keyword/substring overlap. This
+collides: "begin LLM phase" routed to `review`; "implement all" matched
+"implement a "; "aria" matched "variable". Every fix was manual trigger-tuning.
+Semantic similarity ranks by intent, not surface tokens, and generalizes without
+hand-maintained trigger lists.
 
-## Non-Goals (YAGNI)
+## Revision history (important)
 
-- No hosted-LLM calls (network/cost/offline-break — rejected in brainstorm).
-- No generative model (0.5–2GB+ footprint — rejected).
-- No semantic code search or context compression yet (separate future slices).
-- No change to the workflow-template *structure* or agent resolution — only how
-  the prompt is matched to a template/capabilities.
+The original design proposed a transformers.js MiniLM model resident in a
+`telos serve` sidecar, called by the hook over `POST /api/route`. **That was
+rejected during implementation:** installing `@xenova/transformers` pulled in
+`onnxruntime-node` (92MB) + `sharp` (50MB) + `onnxruntime-web` (66MB) ≈ **280MB**,
+~7× over the ≤40MB footprint budget, violating the "users must not download
+gigabytes" constraint. We pivoted to a **tiny in-process model** (below). Because
+that model loads in well under a millisecond, the server sidecar and
+`POST /api/route` became unnecessary and were **not built** — routing runs
+in-process inside the hook.
 
-## Architecture
+## Architecture (as built)
 
 ```
-prompt → telos-hook ──HTTP POST /api/route──▶ telos serve (model resident)
-            │  (warm: ~10–30ms)                │  embed(prompt) → cosine-rank
-            │                                   │  targets → plan
-            │  ◀───────── plan JSON ────────────┘
-            │
-            └─ server unreachable? → fall back to keyword routeRoster() (0ms add)
+prompt → telos-hook (one fast Node process)
+           ├─ semanticRoute(prompt, roster, enabled, ctx)   ← PRIMARY
+           │     featurize(prompt) → cosine vs intent centroids → planFromTemplate
+           ├─ falls back to keyword planWorkflow() when below the confidence threshold
+           └─ renderPlan() banner + recordActivity()
 ```
 
-The model lives **once** in the long-running `telos serve` process. The hook
-stays a thin client and **degrades to today's keyword routing** when the server
-is absent — no regression, pure upgrade when the server is up. `telos dev` may
-start the server alongside the watcher.
+No network, no sidecar, no model download. Everything is in `@telos/harness`
+(pure, engine-free) and invoked by the lightweight `@telos/cli` hook.
 
 ### Components
 
-1. **`@telos/harness` — embedding interface + semantic scorer**
-   - `EmbeddingProvider` interface: `embed(texts: string[]): Promise<number[][]>`.
-   - `scoreSemantic(promptVec, targets)`: cosine similarity ranking, behind the
-     same shape `routeRoster`/`planWorkflow` already return.
-   - `cosine(a, b)` util; a confidence threshold preserves empty-on-no-match.
-   - Target embeddings (template intents + capability descriptions) cached to
-     `.telos/route-embeddings.json`, keyed by a hash of the target text so they
-     rebuild only when capabilities/descriptions change.
+1. **`@telos/harness/src/textVector.ts`** — the "model". `featurize(text)` hashes
+   word unigrams + bigrams + character trigrams (stopword-filtered) into a
+   512-dim L2-normalized vector via FNV-1a feature hashing. `centroid(vectors)`
+   averages + renormalizes. No weights file, no deps.
 
-2. **`@telos/server` — resident model + `POST /api/route`**
-   - Loads the embedding model once at startup (lazy on first `/api/route`).
-   - `POST /api/route { prompt }` → `{ plan }` using `planWorkflow` with the
-     semantic scorer.
-   - Uses **transformers.js** with a quantized MiniLM/bge-small model. Pure
-     JS + wasm: no native binaries, clean cross-OS, model cached on first run.
+2. **`@telos/harness/src/intentExamples.ts`** — `TEMPLATE_EXAMPLES`: curated
+   example phrasings per workflow intent (the "training set"). `intentCentroids(
+   enabledSources)` returns one memoized centroid `SemTarget` per enabled
+   template.
 
-3. **`@telos/cli` — hook client + fallback**
-   - `hook.ts` tries `POST http://127.0.0.1:<port>/api/route` with a short
-     timeout (≤ 150ms). On any failure → existing keyword `planWorkflow`.
-   - The chosen plan still renders via `renderPlan` (banner) + `recordActivity`.
+3. **`@telos/harness/src/semantic.ts`** — `cosine`, `scoreSemantic` (threshold +
+   cap). Pure, reusable by any future embedding backend.
 
-### Data flow (unchanged spine)
+4. **`@telos/harness/src/semanticRoute.ts`** — `selectTemplateSemantic` and
+   `semanticRoute`; `SEMANTIC_MIN = 0.30`.
 
-Prompt → route (semantic if server up, else keyword) → `renderPlan` banner +
-`recordActivity` → activity feed → live dashboard. Only the *scoring* changes.
+5. **`@telos/harness/src/workflows.ts`** — `planFromTemplate` resolves a chosen
+   template's roles to concrete agents (shared by keyword and semantic paths).
+
+6. **`@telos/cli/src/hook.ts`** — `semanticRoute(...) ?? planWorkflow(...)`.
+
+`routeTargets.ts` (cache + `EmbeddingProvider` interface) was built as the swap
+point for a future heavier backend; it is **not used** by the hashing model.
 
 ## SRS — Software Requirements Specification
 
-### Functional requirements
-- FR1: Given a prompt, the system selects a workflow template + agents by
-  semantic similarity to target descriptions.
-- FR2: Below a confidence threshold, the system emits no plan (silent banner).
-- FR3: When the embedding service is unavailable, routing falls back to keyword
-  routing and still returns a valid (possibly empty) plan.
-- FR4: Target embeddings are cached and reused; they recompute only when the
-  underlying target text changes (content-hash keyed).
-- FR5: The selected plan is rendered identically to today (banner + activity),
-  regardless of which scorer produced it.
+### Functional
+- FR1: Select a workflow template by semantic similarity of the prompt to
+  per-intent centroids.
+- FR2: Below the confidence threshold (`SEMANTIC_MIN`), select nothing — the
+  caller falls back to keyword routing, which itself stays silent on a no-match.
+- FR3: The selected plan renders identically regardless of which path chose it.
+- FR4: Adding a phrasing to `TEMPLATE_EXAMPLES` teaches a new way to express an
+  intent without code changes elsewhere.
 
-### Non-functional requirements
-- NFR1 (footprint): total added on-disk model + runtime ≤ ~40MB; no multi-GB
-  download.
-- NFR2 (latency): ≤ 50ms added per prompt with a warm server; 0ms added in the
-  keyword-fallback path.
-- NFR3 (offline): after first model fetch, no network is required; zero
-  per-prompt API cost.
-- NFR4 (no regression): with the server down, behavior is identical to the
-  current keyword router.
-- NFR5 (portability): no native build step required (pure JS + wasm runtime),
-  works on Windows/macOS/Linux.
+### Non-functional
+- NFR1 (footprint): no model download; the "model" is code (<100KB), comfortably
+  within the ≤40MB budget. (transformers.js's 280MB is the rejected baseline.)
+- NFR2 (latency): featurize + score is sub-millisecond; no measurable add to the
+  ~150ms hook.
+- NFR3 (offline): no network, ever; zero per-prompt cost.
+- NFR4 (no regression): below threshold, behavior equals the prior keyword router.
 
 ## SysRS — System Requirements Specification
 
-- Runtime: Node ≥ 20; transformers.js (wasm backend).
-- Model: quantized sentence-embedding model (MiniLM-L6 / bge-small class,
-  384-dim), fetched once to a local cache under `.telos/models` (or the
-  transformers.js cache), pinned by name + revision.
-- Interface: `POST /api/route` (JSON in/out) on the existing server port; the
-  hook discovers the port the same way the CLI/web already do.
-- Storage: `.telos/route-embeddings.json` for cached target vectors.
-- Degradation: server-absent and model-load-failure both fall through to keyword
-  routing; the hook must never block or fail the prompt.
+- Runtime: Node ≥ 20. No native deps, no wasm, no model files.
+- Model: deterministic feature-hashing featurizer + in-repo example centroids.
+- Storage: none required (centroids are computed/memoized per process).
+- Degradation: any low-confidence prompt falls through to keyword routing; the
+  hook never blocks or fails the prompt.
+- Tuning: `SEMANTIC_MIN = 0.30`, chosen from the observed score distribution
+  (real intents ≥ 0.41, off-topic/meta ≤ 0.19).
 
-## Testing
+## Testing (as built)
 
-- Precision regression: a small labeled `prompt → expected intent` set, including
-  the real misroutes ("begin LLM phase" ≠ review; "implement all tests" = test
-  intent), asserting semantic routing fixes them.
-- Cosine/threshold unit tests (deterministic vectors).
-- Degradation test: server down → keyword path returns the same result as today.
-- Latency guard: a warm-embed call stays within budget (skippable in CI if the
-  model isn't fetched).
-- Footprint check: assert the model artifact stays under the NFR1 budget.
+- `textVector.test.ts` — determinism, unit-length, related>unrelated, morphology,
+  centroid membership.
+- `semanticRoute.test.ts` — precision regression over 10 labeled intents + the
+  real misroutes ("begin the llm phase" → silent; "implement all the SDLC tests"
+  → test) + silence on off-topic prompts.
+- `semantic.test.ts`, `routeTargets.test.ts` — pure scorer + cache units.
 
-## Constraints
+## Future slices (separate specs)
 
-- No parallel-session-owned files touched; nothing pushed.
-- Hook stays engine-free; the model never loads in the hot-path process.
-- One new runtime dependency (transformers.js) scoped to `@telos/server` only.
+- Capability-level semantic routing (rank the full discovered roster, not just the
+  7 templates).
+- Semantic code search over the architecture graph.
+- Context compression (semantic selection of the graph slice to feed context).
