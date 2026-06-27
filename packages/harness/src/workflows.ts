@@ -200,6 +200,33 @@ function whyFor(role: WorkflowRole): string {
  * enabled harnesses and resolves each role to a concrete agent using the product
  * graph; when nothing matches, falls back to flat top-N roster routing.
  */
+/**
+ * Build a concrete plan for a CHOSEN template by resolving each role to an agent
+ * present in the roster. Returns null when no role resolves (every step empty),
+ * so callers can fall through. Shared by keyword selection (planWorkflow) and
+ * semantic selection (the server's planRoute).
+ */
+export function planFromTemplate(
+  tpl: WorkflowTemplate,
+  roster: HarnessRoster,
+  enabledSources: string[],
+  ctx?: ProductContext,
+): OrchestrationPlan | null {
+  const steps: OrchestrationPlanStep[] = [];
+  for (const step of tpl.steps) {
+    const agents = step.roles
+      .map((role) => ({ role, cap: resolveRole(role, roster, enabledSources, ctx) }))
+      .filter((r): r is { role: WorkflowRole; cap: DiscoveredCapability } => r.cap !== null)
+      .map(({ role, cap }) => ({ id: cap.id, why: whyFor(role) }));
+    if (agents.length > 0) steps.push({ phase: step.phase, parallel: step.parallel, agents });
+  }
+  if (steps.length === 0) return null;
+  const prod = ctx && (ctx.languages.length || ctx.layers.length)
+    ? ` on a ${ctx.languages.join("/") || "?"} product`
+    : "";
+  return { intent: tpl.intent, template: tpl.id, steps, rationale: `${tpl.title}${prod}` };
+}
+
 export function planWorkflow(
   prompt: string,
   roster: HarnessRoster,
@@ -208,20 +235,8 @@ export function planWorkflow(
 ): OrchestrationPlan {
   const tpl = selectTemplate(prompt, enabledSources);
   if (tpl) {
-    const steps: OrchestrationPlanStep[] = [];
-    for (const step of tpl.steps) {
-      const agents = step.roles
-        .map((role) => ({ role, cap: resolveRole(role, roster, enabledSources, ctx) }))
-        .filter((r): r is { role: WorkflowRole; cap: DiscoveredCapability } => r.cap !== null)
-        .map(({ role, cap }) => ({ id: cap.id, why: whyFor(role) }));
-      if (agents.length > 0) steps.push({ phase: step.phase, parallel: step.parallel, agents });
-    }
-    if (steps.length > 0) {
-      const prod = ctx && (ctx.languages.length || ctx.layers.length)
-        ? ` on a ${ctx.languages.join("/") || "?"} product`
-        : "";
-      return { intent: tpl.intent, template: tpl.id, steps, rationale: `${tpl.title}${prod}` };
-    }
+    const plan = planFromTemplate(tpl, roster, enabledSources, ctx);
+    if (plan) return plan;
   }
 
   // Fallback: route over the CURATED prompt catalog (14 vetted intents), NOT the
