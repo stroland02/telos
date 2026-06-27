@@ -10,7 +10,7 @@
  * stdout: the orchestration plan block (or nothing when no confident match).
  */
 import { resolve, join } from "node:path";
-import { readConfig, loadRoster, planWorkflow, renderPlan, recordActivity } from "@telos/harness";
+import { readConfig, loadRoster, planWorkflow, semanticRoute, renderPlan, recordActivity } from "@telos/harness";
 import { readProductContextCache } from "./productContextCache.js";
 
 function readStdin(): Promise<string> {
@@ -40,7 +40,11 @@ async function main(): Promise<void> {
   const enabled = readConfig(cwd).enabled;
   const ctx = readProductContextCache(telosDir) ?? { languages: [], layers: [], changedFiles: [] };
 
-  const plan = planWorkflow(prompt, loadRoster({ telosDir }), enabled, ctx);
+  // Semantic routing is primary (fixes keyword misroutes); keyword planWorkflow
+  // is the fallback when nothing clears the confidence threshold. Both stay
+  // silent on a true no-match.
+  const roster = loadRoster({ telosDir });
+  const plan = semanticRoute(prompt, roster, enabled, ctx) ?? planWorkflow(prompt, roster, enabled, ctx);
   const block = renderPlan(plan, ctx);
   if (!block) return;
 

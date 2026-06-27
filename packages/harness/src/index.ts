@@ -15,3 +15,6 @@ export * from "./renderPlan.js";
 export * from "./activity.js";
 export * from "./semantic.js";
 export * from "./routeTargets.js";
+export * from "./textVector.js";
+export * from "./intentExamples.js";
+export * from "./semanticRoute.js";
