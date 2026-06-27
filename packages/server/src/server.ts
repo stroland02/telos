@@ -35,7 +35,7 @@ export interface GraphProvider {
   /** Optional: live OTel trace hub. Absent on minimal providers. */
   getTraceHub?(): TraceHub;
   /** Optional: graph-as-memory architecture brief (markdown). */
-  getContext?(limit?: number): string;
+  getContext?(limit?: number, focus?: string): string;
   /** Optional: token-savings measurement (cold read vs warm-start brief). */
   getMeasure?(limit?: number): { baselineTokens: number; packTokens: number; reductionPct: number; ratio: number; costSavedUsd: number; files: number; missing: number };
   /** Optional: lightweight graph stats for the control rail footer. */
@@ -56,8 +56,10 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
 
   // Graph-as-memory: the token-budgeted architecture brief, for the web UI.
   app.get("/api/context", async (req) => {
-    const limit = Number((req.query as { limit?: string }).limit) || undefined;
-    return { brief: provider.getContext ? provider.getContext(limit) : "" };
+    const query = req.query as { limit?: string; focus?: string };
+    const limit = Number(query.limit) || undefined;
+    const focus = query.focus?.trim() || undefined;
+    return { brief: provider.getContext ? provider.getContext(limit, focus) : "" };
   });
 
   app.get("/api/stats", async () =>

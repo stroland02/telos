@@ -7,7 +7,7 @@ import {
   buildContextPack, renderContextPack, measureSavings, type SavingsReport,
   TelosGraph, TelosNode, AggregatedGraph, GraphView, NodeDetail,
 } from "@telos/engine";
-import { recommend, readActivity, semanticAsk, type ActivityFeed } from "@telos/harness";
+import { recommend, readActivity, semanticAsk, buildFocusedContextPack, renderFocusedContextPack, type ActivityFeed } from "@telos/harness";
 import { GraphProvider, TraceHub } from "./server.js";
 
 export interface MeasureResult extends SavingsReport { files: number; missing: number }
@@ -41,7 +41,11 @@ export class GraphService implements GraphProvider {
   }
 
   getOverview(): GraphView { return overview(this.graph, this.agg); }
-  getContext(limit?: number): string { return renderContextPack(buildContextPack(this.graph, { limit })); }
+  getContext(limit?: number, focus?: string): string {
+    // Feature C: task-aware compression when a focus is supplied; full structural
+    // brief otherwise (renderFocusedContextPack delegates when focus is empty).
+    return renderFocusedContextPack(buildFocusedContextPack(this.graph, { limit, focus }));
+  }
 
   /** Token savings: cold-read source baseline vs the warm-start brief. Needs
    *  repoRoot to size files on disk; returns a zeroed baseline if it's unset. */

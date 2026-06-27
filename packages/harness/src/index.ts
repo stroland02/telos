@@ -20,3 +20,4 @@ export * from "./intentExamples.js";
 export * from "./semanticRoute.js";
 export * from "./capabilityRouting.js";
 export * from "./semanticAsk.js";
+export * from "./contextCompress.js";
