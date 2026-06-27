@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "pnpm -r build",
+    "dev": "pnpm -r --parallel --filter @telos/harness --filter @telos/cli run dev",
     "telos": "node packages/cli/dist/main.js",
     "test": "pnpm -r build && pnpm -r --workspace-concurrency=1 exec vitest run",
     "typecheck": "pnpm -r exec tsc -p tsconfig.json --noEmit",

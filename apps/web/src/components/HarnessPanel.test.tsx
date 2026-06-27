@@ -54,6 +54,21 @@ describe("HarnessPanel", () => {
     expect(screen.getByText(/fires on: optimize, slow/)).toBeTruthy();
   });
 
+  it("polls the activity feed while open so new orchestrations appear live", async () => {
+    vi.useFakeTimers();
+    try {
+      const a = api(status);
+      render(<HarnessPanel open api={a} onClose={() => {}} />);
+      await vi.advanceTimersByTimeAsync(0); // flush the mount refresh
+      const initial = (a.harnessActivity as ReturnType<typeof vi.fn>).mock.calls.length;
+      expect(initial).toBeGreaterThanOrEqual(1);
+      await vi.advanceTimersByTimeAsync(4000); // one poll interval later
+      expect((a.harnessActivity as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(initial);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("shows the activity feed and an agents-fired leaderboard", async () => {
     const feed: ActivityFeed = {
       entries: [{ ts: Date.now(), promptSnippet: "build a feature", intent: "feature build", agents: ["superpowers:brainstorming", "ecc:code-reviewer"], sources: ["superpowers", "ecc"] }],

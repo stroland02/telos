@@ -41,6 +41,17 @@ export function HarnessPanel({
 
   useEffect(() => { if (open) refresh(); }, [open, refresh]);
 
+  // Live feed: while the panel is open, poll just the activity feed (cheap) so
+  // new orchestrations appear without a manual Refresh — the "see it operating
+  // live" surface. Full status stays manual-refresh (heavier scan).
+  useEffect(() => {
+    if (!open) return;
+    const id = setInterval(() => {
+      api.harnessActivity().then(setActivity).catch(() => {});
+    }, 4000);
+    return () => clearInterval(id);
+  }, [open, api]);
+
   const drift = status?.drift;
   const driftLabel = !drift ? "" : drift.status === "drift"
     ? `drift — ${drift.missing.length} missing, ${drift.added.length} new`

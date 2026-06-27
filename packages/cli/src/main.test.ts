@@ -52,7 +52,7 @@ describe("telos route command", () => {
     }
     const text = out.join("\n");
     expect(text === "" ? "No harness capability matched this prompt." : text)
-      .toMatch(/⟢ Telos|No harness capability matched/);
+      .toMatch(/⟢ TELOS ACTIVE|No harness capability matched/);
   });
 });
 

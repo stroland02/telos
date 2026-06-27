@@ -13,7 +13,9 @@ export function renderPlan(plan: OrchestrationPlan, product?: ProductContext): s
   const prod = product && (product.languages.length || product.layers.length)
     ? ` · product: ${product.languages.join("/") || "?"} (${product.layers.join(",") || "?"})`
     : "";
-  const lines = [`⟢ Telos · ${plan.intent}${prod}`];
+  // A bordered banner so Telos reads as unmistakably ACTIVE on every prompt,
+  // instead of a dim two-liner that blends into hook noise.
+  const lines = [`╭─ ⟢ TELOS ACTIVE · ${plan.intent}${prod}`];
 
   let n = 0;
   for (const step of plan.steps) {
@@ -21,8 +23,8 @@ export function renderPlan(plan: OrchestrationPlan, product?: ProductContext): s
     n += 1;
     const tag = step.parallel && step.agents.length > 1 ? "⇉ parallel: " : "";
     const why = step.agents.length === 1 ? ` — ${step.agents[0].why}` : "";
-    lines.push(`  ${n}. ${tag}${step.agents.map((a) => a.id).join(", ")}${why}`);
+    lines.push(`│ ${n}. ${tag}${step.agents.map((a) => a.id).join(", ")}${why}`);
   }
-  lines.push("  → dispatch these as subagents.");
+  lines.push("╰─ → dispatch these as subagents.");
   return lines.join("\n");
 }
