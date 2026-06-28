@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { GraphStore, TelosGraph } from "@telos/engine";
-import { recordActivity } from "@telos/harness";
+import { recordActivity, recordMcpQuery } from "@telos/harness";
 import { buildServer } from "./server.js";
 import { GraphService } from "./graphService.js";
 
@@ -173,6 +173,33 @@ describe("graph routes", () => {
     expect(hit.json().results.map((n: any) => n.id)).toContain("s2");
     const blank = await app.inject({ method: "GET", url: "/api/search" });
     expect(blank.json()).toEqual({ results: [] });
+    await app.close(); svc.close();
+  });
+
+  it("GET /api/harness/mcp-activity returns recorded queries + totals", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "telos-mcp-activity-routes-"));
+    dirs.push(dir);
+    const dbPath = join(dir, "graph.db");
+    const store = GraphStore.open(dbPath);
+    store.save(graph);
+    store.close();
+    recordMcpQuery(join(dir, ".telos"), { ts: 1, tool: "telos_ask", argsSummary: "q", resultTokens: 7 });
+    const svc = GraphService.fromDb(dbPath, dir);
+    const app = buildServer(svc);
+    const res = await app.inject({ method: "GET", url: "/api/harness/mcp-activity" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.entries[0].tool).toBe("telos_ask");
+    expect(body.totals).toEqual({ queries: 1, tokens: 7 });
+    await app.close(); svc.close();
+  });
+
+  it("GET /api/harness/mcp-activity is empty without a repoRoot", async () => {
+    const svc = service();
+    const app = buildServer(svc);
+    const res = await app.inject({ method: "GET", url: "/api/harness/mcp-activity" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ entries: [], totals: { queries: 0, tokens: 0 } });
     await app.close(); svc.close();
   });
 });

@@ -42,6 +42,8 @@ export interface GraphProvider {
   getStats?(): { nodes: number; edges: number; files: number; languages: string[]; enriched: number };
   /** Optional: recent harness orchestrations + agent tally for the activity feed. */
   getActivity?(limit?: number): { entries: { ts: number; promptSnippet: string; intent: string; agents: string[]; sources: string[] }[]; tally: { id: string; count: number }[] };
+  /** Optional: recent MCP graph queries + totals for the control panel. */
+  getMcpActivity?(limit?: number): { entries: { ts: number; tool: string; argsSummary: string; resultTokens: number }[]; totals: { queries: number; tokens: number } };
   repoRoot: string | null;
 }
 
@@ -95,6 +97,14 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
   app.get("/api/harness/activity", async (req) => {
     const limit = Number((req.query as { limit?: string }).limit) || undefined;
     return provider.getActivity ? provider.getActivity(limit) : { entries: [], tally: [] };
+  });
+
+  // MCP query feed: what the agent asked the graph instead of cold-reading files.
+  app.get("/api/harness/mcp-activity", async (req) => {
+    const limit = Number((req.query as { limit?: string }).limit) || undefined;
+    return provider.getMcpActivity
+      ? provider.getMcpActivity(limit)
+      : { entries: [], totals: { queries: 0, tokens: 0 } };
   });
 
   // Harness cockpit: installed harnesses + enabled capability counts + drift,
