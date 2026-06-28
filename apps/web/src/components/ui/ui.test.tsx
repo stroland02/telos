@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { SegmentedControl } from "./SegmentedControl";
 import { Panel } from "./Panel";
+import { Switch } from "./Switch";
 
 describe("SegmentedControl", () => {
   const opts = [
@@ -40,5 +41,16 @@ describe("Panel", () => {
     render(<Panel open onClose={onClose} ariaLabel="Demo"><p>body</p></Panel>);
     fireEvent.click(screen.getByText("body"));
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("Switch", () => {
+  it("renders as a switch with aria-checked and toggles on click", () => {
+    const onChange = vi.fn();
+    render(<Switch checked={false} onChange={onChange} label="Telos engaged" />);
+    const sw = screen.getByRole("switch", { name: "Telos engaged" });
+    expect(sw).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(sw);
+    expect(onChange).toHaveBeenCalledWith(true);
   });
 });

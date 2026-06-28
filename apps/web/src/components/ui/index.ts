@@ -6,4 +6,5 @@ export { IconButton } from "./IconButton";
 export { SegmentedControl } from "./SegmentedControl";
 export type { SegOption } from "./SegmentedControl";
 export { Badge } from "./Badge";
+export { Switch } from "./Switch";
 export * from "./motion";
