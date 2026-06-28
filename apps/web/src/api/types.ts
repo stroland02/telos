@@ -52,8 +52,10 @@ export interface HarnessStatus {
 export interface TokenSavings { baselineTokens: number; packTokens: number; reductionPct: number; ratio: number; costSavedUsd: number; files: number; missing: number; }
 
 // ── Harness activity feed: recent orchestrations + which agents fired most ───
-export interface ActivityEntry { ts: number; promptSnippet: string; intent: string; agents: string[]; sources: string[]; }
+export interface ActivityEntry { ts: number; promptSnippet: string; intent: string; agents: string[]; sources: string[]; injectedTokens?: number; block?: string; }
 export interface ActivityFeed { entries: ActivityEntry[]; tally: { id: string; count: number }[]; }
+export interface McpActivityEntry { ts: number; tool: string; argsSummary: string; resultTokens: number; }
+export interface McpActivityFeed { entries: McpActivityEntry[]; totals: { queries: number; tokens: number }; }
 
 // ── Control rail status (assembled from existing reads/streams) ──────────────
 export interface GraphStats { nodes: number; edges: number; files: number; languages: string[]; enriched: number; }

@@ -1,4 +1,4 @@
-import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot, ProcessSample, ForgeState, HarnessStatus, GraphStats, ResolveState, TokenSavings, ActivityFeed } from "./types";
+import { GraphView, NodeDetail, TelosNodeDTO, SourceResult, Recommendation, TourStop, Answer, TraceState, TraceSummary, TracePathStep, LogLine, MetricSeries, ProfileSnapshot, ProcessSample, ForgeState, HarnessStatus, GraphStats, ResolveState, TokenSavings, ActivityFeed, McpActivityFeed } from "./types";
 
 export interface TelosApi {
   overview(): Promise<GraphView>;
@@ -46,6 +46,8 @@ export interface TelosApi {
   harnessSelect(source: string, enabled: boolean): Promise<{ enabled: string[] }>;
   /** Recent harness orchestrations + agent tally for the activity feed. */
   harnessActivity(): Promise<ActivityFeed>;
+  /** Recent MCP graph queries + totals for the control panel. */
+  mcpActivity(): Promise<McpActivityFeed>;
 }
 
 export function createApi(baseUrl = ""): TelosApi {
@@ -135,5 +137,6 @@ export function createApi(baseUrl = ""): TelosApi {
       return (await res.json()) as { enabled: string[] };
     },
     harnessActivity: () => get<ActivityFeed>("/api/harness/activity"),
+    mcpActivity: () => get<McpActivityFeed>("/api/harness/mcp-activity"),
   };
 }
