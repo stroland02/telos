@@ -143,10 +143,12 @@ describe("HarnessPanel control panel", () => {
 
   // ── Usage-driven metrics ──────────────────────────────────────────────────
 
-  it("shows active-of-curated agents in the header", async () => {
+  it("shows used/curated/installed agents in the header", async () => {
     render(<HarnessPanel open api={fakeApi()} onClose={() => {}} />);
-    // usage has 1 distinct agent; curated total = 8 + 14 = 22
-    expect(await screen.findByText(/1 of 22 agents active/i)).toBeInTheDocument();
+    await screen.findByText("ECC — agents, skills, reviewers"); // wait for load
+    // usage has 1 distinct agent; curated = 8 + 14 = 22; installed = sum nodeCapabilities (1 + 0)
+    const header = screen.getByText(/curated/);
+    expect(header.textContent).toMatch(/1 used · 22 curated · 1 installed/);
   });
 
   it("shows per-harness used/curated and flags an idle enabled harness", async () => {

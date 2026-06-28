@@ -78,6 +78,9 @@ export function HarnessPanel({
     (usage?.agents ?? []).filter((a) => a.id.split(":")[0] === source).length;
   const activeAgents = usage?.agents.length ?? 0;
   const curatedTotal = status ? status.totals.nodeCapabilities + status.totals.promptIntents : 0;
+  // installed = ALL on-disk agents+skills across harnesses (roster-backed); the
+  // full pool Telos can reach, vs. the curated set it routes by default.
+  const installedTotal = status ? status.installed.reduce((n, h) => n + h.nodeCapabilities, 0) : 0;
 
   const drift = status?.drift;
   const driftLabel = !drift ? "" : drift.status === "drift"
@@ -99,7 +102,7 @@ export function HarnessPanel({
           ↓ {fmt(injected)} tok injected · ↑ {fmt(saved)} tok saved
         </div>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)", color: "var(--text-muted)" }}>
-          {activeAgents} of {curatedTotal} agents active <span style={{ color: "var(--text-faint)" }}>(last {usage?.windowPrompts ?? 0} routed prompts)</span>
+          {activeAgents} used · {curatedTotal} curated · {fmt(installedTotal)} installed <span style={{ color: "var(--text-faint)" }}>(last {usage?.windowPrompts ?? 0} routed prompts)</span>
         </div>
       </div>
 
@@ -165,6 +168,9 @@ export function HarnessPanel({
                       {isOpen && (
                         <tr style={{ color: "var(--text)" }}>
                           <td colSpan={3} style={{ padding: "0 var(--s-2) var(--s-2) 22px" }}>
+                            <div style={{ color: "var(--text-faint)", fontSize: 10, padding: "2px 0 4px" }}>
+                              {h.nodeCapabilities} installed on disk · {caps.length} curated for routing
+                            </div>
                             {caps.length === 0 && (
                               <span style={{ color: "var(--text-faint)", fontStyle: "italic" }}>
                                 No agents curated from this harness yet.

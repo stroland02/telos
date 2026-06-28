@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import type { ServerResponse } from "node:http";
 import { TraceAggregator, TraceBuffer, LogBuffer, MetricBuffer, ProfileBuffer, ProcessBuffer, FileNodeRef, ProcessSample, NodeIndex, GraphDiff, parseOtlpTraces, parseOtlpLogs, parseOtlpMetrics, parseFoldedStacks, tagProcesses } from "@telos/engine";
-import { buildHarnessStatus, DEFAULT_CATALOG, PROMPT_CATALOG, HARNESS_INSTALLS, parseLock, type HarnessLock, activate, deactivate, activationState, readConfig, setEnabled, type CapabilitySource } from "@telos/harness";
+import { buildHarnessStatus, DEFAULT_CATALOG, PROMPT_CATALOG, HARNESS_INSTALLS, parseLock, type HarnessLock, activate, deactivate, activationState, readConfig, setEnabled, type CapabilitySource, loadRoster } from "@telos/harness";
 
 /** Latest Forge build-loop checkpoint reflected onto the map. Ephemeral. */
 export type ForgeState = { run: string; turn: number; costUsd: number; stop: string | null; diff: GraphDiff } | null;
@@ -124,12 +124,16 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
     const repoRoot = provider.repoRoot;
     const lockPath = repoRoot ? resolve(repoRoot, ".telos", "harness.lock") : ".telos/harness.lock";
     const lock: HarnessLock | null = existsSync(lockPath) ? parseLock(readFileSync(lockPath, "utf-8")) : null;
+    // Pass the live on-disk roster so per-harness counts reflect ALL installed
+    // agents+skills (hundreds), not just the curated catalog. mtime-cached → cheap.
+    const roster = repoRoot ? loadRoster({ telosDir: resolve(repoRoot, ".telos") }) : undefined;
     return buildHarnessStatus({
       lockPath,
       lock,
       nodeCatalog: DEFAULT_CATALOG,
       promptCatalog: PROMPT_CATALOG,
       installs: HARNESS_INSTALLS,
+      roster,
     });
   });
 
