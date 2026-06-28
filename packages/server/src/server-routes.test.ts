@@ -202,4 +202,22 @@ describe("graph routes", () => {
     expect(res.json()).toEqual({ entries: [], totals: { queries: 0, tokens: 0 } });
     await app.close(); svc.close();
   });
+
+  it("GET /api/harness/mcp-activity returns fallback when provider lacks the method", async () => {
+    const minimalProvider: any = {
+      getOverview: () => ({}),
+      getChildren: () => null,
+      getNode: () => null,
+      search: () => [],
+      getFiles: () => [],
+      getFilePaths: () => new Set<string>(),
+      repoRoot: null,
+      // Intentionally omit getMcpActivity to test the route's else-branch
+    };
+    const app = buildServer(minimalProvider);
+    const res = await app.inject({ method: "GET", url: "/api/harness/mcp-activity" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ entries: [], totals: { queries: 0, tokens: 0 } });
+    await app.close();
+  });
 });

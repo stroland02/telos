@@ -73,6 +73,7 @@ export class GraphService implements GraphProvider {
     if (!this.repoRoot) return { entries: [], totals: { queries: 0, tokens: 0 } };
     return readMcpActivity(join(this.repoRoot, ".telos"), limit);
   }
+
   getStats(): { nodes: number; edges: number; files: number; languages: string[]; enriched: number } {
     const nodes = this.graph.nodes;
     return {
