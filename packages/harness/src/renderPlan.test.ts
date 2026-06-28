@@ -24,8 +24,8 @@ describe("renderPlan", () => {
     const out = renderPlan(plan, { languages: ["typescript"], layers: ["web"], changedFiles: [] });
     expect(out).toContain("⟢ TELOS ACTIVE · feature build");
     expect(out).toContain("product: typescript (web)");
-    expect(out).toContain("1. superpowers:brainstorming — design before code");
-    expect(out).toContain("⇉ parallel: ecc:typescript-reviewer, ecc:security-reviewer");
+    expect(out).toContain("1. [telos] superpowers:brainstorming — design before code");
+    expect(out).toContain("⇉ parallel: [telos] ecc:typescript-reviewer, [telos] ecc:security-reviewer");
     expect(out).toContain("→ dispatch these as subagents.");
     // bordered banner: top + bottom rule frame the block
     expect(out.startsWith("╭─")).toBe(true);

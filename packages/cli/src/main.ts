@@ -9,7 +9,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
-import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, recommend, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus, activate, deactivate, statusLineText, routeForHook, readConfig, setEnabled, ALL_SOURCES, type CapabilitySource, loadRoster, planWorkflow, renderPlan, recordActivity, estimateTokens } from "@telos/harness";
+import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, recommend, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus, activate, deactivate, statusLineText, routeForHook, readConfig, setEnabled, ALL_SOURCES, type CapabilitySource, loadRoster, planWorkflow, renderPlan, recordActivity, estimateTokens, computeUsage } from "@telos/harness";
 import { productContextFromGraph } from "./productContext.js";
 import { writeProductContextCache } from "./productContextCache.js";
 import { runForge, stubDriver, claudeAgentDriver, ForgeRunResult } from "@telos/forge";
@@ -120,7 +120,11 @@ export async function runStatusLine(path: string): Promise<string> {
     live = res.ok;
   } catch { /* server not running — fine */ }
   const harnesses = readConfig(repo).enabled.length;
-  return statusLineText({ agents: DEFAULT_CATALOG.length, graph, live, harnesses: harnesses || undefined });
+  // agents = distinct capabilities ACTUALLY routed recently (dynamic); total =
+  // the curated pool (node + prompt). Rendered "used/total" so it moves as you work.
+  const usage = computeUsage(join(repo, ".telos"));
+  const curatedTotal = DEFAULT_CATALOG.length + PROMPT_CATALOG.length;
+  return statusLineText({ agents: usage.agents.length, agentsTotal: curatedTotal, graph, live, harnesses: harnesses || undefined });
 }
 
 /** Aggregate the harness cockpit status from the repo's lock + the live catalogs. */

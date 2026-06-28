@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildHarnessStatus } from "./status.js";
+import { buildHarnessStatus, buildFunnel } from "./status.js";
+import type { UsageStats } from "./activity.js";
 import { Capability } from "./capability.js";
 import { PromptCapability } from "./router.js";
 import { HarnessInstall } from "./setup.js";
@@ -49,5 +50,42 @@ describe("buildHarnessStatus", () => {
     expect(s.lock.present).toBe(true);
     expect(s.drift.status).toBe("drift");
     expect(s.drift.missing).toContain("ecc:gone");
+  });
+});
+
+describe("buildFunnel", () => {
+  const status = buildHarnessStatus({ lockPath: "/x/harness.lock", lock: null, nodeCatalog, promptCatalog, installs });
+  const usage: UsageStats = {
+    windowPrompts: 2,
+    agents: [
+      { id: "ecc:a", count: 3, lastTs: 30 },
+      { id: "ecc:perf", count: 1, lastTs: 20 },
+    ],
+    sources: [{ source: "ecc", count: 4, lastTs: 30 }],
+  };
+
+  it("maps used/curated/installed per source and flags idle enabled harnesses", () => {
+    const f = buildFunnel(status, usage, ["ecc", "superpowers"]);
+    const ecc = f.rows.find((r) => r.source === "ecc")!;
+    expect(ecc.usedRecent).toBe(2); // ecc:a + ecc:perf
+    expect(ecc.curated).toBe(3);    // ecc:a, ecc:b, ecc:perf
+    expect(ecc.enabled).toBe(true);
+    expect(ecc.idle).toBe(false);
+    expect(ecc.lastUsedTs).toBe(30);
+
+    const sp = f.rows.find((r) => r.source === "superpowers")!;
+    expect(sp.usedRecent).toBe(0);
+    expect(sp.enabled).toBe(true);
+    expect(sp.idle).toBe(true); // enabled but unused → prune candidate
+
+    const hr = f.rows.find((r) => r.source === "headroom")!;
+    expect(hr.enabled).toBe(false);
+    expect(hr.idle).toBe(false); // not enabled → not "idle waste"
+  });
+
+  it("totals distinct used agents and the curated pool", () => {
+    const f = buildFunnel(status, usage, ["ecc"]);
+    expect(f.totals.usedAgents).toBe(2);
+    expect(f.totals.curated).toBe(4); // 3 ecc + 1 sp curated rows
   });
 });

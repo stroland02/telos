@@ -14,11 +14,14 @@ const STATUSLINE_MARKER = "status --line";
 const HOOK_MARKER = "route --hook";
 
 /** The one-line indicator Claude Code's statusline renders. */
-export function statusLineText(s: { agents?: number; graph?: boolean; live?: boolean; harnesses?: number }): string {
+export function statusLineText(s: { agents?: number; agentsTotal?: number; graph?: boolean; live?: boolean; harnesses?: number }): string {
   if (s.agents == null) return "◇ Telos";
   const parts = ["◇ Telos engaged"];
   if (s.harnesses != null) parts.push(`${s.harnesses} harness${s.harnesses === 1 ? "" : "es"}`);
-  parts.push(`${s.agents} agents`, `graph ${s.graph ? "✓" : "—"}`);
+  // `agents` is now the count actually USED recently; `agentsTotal` (when given)
+  // is the curated pool, rendered as "used/total" so the number visibly moves.
+  const agentLabel = s.agentsTotal != null ? `${s.agents}/${s.agentsTotal} agents` : `${s.agents} agents`;
+  parts.push(agentLabel, `graph ${s.graph ? "✓" : "—"}`);
   if (s.live) parts.push("live");
   return parts.join(" · ");
 }

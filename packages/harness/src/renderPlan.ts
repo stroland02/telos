@@ -23,7 +23,9 @@ export function renderPlan(plan: OrchestrationPlan, product?: ProductContext): s
     n += 1;
     const tag = step.parallel && step.agents.length > 1 ? "⇉ parallel: " : "";
     const why = step.agents.length === 1 ? ` — ${step.agents[0].why}` : "";
-    lines.push(`│ ${n}. ${tag}${step.agents.map((a) => a.id).join(", ")}${why}`);
+    // `[telos] ` prefix marks each dispatched capability as Telos-routed, so its
+    // origin is obvious when it runs as a subagent in the conversation.
+    lines.push(`│ ${n}. ${tag}${step.agents.map((a) => `[telos] ${a.id}`).join(", ")}${why}`);
   }
   lines.push("╰─ → dispatch these as subagents.");
   return lines.join("\n");

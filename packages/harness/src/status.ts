@@ -4,6 +4,7 @@ import { HarnessInstall } from "./setup.js";
 import { HarnessLock } from "./lock.js";
 import { DriftReport, diffLock } from "./doctor.js";
 import type { HarnessRoster } from "./discover.js";
+import type { UsageStats } from "./activity.js";
 
 // One curated agent/skill a harness provides — the row the details view lists.
 // `activation` tells you HOW Telos picks it: "node" = matched from a code node's
@@ -34,6 +35,52 @@ export interface HarnessStatus {
   totals: { nodeCapabilities: number; promptIntents: number };
   drift: DriftReport;
   lock: { present: boolean; path: string };
+}
+
+// The unified count model: Installed (on disk) → Curated (Telos can route) →
+// Used (actually dispatched in the recent window). `idle` = enabled yet unused,
+// the prune-to-save-context signal the panel surfaces.
+export interface HarnessFunnelRow {
+  source: CapabilitySource;
+  title: string;
+  installed: number;
+  curated: number;
+  usedRecent: number; // distinct agents from this source used in the window
+  lastUsedTs: number | null;
+  enabled: boolean;
+  idle: boolean;
+}
+export interface HarnessFunnel {
+  rows: HarnessFunnelRow[];
+  totals: { usedAgents: number; curated: number; installed: number };
+}
+
+/** Combine the static cockpit status with rolling usage + the enabled set. */
+export function buildFunnel(status: HarnessStatus, usage: UsageStats, enabled: string[]): HarnessFunnel {
+  const enabledSet = new Set(enabled);
+  const rows: HarnessFunnelRow[] = status.installed.map((h) => {
+    const used = usage.agents.filter((a) => a.id.split(":")[0] === h.source);
+    const isEnabled = enabledSet.has(h.source);
+    const usedRecent = used.length;
+    return {
+      source: h.source,
+      title: h.title,
+      installed: h.nodeCapabilities,
+      curated: h.capabilities.length,
+      usedRecent,
+      lastUsedTs: used.length ? Math.max(...used.map((a) => a.lastTs)) : null,
+      enabled: isEnabled,
+      idle: isEnabled && usedRecent === 0,
+    };
+  });
+  return {
+    rows,
+    totals: {
+      usedAgents: usage.agents.length,
+      curated: rows.reduce((n, r) => n + r.curated, 0),
+      installed: rows.reduce((n, r) => n + r.installed, 0),
+    },
+  };
 }
 
 /** Pure aggregate over the catalogs + lock. `lock` null = no lockfile present. */

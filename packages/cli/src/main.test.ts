@@ -176,6 +176,20 @@ describe("route --hook + harness count", () => {
       expect(line).toMatch(/1 harness/);
     } finally { rmSync(d, { recursive: true, force: true }); }
   });
+  it("renders used/total agents from recent activity", async () => {
+    const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const d = mkdtempSync(join(tmpdir(), "telos-hsu-"));
+    try {
+      mkdirSync(join(d, ".telos"), { recursive: true });
+      writeFileSync(join(d, ".telos", "harness.config.json"), JSON.stringify({ enabled: ["ecc"] }));
+      writeFileSync(join(d, ".telos", "activity.jsonl"),
+        JSON.stringify({ ts: 1, promptSnippet: "p", intent: "bug fix", agents: ["ecc:typescript-reviewer", "superpowers:brainstorming"], sources: [] }) + "\n");
+      const line = await runStatusLine(d);
+      expect(line).toMatch(/2\/\d+ agents/); // 2 distinct agents used / curated total
+    } finally { rmSync(d, { recursive: true, force: true }); }
+  });
 });
 
 describe("telos resolve command + runResolveCli", () => {

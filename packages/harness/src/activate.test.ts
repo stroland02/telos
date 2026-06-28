@@ -13,6 +13,11 @@ describe("statusLineText", () => {
     expect(statusLineText({ agents: 8, graph: false })).toBe("◇ Telos engaged · 8 agents · graph —");
     expect(statusLineText({})).toBe("◇ Telos");
   });
+
+  it("renders used/total agents when agentsTotal is supplied", () => {
+    expect(statusLineText({ agents: 3, agentsTotal: 22, harnesses: 2, graph: true, live: true }))
+      .toBe("◇ Telos engaged · 2 harnesses · 3/22 agents · graph ✓ · live");
+  });
 });
 
 describe("activate / deactivate", () => {
