@@ -7,7 +7,7 @@ import {
   buildContextPack, renderContextPack, measureSavings, type SavingsReport,
   TelosGraph, TelosNode, AggregatedGraph, GraphView, NodeDetail,
 } from "@telos/engine";
-import { recommend, readActivity, readMcpActivity, semanticAsk, buildFocusedContextPack, renderFocusedContextPack, type ActivityFeed } from "@telos/harness";
+import { recommend, readActivity, readMcpActivity, computeUsage, semanticAsk, buildFocusedContextPack, renderFocusedContextPack, type ActivityFeed } from "@telos/harness";
 import { GraphProvider, TraceHub } from "./server.js";
 
 export interface MeasureResult extends SavingsReport { files: number; missing: number }
@@ -72,6 +72,12 @@ export class GraphService implements GraphProvider {
   getMcpActivity(limit?: number) {
     if (!this.repoRoot) return { entries: [], totals: { queries: 0, tokens: 0 } };
     return readMcpActivity(join(this.repoRoot, ".telos"), limit);
+  }
+
+  /** Rolling agent/harness usage over the recent routed-prompt window. */
+  getUsage(window?: number) {
+    if (!this.repoRoot) return { windowPrompts: 0, agents: [], sources: [] };
+    return computeUsage(join(this.repoRoot, ".telos"), window);
   }
 
   getStats(): { nodes: number; edges: number; files: number; languages: string[]; enriched: number } {

@@ -220,4 +220,37 @@ describe("graph routes", () => {
     expect(res.json()).toEqual({ entries: [], totals: { queries: 0, tokens: 0 } });
     await app.close();
   });
+
+  it("GET /api/harness/usage returns rolling agent/source usage", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "telos-usage-routes-"));
+    dirs.push(dir);
+    const dbPath = join(dir, "graph.db");
+    const store = GraphStore.open(dbPath);
+    store.save(graph);
+    store.close();
+    recordActivity(join(dir, ".telos"), { ts: 1, promptSnippet: "p", intent: "bug fix", agents: ["ecc:typescript-reviewer", "superpowers:brainstorming"], sources: [] });
+    recordActivity(join(dir, ".telos"), { ts: 2, promptSnippet: "q", intent: "bug fix", agents: ["ecc:typescript-reviewer"], sources: [] });
+    const svc = GraphService.fromDb(dbPath, dir);
+    const app = buildServer(svc);
+    const res = await app.inject({ method: "GET", url: "/api/harness/usage" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.windowPrompts).toBe(2);
+    expect(body.agents[0]).toEqual({ id: "ecc:typescript-reviewer", count: 2, lastTs: 2 });
+    expect(body.sources.find((s: { source: string }) => s.source === "ecc").count).toBe(2);
+    await app.close(); svc.close();
+  });
+
+  it("GET /api/harness/usage returns fallback when provider lacks the method", async () => {
+    const minimalProvider: any = {
+      getOverview: () => ({}), getChildren: () => null, getNode: () => null,
+      search: () => [], getFiles: () => [], getFilePaths: () => new Set<string>(), repoRoot: null,
+      // Intentionally omit getUsage to test the route's else-branch
+    };
+    const app = buildServer(minimalProvider);
+    const res = await app.inject({ method: "GET", url: "/api/harness/usage" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ windowPrompts: 0, agents: [], sources: [] });
+    await app.close();
+  });
 });

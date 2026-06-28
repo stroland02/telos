@@ -44,6 +44,8 @@ export interface GraphProvider {
   getActivity?(limit?: number): { entries: { ts: number; promptSnippet: string; intent: string; agents: string[]; sources: string[]; injectedTokens?: number; block?: string }[]; tally: { id: string; count: number }[] };
   /** Optional: recent MCP graph queries + totals for the control panel. */
   getMcpActivity?(limit?: number): { entries: { ts: number; tool: string; argsSummary: string; resultTokens: number }[]; totals: { queries: number; tokens: number } };
+  /** Optional: rolling agent/harness usage over the recent routed-prompt window. */
+  getUsage?(window?: number): { windowPrompts: number; agents: { id: string; count: number; lastTs: number }[]; sources: { source: string; count: number; lastTs: number }[] };
   repoRoot: string | null;
 }
 
@@ -105,6 +107,15 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
     return provider.getMcpActivity
       ? provider.getMcpActivity(limit)
       : { entries: [], totals: { queries: 0, tokens: 0 } };
+  });
+
+  // Rolling usage: which agents/harnesses Telos actually routed to recently —
+  // the dynamic "used vs idle" signal the control panel turns into prune nudges.
+  app.get("/api/harness/usage", async (req) => {
+    const window = Number((req.query as { window?: string }).window) || undefined;
+    return provider.getUsage
+      ? provider.getUsage(window)
+      : { windowPrompts: 0, agents: [], sources: [] };
   });
 
   // Harness cockpit: installed harnesses + enabled capability counts + drift,
