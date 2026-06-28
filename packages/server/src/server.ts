@@ -41,7 +41,7 @@ export interface GraphProvider {
   /** Optional: lightweight graph stats for the control rail footer. */
   getStats?(): { nodes: number; edges: number; files: number; languages: string[]; enriched: number };
   /** Optional: recent harness orchestrations + agent tally for the activity feed. */
-  getActivity?(limit?: number): { entries: { ts: number; promptSnippet: string; intent: string; agents: string[]; sources: string[] }[]; tally: { id: string; count: number }[] };
+  getActivity?(limit?: number): { entries: { ts: number; promptSnippet: string; intent: string; agents: string[]; sources: string[]; injectedTokens?: number; block?: string }[]; tally: { id: string; count: number }[] };
   /** Optional: recent MCP graph queries + totals for the control panel. */
   getMcpActivity?(limit?: number): { entries: { ts: number; tool: string; argsSummary: string; resultTokens: number }[]; totals: { queries: number; tokens: number } };
   repoRoot: string | null;

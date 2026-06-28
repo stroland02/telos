@@ -43,5 +43,6 @@ describe("activity entry with injected fields", () => {
     const feed = readActivity(dir);
     expect(feed.entries[0].injectedTokens).toBe(42);
     expect(feed.entries[0].block).toBe("PLAN BLOCK");
+    rmSync(dir, { recursive: true, force: true });
   });
 });
