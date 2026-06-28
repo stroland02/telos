@@ -28,8 +28,6 @@ const extra = {
   showSymbols: false,
   onShowSymbols: vi.fn(),
   granularityApplicable: true,
-  engaged: false,
-  onActivate: vi.fn(),
   onResolve: vi.fn(),
   resolveCount: 0,
 };
@@ -81,5 +79,15 @@ describe("ControlRail", () => {
     render(<ControlRail status={fullStatus} active={active} on={handlers()} collapsed={false} onCollapsedChange={onCollapsedChange} {...extra} />);
     fireEvent.click(screen.getByLabelText("Collapse control rail"));
     expect(onCollapsedChange).toHaveBeenCalledWith(true);
+  });
+
+  it("does not render a standalone Activate item", () => {
+    render(<ControlRail status={fullStatus} active={active} on={handlers()} collapsed={false} onCollapsedChange={noop} {...extra} />);
+    expect(screen.queryByRole("button", { name: /activate/i })).toBeNull();
+  });
+
+  it("still renders the Harness item", () => {
+    render(<ControlRail status={fullStatus} active={active} on={handlers()} collapsed={false} onCollapsedChange={noop} {...extra} />);
+    expect(screen.getByRole("button", { name: /harness/i })).toBeInTheDocument();
   });
 });

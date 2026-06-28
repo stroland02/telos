@@ -61,7 +61,6 @@ export function App() {
   const [contextOpen, setContextOpen] = useState(false);
   const [tourActive, setTourActive] = useState(false);
   const [showSymbols, setShowSymbols] = useState(false);
-  const [engaged, setEngaged] = useState(false);
   const exportRef = useRef<{ exportSvg: () => void; exportJson: () => void } | null>(null);
   const registerExport = useCallback((a: { exportSvg: () => void; exportJson: () => void }) => { exportRef.current = a; }, []);
   const [railCollapsed, setRailCollapsed] = useState(() => {
@@ -169,12 +168,6 @@ export function App() {
   const hasFileNodes = (nav.view?.nodes ?? []).some((n) => (n as { level?: string }).level === "file");
   useEffect(() => { if (!hasFileNodes) setShowSymbols(false); }, [hasFileNodes]);
 
-  // Harness engagement (statusline) state.
-  useEffect(() => { api.activationState().then((s) => setEngaged(!!s.statusLinePresent)).catch(() => {}); }, []);
-  const onActivate = useCallback(() => {
-    api.activate(engaged).then((s) => setEngaged(!!s.statusLinePresent)).catch(() => {});
-  }, [engaged]);
-
   // "?" key toggles the shortcuts overlay (only when focus is not in an input).
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -252,8 +245,6 @@ export function App() {
         showSymbols={showSymbols}
         onShowSymbols={setShowSymbols}
         granularityApplicable={hasFileNodes}
-        engaged={engaged}
-        onActivate={onActivate}
         onResolve={() => setResolveOpen(true)}
         resolveCount={resolve?.findings.length ?? 0}
       />

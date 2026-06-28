@@ -25,7 +25,7 @@ export function ControlRail({
   explorerOpen, onToggleExplorer, onShortcuts,
   onTour, tourActive, onExport,
   showSymbols, onShowSymbols, granularityApplicable,
-  engaged, onActivate, onResolve, resolveCount,
+  onResolve, resolveCount,
 }: {
   status: TelosStatus;
   active: RailActive;
@@ -47,8 +47,6 @@ export function ControlRail({
   showSymbols: boolean;
   onShowSymbols: (v: boolean) => void;
   granularityApplicable: boolean;
-  engaged: boolean;
-  onActivate: () => void;
   onResolve: () => void;
   resolveCount: number;
 }) {
@@ -93,7 +91,6 @@ export function ControlRail({
         <Item icon="✦" label="Ask" active={active.ask} sub="Q&A / tour" collapsed={collapsed} onClick={on.openAsk} />
         <Item icon="⚙" label="Harness" active={active.harness} sub={status.harness ? `${status.harness.caps} caps · ${status.harness.drift}` : "—"} collapsed={collapsed} onClick={on.openHarness} />
         <Item icon="❖" label="Context" active={active.context} sub="graph memory" collapsed={collapsed} onClick={on.openContext} />
-        <Item icon="⚡" label="Activate" active={engaged} sub={engaged ? "engaged" : "off"} collapsed={collapsed} onClick={onActivate} />
 
         {/* Build */}
         {!collapsed && <Group label="Build" />}
