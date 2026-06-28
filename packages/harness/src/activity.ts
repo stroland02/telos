@@ -1,6 +1,12 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
+// Token estimate. Kept local (not imported from @telos/engine) so the per-prompt
+// hook that imports this module stays engine-free. Matches engine/estimateTokens.
+export function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
 // One recorded orchestration: which workflow Telos planned for a prompt, and
 // which agents/harnesses it routed to. Append-only so the web feed can prove,
 // over time, that harnesses are doing real work.
@@ -10,6 +16,10 @@ export interface ActivityEntry {
   intent: string;
   agents: string[];
   sources: string[];
+  /** Estimated tokens of the context block this prompt injected. */
+  injectedTokens?: number;
+  /** The injected context block (truncated by the writer). */
+  block?: string;
 }
 
 export interface ActivityFeed {

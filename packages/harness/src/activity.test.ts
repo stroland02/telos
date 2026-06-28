@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { recordActivity, readActivity } from "./activity.js";
+import { estimateTokens, recordActivity, readActivity } from "./activity.js";
 
 describe("activity log", () => {
   let dir: string;
@@ -22,5 +22,26 @@ describe("activity log", () => {
     expect(feed.tally[0]).toEqual({ id: "ecc:code-reviewer", count: 2 });
     expect(feed.tally.find((t) => t.id === "superpowers:brainstorming")!.count).toBe(1);
     rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("estimateTokens", () => {
+  it("is ceil(length/4)", () => {
+    expect(estimateTokens("")).toBe(0);
+    expect(estimateTokens("abcd")).toBe(1);
+    expect(estimateTokens("abcde")).toBe(2);
+  });
+});
+
+describe("activity entry with injected fields", () => {
+  it("round-trips injectedTokens and block", () => {
+    const dir = mkdtempSync(join(tmpdir(), "telos-act-"));
+    recordActivity(dir, {
+      ts: 1, promptSnippet: "p", intent: "bug-fix", agents: ["a"], sources: ["x"],
+      injectedTokens: 42, block: "PLAN BLOCK",
+    });
+    const feed = readActivity(dir);
+    expect(feed.entries[0].injectedTokens).toBe(42);
+    expect(feed.entries[0].block).toBe("PLAN BLOCK");
   });
 });
