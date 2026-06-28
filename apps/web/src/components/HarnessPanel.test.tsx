@@ -29,12 +29,17 @@ const emptyFeed: ActivityFeed = { entries: [], tally: [] };
 function fakeApi(over: Partial<TelosApi> = {}): TelosApi {
   return {
     harnessStatus: vi.fn().mockResolvedValue(status),
-    harnessConfig: vi.fn().mockResolvedValue({ enabled: ["ecc"] }),
-    harnessSelect: vi.fn().mockResolvedValue({ enabled: ["ecc"] }),
+    harnessConfig: vi.fn().mockResolvedValue({ enabled: ["ecc", "superpowers"] }),
+    harnessSelect: vi.fn().mockResolvedValue({ enabled: ["ecc", "superpowers"] }),
     harnessActivity: vi.fn().mockResolvedValue(emptyFeed),
     mcpActivity: vi.fn().mockResolvedValue({
       entries: [{ ts: Date.now(), tool: "telos_ask", argsSummary: "q", resultTokens: 7 }],
       totals: { queries: 1, tokens: 7 },
+    }),
+    usage: vi.fn().mockResolvedValue({
+      windowPrompts: 3,
+      agents: [{ id: "ecc:database-reviewer", count: 2, lastTs: Date.now() }],
+      sources: [{ source: "ecc", count: 2, lastTs: Date.now() }],
     }),
     measure: vi.fn().mockResolvedValue({
       baselineTokens: 9000, packTokens: 100, reductionPct: 98, ratio: 90, costSavedUsd: 0.03, files: 5, missing: 0,
@@ -134,5 +139,30 @@ describe("HarnessPanel control panel", () => {
   it("shows injected vs saved token impact in the header", async () => {
     render(<HarnessPanel open api={fakeApi()} onClose={() => {}} />);
     expect(await screen.findByText(/saved/i)).toBeInTheDocument();
+  });
+
+  // ── Usage-driven metrics ──────────────────────────────────────────────────
+
+  it("shows active-of-curated agents in the header", async () => {
+    render(<HarnessPanel open api={fakeApi()} onClose={() => {}} />);
+    // usage has 1 distinct agent; curated total = 8 + 14 = 22
+    expect(await screen.findByText(/1 of 22 agents active/i)).toBeInTheDocument();
+  });
+
+  it("shows per-harness used/curated and flags an idle enabled harness", async () => {
+    render(<HarnessPanel open api={fakeApi()} onClose={() => {}} />);
+    // ecc used 1 of its 2 curated capabilities
+    expect(await screen.findByText("1 / 2")).toBeInTheDocument();
+    // superpowers is enabled but unused → idle badge
+    expect(screen.getByText("idle")).toBeInTheDocument();
+  });
+
+  it("marks used vs idle agents in the expanded roster", async () => {
+    const user = userEvent.setup();
+    render(<HarnessPanel open api={fakeApi()} onClose={() => {}} />);
+    await waitFor(() => expect(screen.getByText("ECC — agents, skills, reviewers")).toBeTruthy());
+    await user.click(screen.getByLabelText(/Show ecc agents/i));
+    expect(await screen.findByText(/● 2×/)).toBeInTheDocument();   // database-reviewer used twice
+    expect(screen.getAllByText(/○ idle/).length).toBeGreaterThanOrEqual(1); // performance-optimizer idle
   });
 });

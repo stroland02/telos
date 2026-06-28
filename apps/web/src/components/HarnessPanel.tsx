@@ -11,7 +11,7 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { TelosApi } from "../api/client";
-import { HarnessStatus, ActivityFeed, McpActivityFeed, TokenSavings } from "../api/types";
+import { HarnessStatus, ActivityFeed, McpActivityFeed, TokenSavings, UsageStats } from "../api/types";
 import { Panel, Button, Badge, Switch, SegmentedControl } from "./ui";
 
 type Tab = "routing" | "context" | "mcp" | "impact";
@@ -24,6 +24,7 @@ export function HarnessPanel({
   const [enabled, setEnabled] = useState<string[]>([]);
   const [activity, setActivity] = useState<ActivityFeed | null>(null);
   const [mcp, setMcp] = useState<McpActivityFeed | null>(null);
+  const [usage, setUsage] = useState<UsageStats | null>(null);
   const [measure, setMeasure] = useState<TokenSavings | null>(null);
   const [engaged, setEngaged] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -36,6 +37,7 @@ export function HarnessPanel({
     api.harnessConfig().then((c) => setEnabled(c.enabled)).catch(() => setEnabled([]));
     api.harnessActivity().then(setActivity).catch(() => setActivity(null));
     api.mcpActivity().then(setMcp).catch(() => setMcp(null));
+    api.usage().then(setUsage).catch(() => setUsage(null));
     api.measure().then(setMeasure).catch(() => setMeasure(null));
     api.activationState().then((s) => setEngaged(!!s.statusLinePresent)).catch(() => {});
   }, [api]);
@@ -58,6 +60,7 @@ export function HarnessPanel({
     const id = setInterval(() => {
       api.harnessActivity().then(setActivity).catch(() => {});
       api.mcpActivity().then(setMcp).catch(() => {});
+      api.usage().then(setUsage).catch(() => {});
     }, 4000);
     return () => clearInterval(id);
   }, [open, api]);
@@ -66,6 +69,15 @@ export function HarnessPanel({
   const saved = measure?.baselineTokens != null && measure?.packTokens != null
     ? Math.max(0, measure.baselineTokens - measure.packTokens) : 0;
   const fmt = (n: number) => n.toLocaleString("en-US");
+
+  // Usage funnel: distinct agents actually routed recently (dynamic) vs. the
+  // curated pool. `usedById` drives the per-agent ●/○ markers; `usedBySource`
+  // the per-harness Used count + idle flag (enabled but never used = prunable).
+  const usedById = new Map((usage?.agents ?? []).map((a) => [a.id, a]));
+  const usedCountForSource = (source: string) =>
+    (usage?.agents ?? []).filter((a) => a.id.split(":")[0] === source).length;
+  const activeAgents = usage?.agents.length ?? 0;
+  const curatedTotal = status ? status.totals.nodeCapabilities + status.totals.promptIntents : 0;
 
   const drift = status?.drift;
   const driftLabel = !drift ? "" : drift.status === "drift"
@@ -86,6 +98,9 @@ export function HarnessPanel({
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)", color: "var(--text-muted)" }}>
           ↓ {fmt(injected)} tok injected · ↑ {fmt(saved)} tok saved
         </div>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)", color: "var(--text-muted)" }}>
+          {activeAgents} of {curatedTotal} agents active <span style={{ color: "var(--text-faint)" }}>(last {usage?.windowPrompts ?? 0} routed prompts)</span>
+        </div>
       </div>
 
       <div style={{ overflowY: "auto", padding: "var(--s-2)" }}>
@@ -97,7 +112,7 @@ export function HarnessPanel({
             <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)" }}>
               <thead>
                 <tr style={{ color: "var(--text-faint)", textAlign: "left" }}>
-                  <Th>Harness</Th><Th right>Agents</Th><Th right>Active</Th>
+                  <Th>Harness</Th><Th right>Used/Curated</Th><Th right>Active</Th>
                 </tr>
               </thead>
               <tbody>
@@ -105,6 +120,8 @@ export function HarnessPanel({
                   const on = enabled.includes(h.source);
                   const isOpen = expanded === h.source;
                   const caps = h.capabilities ?? [];
+                  const used = usedCountForSource(h.source);
+                  const idle = on && used === 0; // enabled but unused → prune candidate
                   return (
                     <Fragment key={h.source}>
                       <tr style={{ borderTop: "1px solid var(--border)", color: "var(--text)" }}>
@@ -121,8 +138,14 @@ export function HarnessPanel({
                             <span style={{ color: "var(--text-faint)", width: 8, display: "inline-block" }}>{isOpen ? "▾" : "▸"}</span>
                             {h.title}
                           </button>
+                          {idle && (
+                            <span
+                              title="idle — enabled but unused recently; disable to trim routing"
+                              style={{ marginLeft: 6, padding: "0 6px", borderRadius: "var(--r-sm)", fontSize: 10, color: "var(--warn)", border: "1px solid var(--warn)" }}
+                            >idle</span>
+                          )}
                         </Td>
-                        <Td right>{caps.length}</Td>
+                        <Td right title={`${used} of ${caps.length} curated used recently`}>{used} / {caps.length}</Td>
                         <Td right>
                           <button
                             onClick={() => toggle(h.source)}
@@ -147,17 +170,26 @@ export function HarnessPanel({
                                 No agents curated from this harness yet.
                               </span>
                             )}
-                            {caps.map((c) => (
-                              <div key={c.id} style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "2px 0" }}>
-                                <span style={{ color: c.activation === "prompt" ? "var(--accent)" : "var(--text-muted)", fontSize: 10, width: 38, flexShrink: 0 }}>
-                                  {c.kind}
-                                </span>
-                                <span style={{ color: "var(--text)", flexShrink: 0 }}>{c.id}</span>
-                                <span style={{ color: "var(--text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                  {c.title}{c.triggers?.length ? ` · fires on: ${c.triggers.slice(0, 4).join(", ")}` : ""}
-                                </span>
-                              </div>
-                            ))}
+                            {caps.map((c) => {
+                              const u = usedById.get(c.id);
+                              return (
+                                <div key={c.id} style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "2px 0" }}>
+                                  <span
+                                    title={u ? `used ${u.count}× recently` : "idle — not routed recently"}
+                                    style={{ color: u ? "var(--ok)" : "var(--text-faint)", fontSize: 10, width: 48, flexShrink: 0 }}
+                                  >
+                                    {u ? `● ${u.count}×` : "○ idle"}
+                                  </span>
+                                  <span style={{ color: c.activation === "prompt" ? "var(--accent)" : "var(--text-muted)", fontSize: 10, width: 38, flexShrink: 0 }}>
+                                    {c.kind}
+                                  </span>
+                                  <span style={{ color: "var(--text)", flexShrink: 0 }}>{c.id}</span>
+                                  <span style={{ color: "var(--text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {c.title}{c.triggers?.length ? ` · fires on: ${c.triggers.slice(0, 4).join(", ")}` : ""}
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </td>
                         </tr>
                       )}

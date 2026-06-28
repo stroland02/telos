@@ -56,6 +56,13 @@ export interface ActivityEntry { ts: number; promptSnippet: string; intent: stri
 export interface ActivityFeed { entries: ActivityEntry[]; tally: { id: string; count: number }[]; }
 export interface McpActivityEntry { ts: number; tool: string; argsSummary: string; resultTokens: number; }
 export interface McpActivityFeed { entries: McpActivityEntry[]; totals: { queries: number; tokens: number }; }
+// Rolling "what's actually being used" — distinct agents/harnesses Telos routed
+// to over the recent prompt window (dynamic, vs. the static curated catalog).
+export interface UsageStats {
+  windowPrompts: number;
+  agents: { id: string; count: number; lastTs: number }[];
+  sources: { source: string; count: number; lastTs: number }[];
+}
 
 // ── Control rail status (assembled from existing reads/streams) ──────────────
 export interface GraphStats { nodes: number; edges: number; files: number; languages: string[]; enriched: number; }

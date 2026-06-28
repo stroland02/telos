@@ -161,3 +161,17 @@ describe("mcpActivity", () => {
     spy.mockRestore();
   });
 });
+
+describe("usage", () => {
+  it("GETs /api/harness/usage", async () => {
+    const stats = { windowPrompts: 0, agents: [], sources: [] };
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(stats), { status: 200, headers: { "content-type": "application/json" } }),
+    );
+    const api = createApi("");
+    const out = await api.usage();
+    expect(spy).toHaveBeenCalledWith("/api/harness/usage");
+    expect(out).toEqual(stats);
+    spy.mockRestore();
+  });
+});
