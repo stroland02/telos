@@ -5,7 +5,7 @@ import {
 } from "@telos/engine";
 import { recommend } from "@telos/harness";
 
-export interface ToolContext { graph: TelosGraph; store: GraphStore | null }
+export interface ToolContext { graph: TelosGraph; store: GraphStore | null; telosDir?: string }
 
 function matchNodes(ctx: ToolContext, query: string): TelosNode[] {
   if (ctx.store) return ctx.store.search(query);
