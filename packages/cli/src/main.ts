@@ -9,7 +9,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
-import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, recommend, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus, activate, deactivate, statusLineText, routeForHook, readConfig, setEnabled, ALL_SOURCES, type CapabilitySource, loadRoster, planWorkflow, renderPlan, recordActivity } from "@telos/harness";
+import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, recommend, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus, activate, deactivate, statusLineText, routeForHook, readConfig, setEnabled, ALL_SOURCES, type CapabilitySource, loadRoster, planWorkflow, renderPlan, recordActivity, estimateTokens } from "@telos/harness";
 import { productContextFromGraph } from "./productContext.js";
 import { writeProductContextCache } from "./productContextCache.js";
 import { runForge, stubDriver, claudeAgentDriver, ForgeRunResult } from "@telos/forge";
@@ -746,6 +746,8 @@ export function buildProgram(): Command {
             intent: plan.intent,
             agents,
             sources: [...new Set(agents.map((id) => id.split(":")[0]))],
+            injectedTokens: estimateTokens(block),
+            block: block.slice(0, 2048),
           });
         }
         return;

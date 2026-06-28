@@ -10,7 +10,7 @@
  * stdout: the orchestration plan block (or nothing when no confident match).
  */
 import { resolve, join } from "node:path";
-import { readConfig, loadRoster, planWorkflow, semanticRoute, augmentWithSpecialists, renderPlan, recordActivity } from "@telos/harness";
+import { readConfig, loadRoster, planWorkflow, semanticRoute, augmentWithSpecialists, renderPlan, recordActivity, estimateTokens } from "@telos/harness";
 import { readProductContextCache } from "./productContextCache.js";
 
 function readStdin(): Promise<string> {
@@ -58,6 +58,8 @@ async function main(): Promise<void> {
     intent: plan.intent,
     agents,
     sources: [...new Set(agents.map((id) => id.split(":")[0]))],
+    injectedTokens: estimateTokens(block),
+    block: block.slice(0, 2048),
   });
 }
 

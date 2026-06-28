@@ -296,3 +296,11 @@ describe("runTop", () => {
     expect(procs.some((p) => p.ppid != null)).toBe(true); // has parent/child links
   });
 });
+
+describe("hook records injected token cost", () => {
+  it("estimateTokens matches the block length", async () => {
+    const { estimateTokens } = await import("@telos/harness");
+    const block = "x".repeat(40);
+    expect(estimateTokens(block)).toBe(10);
+  });
+});
