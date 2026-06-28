@@ -221,6 +221,23 @@ describe("graph routes", () => {
     await app.close();
   });
 
+  it("POST /api/context/build enriches the graph and returns node counts", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "telos-build-routes-"));
+    dirs.push(dir);
+    const dbPath = join(dir, "graph.db");
+    const store = GraphStore.open(dbPath);
+    store.save(graph);
+    store.close();
+    const svc = GraphService.fromDb(dbPath, dir);
+    const app = buildServer(svc);
+    const res = await app.inject({ method: "POST", url: "/api/context/build" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.total).toBeGreaterThan(0);
+    expect(body.enriched).toBe(body.total); // heuristic enricher summarizes every node
+    await app.close(); svc.close();
+  });
+
   it("GET /api/harness/usage returns rolling agent/source usage", async () => {
     const dir = mkdtempSync(join(tmpdir(), "telos-usage-routes-"));
     dirs.push(dir);

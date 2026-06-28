@@ -36,6 +36,8 @@ export interface GraphProvider {
   getTraceHub?(): TraceHub;
   /** Optional: graph-as-memory architecture brief (markdown). */
   getContext?(limit?: number, focus?: string): string;
+  /** Optional: build/refresh graph memory (enrich + persist); returns counts. */
+  buildMemory?(): Promise<{ enriched: number; total: number }>;
   /** Optional: token-savings measurement (cold read vs warm-start brief). */
   getMeasure?(limit?: number): { baselineTokens: number; packTokens: number; reductionPct: number; ratio: number; costSavedUsd: number; files: number; missing: number };
   /** Optional: lightweight graph stats for the control rail footer. */
@@ -65,6 +67,12 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
     const focus = query.focus?.trim() || undefined;
     return { brief: provider.getContext ? provider.getContext(limit, focus) : "" };
   });
+
+  // Build/refresh graph-as-memory from the UI (enrich + persist). Heuristic
+  // enrichment is fast + local; the served graph updates in place so a
+  // subsequent /api/context reflects the new summaries.
+  app.post("/api/context/build", async () =>
+    provider.buildMemory ? await provider.buildMemory() : { enriched: 0, total: 0 });
 
   app.get("/api/stats", async () =>
     provider.getStats ? provider.getStats() : { nodes: 0, edges: 0, files: 0, languages: [], enriched: 0 });

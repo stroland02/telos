@@ -5,6 +5,7 @@ import {
   GraphStore, aggregate, overview, childrenOf, nodeDetail, resolveNode, buildTour,
   TraceAggregator, TraceBuffer, LogBuffer, MetricBuffer, ProfileBuffer, ProcessBuffer, buildNodeIndex,
   buildContextPack, renderContextPack, measureSavings, type SavingsReport,
+  enrichGraph, heuristicEnricher,
   TelosGraph, TelosNode, AggregatedGraph, GraphView, NodeDetail,
 } from "@telos/engine";
 import { recommend, readActivity, readMcpActivity, computeUsage, semanticAsk, buildFocusedContextPack, renderFocusedContextPack, type ActivityFeed } from "@telos/harness";
@@ -14,11 +15,25 @@ export interface MeasureResult extends SavingsReport { files: number; missing: n
 
 export class GraphService implements GraphProvider {
   private constructor(
-    private readonly graph: TelosGraph,
-    private readonly agg: AggregatedGraph,
+    private graph: TelosGraph,
+    private agg: AggregatedGraph,
     private readonly store: GraphStore | null,
     readonly repoRoot: string | null,
   ) {}
+
+  /** Build/refresh graph-as-memory: enrich every node with a summary (heuristic,
+   *  no LLM/key), swap the in-memory graph so the brief reflects it immediately,
+   *  and persist to graph.db. Returns how many nodes now carry a summary. */
+  async buildMemory(): Promise<{ enriched: number; total: number }> {
+    const next = await enrichGraph(this.graph, heuristicEnricher);
+    this.graph = next;
+    this.agg = aggregate(next);
+    this.store?.applyEnrichment(next.nodes.map((n) => ({ id: n.id, summary: n.summary ?? "", layer: n.layer })));
+    return {
+      enriched: next.nodes.filter((n) => n.summary && n.summary.trim()).length,
+      total: next.nodes.length,
+    };
+  }
 
   /** Lazily-built live trace hub: one aggregator + node index per service. */
   private hub: TraceHub | null = null;

@@ -21,6 +21,8 @@ export function ContextPanel({
   const [brief, setBrief] = useState<string>("");
   const [savings, setSavings] = useState<TokenSavings | null>(null);
   const [loading, setLoading] = useState(false);
+  const [building, setBuilding] = useState(false);
+  const [built, setBuilt] = useState<{ enriched: number; total: number } | null>(null);
 
   const refresh = useCallback(() => {
     setLoading(true);
@@ -31,6 +33,16 @@ export function ContextPanel({
     api.measure().then(setSavings).catch(() => setSavings(null));
   }, [api]);
 
+  // Build/refresh graph memory (enrich + persist), then re-pull the brief so the
+  // newly-summarized memory shows immediately.
+  const build = useCallback(() => {
+    setBuilding(true);
+    api.buildMemory()
+      .then((r) => { setBuilt(r); refresh(); })
+      .catch(() => setBuilt(null))
+      .finally(() => setBuilding(false));
+  }, [api, refresh]);
+
   useEffect(() => { if (open) refresh(); }, [open, refresh]);
 
   return (
@@ -39,8 +51,14 @@ export function ContextPanel({
           <span style={{ flex: 1, fontFamily: "var(--font-ui)", fontSize: "var(--t-body-size, 14px)", color: "var(--text)" }}>
             Context <span style={{ color: "var(--text-faint)" }}>(graph-as-memory brief)</span>
           </span>
+          <Button onClick={build} disabled={building}>{building ? "Building…" : "Build memory"}</Button>
           <Button ref={refreshRef} variant="primary" onClick={refresh}>Refresh</Button>
         </div>
+        {built && (
+          <div style={{ padding: "var(--s-1) var(--s-3)", borderBottom: "1px solid var(--border)", fontFamily: "var(--font-ui)", fontSize: "var(--t-meta-size)", color: "var(--text-muted)" }}>
+            Graph memory built: {built.enriched.toLocaleString("en-US")} / {built.total.toLocaleString("en-US")} nodes summarized
+          </div>
+        )}
 
         {savings && savings.reductionPct > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)", padding: "var(--s-2) var(--s-3)", borderBottom: "1px solid var(--border)", fontFamily: "var(--font-ui)", fontSize: "var(--t-meta-size)", color: "var(--text-muted)" }}>
@@ -54,7 +72,7 @@ export function ContextPanel({
 
         <div style={{ overflowY: "auto", padding: "var(--s-3)" }}>
           {loading && <Empty text="Loading…" />}
-          {!loading && !brief && <Empty text="No context available. Is the server running on a scanned repo?" />}
+          {!loading && !brief && <Empty text="Graph memory not built yet. Click “Build memory” to summarize the scanned graph so Telos can warm-start from it instead of cold-reading files." />}
           {!loading && brief && (
             <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)", color: "var(--text)", lineHeight: 1.5 }}>
               {brief}

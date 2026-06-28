@@ -34,6 +34,8 @@ export interface TelosApi {
   harnessStatus(): Promise<HarnessStatus>;
   /** Graph-as-memory: the token-budgeted architecture brief (markdown). */
   contextPack(): Promise<string>;
+  /** Build/refresh graph memory (enrich + persist); returns node counts. */
+  buildMemory(): Promise<{ enriched: number; total: number }>;
   /** Token savings: cold-read source baseline vs the warm-start brief. */
   measure(): Promise<TokenSavings>;
   /** Lightweight graph stats for the control rail footer. */
@@ -120,6 +122,11 @@ export function createApi(baseUrl = ""): TelosApi {
     },
     harnessStatus: () => get<HarnessStatus>("/api/harness"),
     contextPack: async () => (await get<{ brief: string }>("/api/context")).brief,
+    buildMemory: async () => {
+      const res = await fetch(`${baseUrl}/api/context/build`, { method: "POST" });
+      if (!res.ok) throw new Error(`buildMemory -> ${res.status}`);
+      return (await res.json()) as { enriched: number; total: number };
+    },
     measure: async () => get<TokenSavings>("/api/measure"),
     stats: () => get<GraphStats>("/api/stats"),
     activate: async (deactivate) => {
