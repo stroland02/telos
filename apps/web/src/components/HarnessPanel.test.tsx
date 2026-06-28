@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HarnessPanel } from "./HarnessPanel";
 import type { TelosApi } from "../api/client";
@@ -46,6 +46,14 @@ function fakeApi(over: Partial<TelosApi> = {}): TelosApi {
 }
 
 describe("HarnessPanel control panel", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   // ── Existing tests (preserved) ────────────────────────────────────────────
 
   it("renders nothing when closed", () => {
@@ -73,18 +81,17 @@ describe("HarnessPanel control panel", () => {
   });
 
   it("polls the activity feed while open so new orchestrations appear live", async () => {
-    vi.useFakeTimers();
-    try {
-      const a = fakeApi();
-      render(<HarnessPanel open api={a} onClose={() => {}} />);
+    const a = fakeApi();
+    render(<HarnessPanel open api={a} onClose={() => {}} />);
+    await act(async () => {
       await vi.advanceTimersByTimeAsync(0); // flush the mount refresh
-      const initial = (a.harnessActivity as ReturnType<typeof vi.fn>).mock.calls.length;
-      expect(initial).toBeGreaterThanOrEqual(1);
+    });
+    const initial = (a.harnessActivity as ReturnType<typeof vi.fn>).mock.calls.length;
+    expect(initial).toBeGreaterThanOrEqual(1);
+    await act(async () => {
       await vi.advanceTimersByTimeAsync(4000); // one poll interval later
-      expect((a.harnessActivity as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(initial);
-    } finally {
-      vi.useRealTimers();
-    }
+    });
+    expect((a.harnessActivity as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(initial);
   });
 
   it("shows the activity feed and an agents-fired leaderboard", async () => {
