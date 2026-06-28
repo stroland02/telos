@@ -1,18 +1,20 @@
 /**
- * HarnessPanel — the "ultimate harness" cockpit.
+ * HarnessPanel — tabbed Telos control panel.
  *
- * One glance at which harnesses are installed (ECC / Superpowers / Headroom),
- * how many capabilities Telos curates from each, and whether the pinned lock
- * has drifted. Makes the embedded harness legible while vibe-coding.
+ * Pinned header: Activate switch (self-managed engagement) + token-impact
+ * summary + Refresh. Tab strip: Routing (activity feed) | Context (injected
+ * context per prompt) | MCP (graph queries) | Impact (honest token math).
+ * Keeps the per-harness on/off table at the top of the scrollable area.
  *
- * Modeled on ProcessPanel: role="dialog" aria-modal, Esc + backdrop close,
- * focus to the refresh button on open. Token-styled, no hard-coded hex.
+ * Token-styled, no hard-coded hex.
  */
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { TelosApi } from "../api/client";
-import { HarnessStatus, ActivityFeed } from "../api/types";
-import { Panel, Button, Badge } from "./ui";
+import { HarnessStatus, ActivityFeed, McpActivityFeed, TokenSavings } from "../api/types";
+import { Panel, Button, Badge, Switch, SegmentedControl } from "./ui";
+
+type Tab = "routing" | "context" | "mcp" | "impact";
 
 export function HarnessPanel({
   open, api, onClose,
@@ -21,17 +23,21 @@ export function HarnessPanel({
   const [status, setStatus] = useState<HarnessStatus | null>(null);
   const [enabled, setEnabled] = useState<string[]>([]);
   const [activity, setActivity] = useState<ActivityFeed | null>(null);
+  const [mcp, setMcp] = useState<McpActivityFeed | null>(null);
+  const [measure, setMeasure] = useState<TokenSavings | null>(null);
+  const [engaged, setEngaged] = useState(false);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("routing");
 
   const refresh = useCallback(() => {
     setLoading(true);
-    api.harnessStatus()
-      .then(setStatus)
-      .catch(() => setStatus(null))
-      .finally(() => setLoading(false));
+    api.harnessStatus().then(setStatus).catch(() => setStatus(null)).finally(() => setLoading(false));
     api.harnessConfig().then((c) => setEnabled(c.enabled)).catch(() => setEnabled([]));
     api.harnessActivity().then(setActivity).catch(() => setActivity(null));
+    api.mcpActivity().then(setMcp).catch(() => setMcp(null));
+    api.measure().then(setMeasure).catch(() => setMeasure(null));
+    api.activationState().then((s) => setEngaged(!!s.statusLinePresent)).catch(() => {});
   }, [api]);
 
   const toggle = useCallback((source: string) => {
@@ -39,18 +45,27 @@ export function HarnessPanel({
     api.harnessSelect(source, on).then((c) => setEnabled(c.enabled)).catch(() => {});
   }, [api, enabled]);
 
+  const toggleEngaged = useCallback((next: boolean) => {
+    api.activate(!next).then((s) => setEngaged(!!s.statusLinePresent)).catch(() => {});
+  }, [api]);
+
   useEffect(() => { if (open) refresh(); }, [open, refresh]);
 
-  // Live feed: while the panel is open, poll just the activity feed (cheap) so
-  // new orchestrations appear without a manual Refresh — the "see it operating
-  // live" surface. Full status stays manual-refresh (heavier scan).
+  // Live feed while open: poll the two cheap feeds (activity + mcp) every 4 s
+  // so new orchestrations and graph queries appear without a manual Refresh.
   useEffect(() => {
     if (!open) return;
     const id = setInterval(() => {
       api.harnessActivity().then(setActivity).catch(() => {});
+      api.mcpActivity().then(setMcp).catch(() => {});
     }, 4000);
     return () => clearInterval(id);
   }, [open, api]);
+
+  const injected = (activity?.entries ?? []).reduce((s, e) => s + (e.injectedTokens ?? 0), 0);
+  const saved = measure?.baselineTokens != null && measure?.packTokens != null
+    ? Math.max(0, measure.baselineTokens - measure.packTokens) : 0;
+  const fmt = (n: number) => n.toLocaleString("en-US");
 
   const drift = status?.drift;
   const driftLabel = !drift ? "" : drift.status === "drift"
@@ -58,98 +73,128 @@ export function HarnessPanel({
     : "ok";
 
   return (
-    <Panel open={open} onClose={onClose} ariaLabel="Harness cockpit" width={560} initialFocus={refreshRef}>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)", padding: "var(--s-3)", borderBottom: "1px solid var(--border)" }}>
-          <span style={{ flex: 1, fontFamily: "var(--font-ui)", fontSize: "var(--t-body-size, 14px)", color: "var(--text)" }}>
-            Harness <span style={{ color: "var(--text-faint)" }}>(orchestrate + curate)</span>
+    <Panel open={open} onClose={onClose} ariaLabel="Harness control panel" width={560} initialFocus={refreshRef}>
+      {/* Pinned header: Activate switch + impact summary + refresh */}
+      <div style={{ padding: "var(--s-3)", borderBottom: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "var(--s-2)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)" }}>
+          <span style={{ flex: 1, fontFamily: "var(--font-ui)", color: "var(--text)" }}>
+            Telos <span style={{ color: "var(--text-faint)" }}>control panel</span>
           </span>
+          <Switch checked={engaged} onChange={toggleEngaged} label="Telos engaged" />
           <Button ref={refreshRef} variant="primary" onClick={refresh}>Refresh</Button>
         </div>
-
-        <div style={{ overflowY: "auto", padding: "var(--s-2)" }}>
-          {loading && <Empty text="Loading…" />}
-          {!loading && !status && (
-            <Empty text="No harness data. Is the server running?" />
-          )}
-          {!loading && status && (
-            <>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)" }}>
-                <thead>
-                  <tr style={{ color: "var(--text-faint)", textAlign: "left" }}>
-                    <Th>Harness</Th><Th right>Agents</Th><Th right>Active</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {status.installed.map((h) => {
-                    const on = enabled.includes(h.source);
-                    const isOpen = expanded === h.source;
-                    const caps = h.capabilities ?? [];
-                    return (
-                      <Fragment key={h.source}>
-                        <tr style={{ borderTop: "1px solid var(--border)", color: "var(--text)" }}>
-                          <Td title={h.repo}>
-                            <button
-                              onClick={() => setExpanded(isOpen ? null : h.source)}
-                              aria-expanded={isOpen}
-                              aria-label={`${isOpen ? "Hide" : "Show"} ${h.source} agents`}
-                              style={{
-                                cursor: "pointer", background: "none", border: "none", padding: 0, font: "inherit",
-                                color: "var(--text)", display: "inline-flex", alignItems: "center", gap: 6,
-                              }}
-                            >
-                              <span style={{ color: "var(--text-faint)", width: 8, display: "inline-block" }}>{isOpen ? "▾" : "▸"}</span>
-                              {h.title}
-                            </button>
-                          </Td>
-                          <Td right>{caps.length}</Td>
-                          <Td right>
-                            <button
-                              onClick={() => toggle(h.source)}
-                              aria-pressed={on}
-                              aria-label={`${on ? "Disable" : "Enable"} ${h.source}`}
-                              style={{
-                                cursor: "pointer", borderRadius: "var(--r-sm)", padding: "1px 8px", fontFamily: "var(--font-mono)", fontSize: 11,
-                                background: on ? "var(--accent-soft)" : "none",
-                                border: `1px solid ${on ? "var(--accent)" : "var(--border)"}`,
-                                color: on ? "var(--accent)" : "var(--text-muted)", outline: "none",
-                              }}
-                            >
-                              {on ? "on" : "off"}
-                            </button>
-                          </Td>
-                        </tr>
-                        {isOpen && (
-                          <tr style={{ color: "var(--text)" }}>
-                            <td colSpan={3} style={{ padding: "0 var(--s-2) var(--s-2) 22px" }}>
-                              {caps.length === 0 && <span style={{ color: "var(--text-faint)", fontStyle: "italic" }}>No agents curated from this harness yet.</span>}
-                              {caps.map((c) => (
-                                <div key={c.id} style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "2px 0" }}>
-                                  <span style={{ color: c.activation === "prompt" ? "var(--accent)" : "var(--text-muted)", fontSize: 10, width: 38, flexShrink: 0 }}>
-                                    {c.kind}
-                                  </span>
-                                  <span style={{ color: "var(--text)", flexShrink: 0 }}>{c.id}</span>
-                                  <span style={{ color: "var(--text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                    {c.title}{c.triggers?.length ? ` · fires on: ${c.triggers.slice(0, 4).join(", ")}` : ""}
-                                  </span>
-                                </div>
-                              ))}
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-              <div style={{ padding: "var(--s-3) var(--s-2)", fontSize: "var(--t-meta-size)", color: "var(--text-muted)", fontFamily: "var(--font-ui)" }}>
-                <div>{status.totals.nodeCapabilities} node-context capabilities · {status.totals.promptIntents} prompt intents</div>
-                <div>Lock: {status.lock.present ? "present" : "absent — run telos doctor"}</div>
-                <div>Drift: <span style={{ color: drift?.status === "drift" ? "var(--warn, #d29922)" : "var(--ok, #3fb950)" }}>{driftLabel}</span></div>
-              </div>
-              <ActivitySection feed={activity} />
-            </>
-          )}
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)", color: "var(--text-muted)" }}>
+          ↓ {fmt(injected)} tok injected · ↑ {fmt(saved)} tok saved
         </div>
+      </div>
+
+      <div style={{ overflowY: "auto", padding: "var(--s-2)" }}>
+        {loading && <Empty text="Loading…" />}
+        {!loading && !status && <Empty text="No harness data. Is the server running?" />}
+        {!loading && status && (
+          <>
+            {/* Harness on/off table */}
+            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)" }}>
+              <thead>
+                <tr style={{ color: "var(--text-faint)", textAlign: "left" }}>
+                  <Th>Harness</Th><Th right>Agents</Th><Th right>Active</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {status.installed.map((h) => {
+                  const on = enabled.includes(h.source);
+                  const isOpen = expanded === h.source;
+                  const caps = h.capabilities ?? [];
+                  return (
+                    <Fragment key={h.source}>
+                      <tr style={{ borderTop: "1px solid var(--border)", color: "var(--text)" }}>
+                        <Td title={h.repo}>
+                          <button
+                            onClick={() => setExpanded(isOpen ? null : h.source)}
+                            aria-expanded={isOpen}
+                            aria-label={`${isOpen ? "Hide" : "Show"} ${h.source} agents`}
+                            style={{
+                              cursor: "pointer", background: "none", border: "none", padding: 0, font: "inherit",
+                              color: "var(--text)", display: "inline-flex", alignItems: "center", gap: 6,
+                            }}
+                          >
+                            <span style={{ color: "var(--text-faint)", width: 8, display: "inline-block" }}>{isOpen ? "▾" : "▸"}</span>
+                            {h.title}
+                          </button>
+                        </Td>
+                        <Td right>{caps.length}</Td>
+                        <Td right>
+                          <button
+                            onClick={() => toggle(h.source)}
+                            aria-pressed={on}
+                            aria-label={`${on ? "Disable" : "Enable"} ${h.source}`}
+                            style={{
+                              cursor: "pointer", borderRadius: "var(--r-sm)", padding: "1px 8px", fontFamily: "var(--font-mono)", fontSize: 11,
+                              background: on ? "var(--accent-soft)" : "none",
+                              border: `1px solid ${on ? "var(--accent)" : "var(--border)"}`,
+                              color: on ? "var(--accent)" : "var(--text-muted)", outline: "none",
+                            }}
+                          >
+                            {on ? "on" : "off"}
+                          </button>
+                        </Td>
+                      </tr>
+                      {isOpen && (
+                        <tr style={{ color: "var(--text)" }}>
+                          <td colSpan={3} style={{ padding: "0 var(--s-2) var(--s-2) 22px" }}>
+                            {caps.length === 0 && (
+                              <span style={{ color: "var(--text-faint)", fontStyle: "italic" }}>
+                                No agents curated from this harness yet.
+                              </span>
+                            )}
+                            {caps.map((c) => (
+                              <div key={c.id} style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "2px 0" }}>
+                                <span style={{ color: c.activation === "prompt" ? "var(--accent)" : "var(--text-muted)", fontSize: 10, width: 38, flexShrink: 0 }}>
+                                  {c.kind}
+                                </span>
+                                <span style={{ color: "var(--text)", flexShrink: 0 }}>{c.id}</span>
+                                <span style={{ color: "var(--text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {c.title}{c.triggers?.length ? ` · fires on: ${c.triggers.slice(0, 4).join(", ")}` : ""}
+                                </span>
+                              </div>
+                            ))}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            <div style={{ padding: "var(--s-3) var(--s-2)", fontSize: "var(--t-meta-size)", color: "var(--text-muted)", fontFamily: "var(--font-ui)" }}>
+              <div>{status.totals.nodeCapabilities} node-context capabilities · {status.totals.promptIntents} prompt intents</div>
+              <div>Lock: {status.lock.present ? "present" : "absent — run telos doctor"}</div>
+              <div>Drift: <span style={{ color: drift?.status === "drift" ? "var(--warn)" : "var(--ok)" }}>{driftLabel}</span></div>
+            </div>
+
+            <div style={{ padding: "var(--s-2) 0" }}>
+              <SegmentedControl
+                ariaLabel="Background signal"
+                idBase="harness-tab"
+                value={tab}
+                onChange={(v) => setTab(v as Tab)}
+                options={[
+                  { value: "routing", label: "Routing" },
+                  { value: "context", label: "Context" },
+                  { value: "mcp", label: "MCP" },
+                  { value: "impact", label: "Impact" },
+                ]}
+              />
+            </div>
+
+            {tab === "routing" && <ActivitySection feed={activity} />}
+            {tab === "context" && <ContextSection feed={activity} />}
+            {tab === "mcp" && <McpSection feed={mcp} />}
+            {tab === "impact" && <ImpactSection injected={injected} saved={saved} mcp={mcp} measure={measure} />}
+          </>
+        )}
+      </div>
     </Panel>
   );
 }
@@ -185,6 +230,65 @@ function ActivitySection({ feed }: { feed: ActivityFeed | null }) {
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Context tab: what the hook injected per prompt + its token cost. */
+function ContextSection({ feed }: { feed: ActivityFeed | null }) {
+  const entries = (feed?.entries ?? []).filter((e) => e.block || e.injectedTokens != null);
+  if (entries.length === 0) {
+    return <Empty text="No injected context yet — Telos records each prompt it routes." />;
+  }
+  return (
+    <div style={{ padding: "var(--s-2)" }}>
+      {entries.slice(0, 8).map((e, i) => (
+        <details key={`${e.ts}-${i}`} style={{ borderTop: "1px solid var(--border)", padding: "var(--s-1) 0" }}>
+          <summary style={{ cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)", color: "var(--text)" }}>
+            <span style={{ color: "var(--accent)" }}>{e.intent}</span> · {(e.injectedTokens ?? 0).toLocaleString("en-US")} tok
+          </summary>
+          <pre style={{ whiteSpace: "pre-wrap", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-muted)", margin: "var(--s-1) 0 0" }}>
+            {e.block ?? "(block not recorded)"}
+          </pre>
+        </details>
+      ))}
+    </div>
+  );
+}
+
+/** MCP tab: every graph query the agent made instead of reading files. */
+function McpSection({ feed }: { feed: McpActivityFeed | null }) {
+  const entries = feed?.entries ?? [];
+  if (entries.length === 0) {
+    return <Empty text="No MCP queries yet — they appear as the agent explores the graph." />;
+  }
+  return (
+    <div style={{ padding: "var(--s-2)" }}>
+      <div style={{ marginBottom: "var(--s-2)" }}>
+        <Badge tone="accent">{feed!.totals.queries} queries · {feed!.totals.tokens.toLocaleString("en-US")} tok served</Badge>
+      </div>
+      {entries.slice(0, 12).map((e, i) => (
+        <div key={`${e.ts}-${i}`} style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "2px 0", fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)" }}>
+          <span style={{ color: "var(--text-faint)", width: 56, flexShrink: 0 }}>{relTime(e.ts)}</span>
+          <span style={{ color: "var(--accent)", flexShrink: 0 }}>{e.tool}</span>
+          <span style={{ color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{e.argsSummary}</span>
+          <span style={{ color: "var(--text-faint)", flexShrink: 0 }}>{e.resultTokens} tok</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Impact tab: the honest tokenization story. */
+function ImpactSection({
+  injected, saved, mcp, measure,
+}: { injected: number; saved: number; mcp: McpActivityFeed | null; measure: TokenSavings | null }) {
+  const fmt = (n: number) => n.toLocaleString("en-US");
+  return (
+    <div style={{ padding: "var(--s-2)", fontFamily: "var(--font-ui)", fontSize: "var(--t-meta-size)", color: "var(--text-muted)", lineHeight: 1.7 }}>
+      <div>Injected this session: <b style={{ color: "var(--text)" }}>{fmt(injected)}</b> tok across recent prompts</div>
+      <div>Warm-start brief saves: <b style={{ color: "var(--text)" }}>{fmt(saved)}</b> tok vs cold read{measure ? ` (${measure.ratio.toFixed(1)}× smaller)` : ""}</div>
+      <div>MCP served on demand: <b style={{ color: "var(--text)" }}>{fmt(mcp?.totals.tokens ?? 0)}</b> tok over {mcp?.totals.queries ?? 0} queries</div>
     </div>
   );
 }
