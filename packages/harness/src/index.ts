@@ -13,6 +13,7 @@ export * from "./roster.js";
 export * from "./workflows.js";
 export * from "./renderPlan.js";
 export * from "./activity.js";
+export * from "./mcpActivity.js";
 export * from "./semantic.js";
 export * from "./routeTargets.js";
 export * from "./textVector.js";
