@@ -37,7 +37,8 @@ async function main(): Promise<void> {
 
   const cwd = resolve(".");
   const telosDir = join(cwd, ".telos");
-  const enabled = readConfig(cwd).enabled;
+  const config = readConfig(cwd);
+  const enabled = config.enabled;
   const ctx = readProductContextCache(telosDir) ?? { languages: [], layers: [], changedFiles: [] };
 
   // Semantic routing is primary (fixes keyword misroutes); keyword planWorkflow
@@ -45,8 +46,10 @@ async function main(): Promise<void> {
   // silent on a true no-match.
   const roster = loadRoster({ telosDir });
   let plan = semanticRoute(prompt, roster, enabled, ctx) ?? planWorkflow(prompt, roster, enabled, ctx);
-  // Slice 2: surface the most relevant specific agents the template didn't name.
-  plan = augmentWithSpecialists(plan, prompt, roster, enabled);
+  // Slice 2 / Phase 3: surface the most relevant specific agents from the FULL
+  // roster the template didn't name, gated by the tunable confidence threshold
+  // (config-driven; falls back to the code default when unset).
+  plan = augmentWithSpecialists(plan, prompt, roster, enabled, { min: config.specialistMin, limit: config.specialistLimit });
   const block = renderPlan(plan, ctx);
   if (!block) return;
 
