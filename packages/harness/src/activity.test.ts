@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { estimateTokens, recordActivity, readActivity, computeUsage } from "./activity.js";
+import { estimateTokens, recordActivity, readActivity, computeUsage, computeHistory } from "./activity.js";
 
 describe("activity log", () => {
   let dir: string;
@@ -43,6 +43,35 @@ describe("activity entry with injected fields", () => {
     const feed = readActivity(dir);
     expect(feed.entries[0].injectedTokens).toBe(42);
     expect(feed.entries[0].block).toBe("PLAN BLOCK");
+    rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("computeHistory", () => {
+  it("returns empty history when nothing recorded", () => {
+    const dir = mkdtempSync(join(tmpdir(), "telos-hist-"));
+    expect(computeHistory(dir)).toEqual({ totalPrompts: 0, totalInjected: 0, distinctAgents: 0, firstTs: null, lastTs: null, days: [] });
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("aggregates per-day prompts, distinct agents, and injected tokens", () => {
+    const dir = mkdtempSync(join(tmpdir(), "telos-hist-"));
+    const d1 = Date.parse("2026-06-20T10:00:00Z");
+    const d2 = Date.parse("2026-06-21T09:00:00Z");
+    recordActivity(dir, { ts: d1, promptSnippet: "a", intent: "feature build", agents: ["ecc:a", "sp:b"], sources: [], injectedTokens: 100 });
+    recordActivity(dir, { ts: d1 + 3600_000, promptSnippet: "b", intent: "bug fix", agents: ["ecc:a"], sources: [], injectedTokens: 40 });
+    recordActivity(dir, { ts: d2, promptSnippet: "c", intent: "explain", agents: [], sources: [] }); // silent — excluded
+    recordActivity(dir, { ts: d2 + 60_000, promptSnippet: "d", intent: "review", agents: ["ecc:c"], sources: [], injectedTokens: 25 });
+
+    const h = computeHistory(dir);
+    expect(h.totalPrompts).toBe(3); // the silent one is excluded
+    expect(h.totalInjected).toBe(165);
+    expect(h.distinctAgents).toBe(3); // ecc:a, sp:b, ecc:c
+    expect(h.firstTs).toBe(d1);
+    expect(h.lastTs).toBe(d2 + 60_000);
+    expect(h.days.map((d) => d.day)).toEqual(["2026-06-20", "2026-06-21"]);
+    expect(h.days[0]).toEqual({ day: "2026-06-20", prompts: 2, agents: 2, injectedTokens: 140 });
+    expect(h.days[1]).toEqual({ day: "2026-06-21", prompts: 1, agents: 1, injectedTokens: 25 });
     rmSync(dir, { recursive: true, force: true });
   });
 });

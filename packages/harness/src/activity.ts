@@ -82,6 +82,46 @@ export interface UsageStats {
   sources: { source: string; count: number; lastTs: number }[]; // per-harness (id before ":")
 }
 
+// Longevity view: how Telos was used over the project's life, from the full log
+// (not a rolling window). Powers the History tab — usage + injected-token trend.
+export interface HistoryDay { day: string; prompts: number; agents: number; injectedTokens: number }
+export interface HistoryStats {
+  totalPrompts: number;       // prompts that routed at least one agent
+  totalInjected: number;      // Σ injectedTokens across all such prompts
+  distinctAgents: number;     // distinct agents ever routed
+  firstTs: number | null;
+  lastTs: number | null;
+  days: HistoryDay[];         // chronological, one entry per active day
+}
+
+/** Aggregate the whole activity log into per-day usage + injected-token trend. */
+export function computeHistory(telosDir: string): HistoryStats {
+  const routed = parseEntries(telosDir).filter((e) => Array.isArray(e.agents) && e.agents.length > 0);
+  const allAgents = new Set<string>();
+  const byDay = new Map<string, { prompts: number; agents: Set<string>; injectedTokens: number }>();
+  let totalInjected = 0;
+  let firstTs: number | null = null;
+  let lastTs: number | null = null;
+
+  for (const e of routed) {
+    const day = new Date(e.ts).toISOString().slice(0, 10);
+    const d = byDay.get(day) ?? { prompts: 0, agents: new Set<string>(), injectedTokens: 0 };
+    d.prompts++;
+    d.injectedTokens += e.injectedTokens ?? 0;
+    for (const id of e.agents) { d.agents.add(id); allAgents.add(id); }
+    byDay.set(day, d);
+    totalInjected += e.injectedTokens ?? 0;
+    firstTs = firstTs === null ? e.ts : Math.min(firstTs, e.ts);
+    lastTs = lastTs === null ? e.ts : Math.max(lastTs, e.ts);
+  }
+
+  const days: HistoryDay[] = [...byDay.entries()]
+    .map(([day, d]) => ({ day, prompts: d.prompts, agents: d.agents.size, injectedTokens: d.injectedTokens }))
+    .sort((a, b) => a.day.localeCompare(b.day));
+
+  return { totalPrompts: routed.length, totalInjected, distinctAgents: allAgents.size, firstTs, lastTs, days };
+}
+
 /** Tally agent/harness usage across the last `window` prompts that routed agents. */
 export function computeUsage(telosDir: string, window = 20): UsageStats {
   const recent = parseEntries(telosDir)
