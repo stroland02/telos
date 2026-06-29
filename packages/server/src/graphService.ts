@@ -91,7 +91,7 @@ export class GraphService implements GraphProvider {
 
   /** Rolling agent/harness usage over the recent routed-prompt window. */
   getUsage(window?: number) {
-    if (!this.repoRoot) return { windowPrompts: 0, agents: [], sources: [] };
+    if (!this.repoRoot) return { windowPrompts: 0, activeCount: 0, agents: [], sources: [] };
     return computeUsage(join(this.repoRoot, ".telos"), window);
   }
 

@@ -47,7 +47,7 @@ export interface GraphProvider {
   /** Optional: recent MCP graph queries + totals for the control panel. */
   getMcpActivity?(limit?: number): { entries: { ts: number; tool: string; argsSummary: string; resultTokens: number }[]; totals: { queries: number; tokens: number } };
   /** Optional: rolling agent/harness usage over the recent routed-prompt window. */
-  getUsage?(window?: number): { windowPrompts: number; agents: { id: string; count: number; lastTs: number }[]; sources: { source: string; count: number; lastTs: number }[] };
+  getUsage?(window?: number): { windowPrompts: number; activeCount: number; agents: { id: string; count: number; lastTs: number; active: boolean }[]; sources: { source: string; count: number; lastTs: number }[] };
   /** Optional: longevity view — per-day usage + injected-token trend over the project's life. */
   getHistory?(): { totalPrompts: number; totalInjected: number; distinctAgents: number; firstTs: number | null; lastTs: number | null; days: { day: string; prompts: number; agents: number; injectedTokens: number }[] };
   repoRoot: string | null;
@@ -125,7 +125,7 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
     const window = Number((req.query as { window?: string }).window) || undefined;
     return provider.getUsage
       ? provider.getUsage(window)
-      : { windowPrompts: 0, agents: [], sources: [] };
+      : { windowPrompts: 0, activeCount: 0, agents: [], sources: [] };
   });
 
   // Longevity: the whole-project history of how Telos shaped tokenization —

@@ -72,13 +72,14 @@ export function HarnessPanel({
     ? Math.max(0, measure.baselineTokens - measure.packTokens) : 0;
   const fmt = (n: number) => n.toLocaleString("en-US");
 
-  // Usage funnel: distinct agents actually routed recently (dynamic) vs. the
-  // curated pool. `usedById` drives the per-agent ●/○ markers; `usedBySource`
-  // the per-harness Used count + idle flag (enabled but never used = prunable).
+  // Usage funnel: agents ACTIVE now (recency-windowed) vs. the wider recent
+  // window vs. the curated/installed pools. `usedById` drives the per-agent
+  // ●active/○retired markers; `usedBySource` the per-harness count + idle flag.
   const usedById = new Map((usage?.agents ?? []).map((a) => [a.id, a]));
   const usedCountForSource = (source: string) =>
     (usage?.agents ?? []).filter((a) => a.id.split(":")[0] === source).length;
-  const activeAgents = usage?.agents.length ?? 0;
+  const activeAgents = usage?.activeCount ?? 0;          // active right now
+  const recentlyUsed = usage?.agents.length ?? 0;        // distinct over the wider window
   const curatedTotal = status ? status.totals.nodeCapabilities + status.totals.promptIntents : 0;
   // installed = ALL on-disk agents+skills across harnesses (roster-backed); the
   // full pool Telos can reach, vs. the curated set it routes by default.
@@ -108,13 +109,16 @@ export function HarnessPanel({
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)", color: "var(--text-muted)" }}>
           ↓ {fmt(injected)} tok injected · ↑ {fmt(saved)} tok saved
         </div>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)", color: "var(--text-muted)" }}>
-          {activeAgents} used
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)", color: "var(--text)" }}>
+          {activeAgents} agent{activeAgents === 1 ? "" : "s"} active <span style={{ color: "var(--text-faint)" }}>· {fmt(installedTotal)} in pool</span>
+        </div>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)", color: "var(--text-faint)" }}>
+          {recentlyUsed} used recently · {curatedTotal} curated
           {usedFromFullRoster > 0 && (
             <span title="agents routed from the full installed roster, beyond the curated catalog — the quality-gated router reaching the full pool"
-              style={{ color: "var(--accent)" }}>{` (${usedFromFullRoster} from full roster)`}</span>
+              style={{ color: "var(--accent)" }}>{` · ${usedFromFullRoster} from full roster`}</span>
           )}
-          {" · "}{curatedTotal} curated · {fmt(installedTotal)} installed <span style={{ color: "var(--text-faint)" }}>(last {usage?.windowPrompts ?? 0} routed prompts)</span>
+          {" · "}last {usage?.windowPrompts ?? 0} prompts
         </div>
       </div>
 
@@ -193,10 +197,10 @@ export function HarnessPanel({
                               return (
                                 <div key={c.id} style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "2px 0" }}>
                                   <span
-                                    title={u ? `used ${u.count}× recently` : "idle — not routed recently"}
-                                    style={{ color: u ? "var(--ok)" : "var(--text-faint)", fontSize: 10, width: 48, flexShrink: 0 }}
+                                    title={u?.active ? `active now — routed ${u.count}× recently` : u ? `used ${u.count}× earlier, now retired` : "idle — not routed recently"}
+                                    style={{ color: u?.active ? "var(--ok)" : u ? "var(--text-muted)" : "var(--text-faint)", fontSize: 10, width: 52, flexShrink: 0 }}
                                   >
-                                    {u ? `● ${u.count}×` : "○ idle"}
+                                    {u?.active ? `● ${u.count}×` : u ? `◐ ${u.count}×` : "○ idle"}
                                   </span>
                                   <span style={{ color: c.activation === "prompt" ? "var(--accent)" : "var(--text-muted)", fontSize: 10, width: 38, flexShrink: 0 }}>
                                     {c.kind}

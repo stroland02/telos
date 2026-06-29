@@ -57,9 +57,10 @@ describe("buildFunnel", () => {
   const status = buildHarnessStatus({ lockPath: "/x/harness.lock", lock: null, nodeCatalog, promptCatalog, installs });
   const usage: UsageStats = {
     windowPrompts: 2,
+    activeCount: 1,
     agents: [
-      { id: "ecc:a", count: 3, lastTs: 30 },
-      { id: "ecc:perf", count: 1, lastTs: 20 },
+      { id: "ecc:a", count: 3, lastTs: 30, active: true },
+      { id: "ecc:perf", count: 1, lastTs: 20, active: false },
     ],
     sources: [{ source: "ecc", count: 4, lastTs: 30 }],
   };

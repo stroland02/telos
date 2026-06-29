@@ -60,7 +60,8 @@ export interface McpActivityFeed { entries: McpActivityEntry[]; totals: { querie
 // to over the recent prompt window (dynamic, vs. the static curated catalog).
 export interface UsageStats {
   windowPrompts: number;
-  agents: { id: string; count: number; lastTs: number }[];
+  activeCount: number; // distinct agents active right now (recency-windowed)
+  agents: { id: string; count: number; lastTs: number; active: boolean }[];
   sources: { source: string; count: number; lastTs: number }[];
 }
 // Longevity view: per-day usage + injected-token trend over the project's whole

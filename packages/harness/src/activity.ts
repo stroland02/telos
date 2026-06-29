@@ -78,7 +78,8 @@ export function readActivity(telosDir: string, limit = 50): ActivityFeed {
 // means routed/dispatched by Telos's planner, the only usage Telos observes.
 export interface UsageStats {
   windowPrompts: number; // routed prompts considered (<= window)
-  agents: { id: string; count: number; lastTs: number }[]; // distinct agents, busiest first
+  activeCount: number;   // distinct agents active right now (recency-windowed)
+  agents: { id: string; count: number; lastTs: number; active: boolean }[]; // distinct agents, busiest first; active = recently routed
   sources: { source: string; count: number; lastTs: number }[]; // per-harness (id before ":")
 }
 
@@ -122,11 +123,29 @@ export function computeHistory(telosDir: string): HistoryStats {
   return { totalPrompts: routed.length, totalInjected, distinctAgents: allAgents.size, firstTs, lastTs, days };
 }
 
-/** Tally agent/harness usage across the last `window` prompts that routed agents. */
-export function computeUsage(telosDir: string, window = 20): UsageStats {
-  const recent = parseEntries(telosDir)
-    .filter((e) => Array.isArray(e.agents) && e.agents.length > 0)
-    .slice(-window);
+/**
+ * Tally agent/harness usage across the last `window` routed prompts, and flag
+ * which agents are *active right now*. An agent is active when it was routed
+ * within the last `activeWindow` prompts AND newer than `activeMinutes` — the
+ * count window tracks the current task, the time cutoff lets a pause / new chat
+ * drain the set. "Active" = recently routed (the only signal Telos has), not a
+ * literal live subagent process.
+ */
+export function computeUsage(
+  telosDir: string,
+  window = 20,
+  activeWindow = 6,
+  activeMinutes = 30,
+  now: number = Date.now(),
+): UsageStats {
+  const routed = parseEntries(telosDir).filter((e) => Array.isArray(e.agents) && e.agents.length > 0);
+  const recent = routed.slice(-window);
+
+  // Active set: agents in the last `activeWindow` entries that are recent enough.
+  const cutoff = now - activeMinutes * 60_000;
+  const activeIds = new Set(
+    recent.slice(-activeWindow).filter((e) => e.ts >= cutoff).flatMap((e) => e.agents),
+  );
 
   const agents = new Map<string, { count: number; lastTs: number }>();
   const sources = new Map<string, { count: number; lastTs: number }>();
@@ -145,10 +164,11 @@ export function computeUsage(telosDir: string, window = 20): UsageStats {
 
   return {
     windowPrompts: recent.length,
+    activeCount: activeIds.size,
     agents: [...agents.entries()]
       .map(([id, v]) => ({ id, ...v, k: id }))
       .sort(byBusiest)
-      .map(({ id, count, lastTs }) => ({ id, count, lastTs })),
+      .map(({ id, count, lastTs }) => ({ id, count, lastTs, active: activeIds.has(id) })),
     sources: [...sources.entries()]
       .map(([source, v]) => ({ source, ...v, k: source }))
       .sort(byBusiest)

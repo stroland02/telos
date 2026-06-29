@@ -253,7 +253,8 @@ describe("graph routes", () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.windowPrompts).toBe(2);
-    expect(body.agents[0]).toEqual({ id: "ecc:typescript-reviewer", count: 2, lastTs: 2 });
+    expect(body).toHaveProperty("activeCount");
+    expect(body.agents[0]).toEqual({ id: "ecc:typescript-reviewer", count: 2, lastTs: 2, active: false }); // ts=1,2 are far older than the active window
     expect(body.sources.find((s: { source: string }) => s.source === "ecc").count).toBe(2);
     await app.close(); svc.close();
   });
@@ -267,7 +268,7 @@ describe("graph routes", () => {
     const app = buildServer(minimalProvider);
     const res = await app.inject({ method: "GET", url: "/api/harness/usage" });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ windowPrompts: 0, agents: [], sources: [] });
+    expect(res.json()).toEqual({ windowPrompts: 0, activeCount: 0, agents: [], sources: [] });
     await app.close();
   });
 

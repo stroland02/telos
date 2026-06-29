@@ -8,15 +8,17 @@ let dir: string;
 afterEach(() => { if (dir) rmSync(dir, { recursive: true, force: true }); });
 
 describe("statusLineText", () => {
-  it("renders the engaged line, degrading to ◇ Telos", () => {
-    expect(statusLineText({ agents: 8, graph: true, live: true })).toBe("◇ Telos engaged · 8 agents · graph ✓ · live");
-    expect(statusLineText({ agents: 8, graph: false })).toBe("◇ Telos engaged · 8 agents · graph —");
+  it("renders the engaged line as an absolute 'N agents active', degrading to ◇ Telos", () => {
+    expect(statusLineText({ agents: 8, graph: true, live: true })).toBe("◇ Telos engaged · 8 agents active · graph ✓ · live");
+    expect(statusLineText({ agents: 8, graph: false })).toBe("◇ Telos engaged · 8 agents active · graph —");
     expect(statusLineText({})).toBe("◇ Telos");
   });
 
-  it("renders used/total agents when agentsTotal is supplied", () => {
-    expect(statusLineText({ agents: 3, agentsTotal: 22, harnesses: 2, graph: true, live: true }))
-      .toBe("◇ Telos engaged · 2 harnesses · 3/22 agents · graph ✓ · live");
+  it("pluralizes and includes the harness count", () => {
+    expect(statusLineText({ agents: 1, harnesses: 2, graph: true, live: true }))
+      .toBe("◇ Telos engaged · 2 harnesses · 1 agent active · graph ✓ · live");
+    expect(statusLineText({ agents: 0, harnesses: 1, graph: true }))
+      .toBe("◇ Telos engaged · 1 harness · 0 agents active · graph ✓");
   });
 });
 

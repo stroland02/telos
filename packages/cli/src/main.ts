@@ -121,11 +121,10 @@ export async function runStatusLine(path: string): Promise<string> {
     live = res.ok;
   } catch { /* server not running — fine */ }
   const harnesses = readConfig(repo).enabled.length;
-  // agents = distinct capabilities ACTUALLY routed recently (dynamic); total =
-  // the curated pool (node + prompt). Rendered "used/total" so it moves as you work.
+  // agents = distinct capabilities ACTIVE right now (recency-windowed) — an
+  // absolute that cleans up as a task finishes / a new chat starts.
   const usage = computeUsage(join(repo, ".telos"));
-  const curatedTotal = DEFAULT_CATALOG.length + PROMPT_CATALOG.length;
-  return statusLineText({ agents: usage.agents.length, agentsTotal: curatedTotal, graph, live, harnesses: harnesses || undefined });
+  return statusLineText({ agents: usage.activeCount, graph, live, harnesses: harnesses || undefined });
 }
 
 /** Aggregate the harness cockpit status from the repo's lock + the live catalogs. */

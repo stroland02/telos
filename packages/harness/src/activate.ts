@@ -19,14 +19,14 @@ const HOOK_MARKERS = ["telos-hook", "route --hook", "hook.js"];
 const GREPASSIST_MARKER = "grep-assist";
 
 /** The one-line indicator Claude Code's statusline renders. */
-export function statusLineText(s: { agents?: number; agentsTotal?: number; graph?: boolean; live?: boolean; harnesses?: number }): string {
+export function statusLineText(s: { agents?: number; graph?: boolean; live?: boolean; harnesses?: number }): string {
   if (s.agents == null) return "◇ Telos";
   const parts = ["◇ Telos engaged"];
   if (s.harnesses != null) parts.push(`${s.harnesses} harness${s.harnesses === 1 ? "" : "es"}`);
-  // `agents` is now the count actually USED recently; `agentsTotal` (when given)
-  // is the curated pool, rendered as "used/total" so the number visibly moves.
-  const agentLabel = s.agentsTotal != null ? `${s.agents}/${s.agentsTotal} agents` : `${s.agents} agents`;
-  parts.push(agentLabel, `graph ${s.graph ? "✓" : "—"}`);
+  // `agents` is the count ACTIVE right now (recency-windowed), shown as an
+  // absolute — never a "used/curated" ratio, since routing reaches the full
+  // roster and "used" can exceed the curated catalog.
+  parts.push(`${s.agents} agent${s.agents === 1 ? "" : "s"} active`, `graph ${s.graph ? "✓" : "—"}`);
   if (s.live) parts.push("live");
   return parts.join(" · ");
 }

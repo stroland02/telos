@@ -38,7 +38,8 @@ function fakeApi(over: Partial<TelosApi> = {}): TelosApi {
     }),
     usage: vi.fn().mockResolvedValue({
       windowPrompts: 3,
-      agents: [{ id: "ecc:database-reviewer", count: 2, lastTs: Date.now() }],
+      activeCount: 1,
+      agents: [{ id: "ecc:database-reviewer", count: 2, lastTs: Date.now(), active: true }],
       sources: [{ source: "ecc", count: 2, lastTs: Date.now() }],
     }),
     history: vi.fn().mockResolvedValue({
@@ -146,12 +147,14 @@ describe("HarnessPanel control panel", () => {
 
   // ── Usage-driven metrics ──────────────────────────────────────────────────
 
-  it("shows used/curated/installed agents in the header", async () => {
+  it("leads with the absolute active-agent count and shows the pool/curated detail", async () => {
     render(<HarnessPanel open api={fakeApi()} onClose={() => {}} />);
     await screen.findByText("ECC — agents, skills, reviewers"); // wait for load
-    // usage has 1 distinct agent; curated = 8 + 14 = 22; installed = sum nodeCapabilities (1 + 0)
-    const header = screen.getByText(/curated/);
-    expect(header.textContent).toMatch(/1 used · 22 curated · 1 installed/);
+    // activeCount = 1 → "1 agent active"; installed = sum nodeCapabilities (1 + 0)
+    expect(screen.getByText(/1 agent active/)).toBeInTheDocument();
+    // the quieter detail line carries recently-used + curated
+    const detail = screen.getByText(/used recently/);
+    expect(detail.textContent).toMatch(/1 used recently · 22 curated/);
   });
 
   it("surfaces when used agents were pulled from the full roster beyond curated", async () => {
@@ -159,9 +162,10 @@ describe("HarnessPanel control panel", () => {
     // it stands in for a Phase 3 specialist routed from the full installed roster.
     const usage = {
       windowPrompts: 4,
+      activeCount: 2,
       agents: [
-        { id: "ecc:database-reviewer", count: 2, lastTs: Date.now() },
-        { id: "ecc:rust-reviewer", count: 1, lastTs: Date.now() },
+        { id: "ecc:database-reviewer", count: 2, lastTs: Date.now(), active: true },
+        { id: "ecc:rust-reviewer", count: 1, lastTs: Date.now(), active: true },
       ],
       sources: [{ source: "ecc", count: 3, lastTs: Date.now() }],
     };
