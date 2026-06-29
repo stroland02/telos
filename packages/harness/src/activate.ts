@@ -11,7 +11,11 @@ export interface ActivationState {
 
 // Substrings that mark settings as ours (so deactivate only removes Telos's).
 const STATUSLINE_MARKER = "status --line";
-const HOOK_MARKER = "route --hook";
+// The per-prompt routing hook ships in three invocation forms — the dedicated
+// `telos-hook` bin (fast path the CLI installs), the `route --hook` subcommand,
+// and the `node ".../hook.js"` fallback. Recognize ALL of them so re-activation
+// is idempotent and deactivate can always remove our own hook.
+const HOOK_MARKERS = ["telos-hook", "route --hook", "hook.js"];
 const GREPASSIST_MARKER = "grep-assist";
 
 /** The one-line indicator Claude Code's statusline renders. */
@@ -48,8 +52,10 @@ function isTelosStatusLine(sl: unknown): boolean {
 
 function isTelosHookEntry(entry: unknown): boolean {
   const hooks = (entry as { hooks?: unknown }).hooks;
-  return Array.isArray(hooks) && hooks.some((h) =>
-    typeof (h as { command?: unknown }).command === "string" && (h as { command: string }).command.includes(HOOK_MARKER));
+  return Array.isArray(hooks) && hooks.some((h) => {
+    const cmd = (h as { command?: unknown }).command;
+    return typeof cmd === "string" && HOOK_MARKERS.some((m) => cmd.includes(m));
+  });
 }
 
 function setUserPromptHook(settings: Record<string, unknown>, command: string): void {

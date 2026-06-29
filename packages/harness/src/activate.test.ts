@@ -78,6 +78,34 @@ describe("activate UserPromptSubmit hook", () => {
     expect(after.hooks?.PreToolUse).toBeUndefined();
   });
 
+  it("recognizes the dedicated telos-hook bin form — re-activate is idempotent, deactivate removes it", () => {
+    // The CLI installs the fast `telos-hook` bin (not `route --hook`); Telos must
+    // still recognize it as its own so re-activation never duplicates the hook.
+    const d = mkdtempSync(join(tmpdir(), "telos-hook-bin-"));
+    try {
+      activate(d, { hookCommand: "telos-hook" });
+      activate(d, { hookCommand: "telos-hook" }); // re-activate (refresh to newest)
+      const w = JSON.parse(readFileSync(join(d, ".claude", "settings.json"), "utf8"));
+      expect(w.hooks.UserPromptSubmit).toHaveLength(1);                       // no duplicate
+      expect(w.hooks.UserPromptSubmit[0].hooks[0].command).toBe("telos-hook");
+      expect(activationState(d).hookPresent).toBe(true);
+      deactivate(d);
+      const a = JSON.parse(readFileSync(join(d, ".claude", "settings.json"), "utf8"));
+      expect(a.hooks?.UserPromptSubmit).toBeUndefined();                      // removed
+    } finally { rmSync(d, { recursive: true, force: true }); }
+  });
+
+  it("recognizes the node hook.js fallback form too", () => {
+    const d = mkdtempSync(join(tmpdir(), "telos-hookjs-"));
+    try {
+      activate(d, { hookCommand: 'node "/x/dist/hook.js"' });
+      expect(activationState(d).hookPresent).toBe(true);
+      deactivate(d);
+      const a = JSON.parse(readFileSync(join(d, ".claude", "settings.json"), "utf8"));
+      expect(a.hooks?.UserPromptSubmit).toBeUndefined();
+    } finally { rmSync(d, { recursive: true, force: true }); }
+  });
+
   it("can be told to skip the hook with hookCommand: null", () => {
     const d = mkdtempSync(join(tmpdir(), "telos-act-nohook-"));
     try {
