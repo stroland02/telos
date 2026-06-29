@@ -11,10 +11,10 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { TelosApi } from "../api/client";
-import { HarnessStatus, ActivityFeed, McpActivityFeed, TokenSavings, UsageStats } from "../api/types";
+import { HarnessStatus, ActivityFeed, McpActivityFeed, TokenSavings, UsageStats, HistoryStats } from "../api/types";
 import { Panel, Button, Badge, Switch, SegmentedControl } from "./ui";
 
-type Tab = "routing" | "context" | "mcp" | "impact";
+type Tab = "routing" | "context" | "mcp" | "impact" | "history";
 
 export function HarnessPanel({
   open, api, onClose,
@@ -25,6 +25,7 @@ export function HarnessPanel({
   const [activity, setActivity] = useState<ActivityFeed | null>(null);
   const [mcp, setMcp] = useState<McpActivityFeed | null>(null);
   const [usage, setUsage] = useState<UsageStats | null>(null);
+  const [history, setHistory] = useState<HistoryStats | null>(null);
   const [measure, setMeasure] = useState<TokenSavings | null>(null);
   const [engaged, setEngaged] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -38,6 +39,7 @@ export function HarnessPanel({
     api.harnessActivity().then(setActivity).catch(() => setActivity(null));
     api.mcpActivity().then(setMcp).catch(() => setMcp(null));
     api.usage().then(setUsage).catch(() => setUsage(null));
+    api.history().then(setHistory).catch(() => setHistory(null));
     api.measure().then(setMeasure).catch(() => setMeasure(null));
     api.activationState().then((s) => setEngaged(!!s.statusLinePresent)).catch(() => {});
   }, [api]);
@@ -222,6 +224,7 @@ export function HarnessPanel({
                   { value: "context", label: "Context" },
                   { value: "mcp", label: "MCP" },
                   { value: "impact", label: "Impact" },
+                  { value: "history", label: "History" },
                 ]}
               />
             </div>
@@ -230,6 +233,7 @@ export function HarnessPanel({
             {tab === "context" && <ContextSection feed={activity} />}
             {tab === "mcp" && <McpSection feed={mcp} />}
             {tab === "impact" && <ImpactSection injected={injected} saved={saved} mcp={mcp} measure={measure} />}
+            {tab === "history" && <HistorySection history={history} />}
           </>
         )}
       </div>
@@ -327,6 +331,57 @@ function ImpactSection({
       <div>Injected this session: <b style={{ color: "var(--text)" }}>{fmt(injected)}</b> tok across recent prompts</div>
       <div>Warm-start brief saves: <b style={{ color: "var(--text)" }}>{fmt(saved)}</b> tok vs cold read{measure ? ` (${measure.ratio.toFixed(1)}× smaller)` : ""}</div>
       <div>MCP served on demand: <b style={{ color: "var(--text)" }}>{fmt(mcp?.totals.tokens ?? 0)}</b> tok over {mcp?.totals.queries ?? 0} queries</div>
+    </div>
+  );
+}
+
+/** History tab: the longevity story — how Telos shaped tokenization over the
+ *  project's whole life. Cumulative totals + a per-day injected-token trend,
+ *  visible regardless of whether the harness is currently active.
+ *  Fed by GET /api/harness/history. */
+function HistorySection({ history }: { history: HistoryStats | null }) {
+  const days = history?.days ?? [];
+  const fmt = (n: number) => n.toLocaleString("en-US");
+  if (!history || history.totalPrompts === 0) {
+    return <Empty text="No history yet — Telos builds this from every prompt it routes over the project's life." />;
+  }
+  const span = history.firstTs && history.lastTs
+    ? `${new Date(history.firstTs).toISOString().slice(0, 10)} → ${new Date(history.lastTs).toISOString().slice(0, 10)}`
+    : "";
+  const peak = Math.max(1, ...days.map((d) => d.injectedTokens));
+  return (
+    <div style={{ borderTop: "1px solid var(--border)", padding: "var(--s-3) var(--s-2)", fontFamily: "var(--font-ui)" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: "var(--s-2)" }}>
+        <Badge tone="accent">{fmt(history.totalPrompts)} prompts routed</Badge>
+        <Badge tone="accent">{history.distinctAgents} distinct agents</Badge>
+        <Badge tone="accent">{fmt(history.totalInjected)} tok injected</Badge>
+      </div>
+      {span && (
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)", color: "var(--text-faint)", marginBottom: "var(--s-2)" }}>
+          {span} · {days.length} active {days.length === 1 ? "day" : "days"}
+        </div>
+      )}
+      {/* Per-day injected-token trend — a token-styled inline bar chart. */}
+      <div style={{ marginBottom: "var(--s-2)" }}>
+        {days.map((d) => (
+          <div key={d.day} title={`${d.day}: ${fmt(d.injectedTokens)} tok · ${d.prompts} prompts · ${d.agents} agents`}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "1px 0", fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)" }}>
+            <span style={{ color: "var(--text-faint)", width: 78, flexShrink: 0 }}>{d.day.slice(5)}</span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{
+                display: "inline-block", height: 8, borderRadius: "var(--r-sm)",
+                background: "var(--accent)",
+                width: `${Math.max(2, Math.round((d.injectedTokens / peak) * 100))}%`,
+              }} />
+            </span>
+            <span style={{ color: "var(--text-muted)", width: 64, flexShrink: 0, textAlign: "right" }}>{fmt(d.injectedTokens)}</span>
+            <span style={{ color: "var(--text-faint)", width: 40, flexShrink: 0, textAlign: "right" }}>{d.prompts}p</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: "var(--t-meta-size)", color: "var(--text-faint)", fontFamily: "var(--font-ui)" }}>
+        Injected tokens per active day — the cost of the context Telos fed the agent over time.
+      </div>
     </div>
   );
 }

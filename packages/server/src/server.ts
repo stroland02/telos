@@ -48,6 +48,8 @@ export interface GraphProvider {
   getMcpActivity?(limit?: number): { entries: { ts: number; tool: string; argsSummary: string; resultTokens: number }[]; totals: { queries: number; tokens: number } };
   /** Optional: rolling agent/harness usage over the recent routed-prompt window. */
   getUsage?(window?: number): { windowPrompts: number; agents: { id: string; count: number; lastTs: number }[]; sources: { source: string; count: number; lastTs: number }[] };
+  /** Optional: longevity view — per-day usage + injected-token trend over the project's life. */
+  getHistory?(): { totalPrompts: number; totalInjected: number; distinctAgents: number; firstTs: number | null; lastTs: number | null; days: { day: string; prompts: number; agents: number; injectedTokens: number }[] };
   repoRoot: string | null;
 }
 
@@ -125,6 +127,14 @@ export function buildServer(provider: GraphProvider, options: ServerOptions = {}
       ? provider.getUsage(window)
       : { windowPrompts: 0, agents: [], sources: [] };
   });
+
+  // Longevity: the whole-project history of how Telos shaped tokenization —
+  // per-day prompts/agents + the injected-token trend. Powers the History tab,
+  // visible regardless of whether the harness is currently active.
+  app.get("/api/harness/history", async () =>
+    provider.getHistory
+      ? provider.getHistory()
+      : { totalPrompts: 0, totalInjected: 0, distinctAgents: 0, firstTs: null, lastTs: null, days: [] });
 
   // Harness cockpit: installed harnesses + enabled capability counts + drift,
   // so the web client can show "what powers are active" at a glance.

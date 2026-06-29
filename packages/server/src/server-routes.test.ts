@@ -270,4 +270,43 @@ describe("graph routes", () => {
     expect(res.json()).toEqual({ windowPrompts: 0, agents: [], sources: [] });
     await app.close();
   });
+
+  it("GET /api/harness/history returns per-day usage + injected-token trend", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "telos-history-routes-"));
+    dirs.push(dir);
+    const dbPath = join(dir, "graph.db");
+    const store = GraphStore.open(dbPath);
+    store.save(graph);
+    store.close();
+    const day1 = Date.parse("2026-06-20T10:00:00Z");
+    const day2 = Date.parse("2026-06-21T10:00:00Z");
+    recordActivity(join(dir, ".telos"), { ts: day1, promptSnippet: "p", intent: "bug fix", agents: ["ecc:typescript-reviewer"], sources: [], injectedTokens: 100 });
+    recordActivity(join(dir, ".telos"), { ts: day1 + 1000, promptSnippet: "q", intent: "feature", agents: ["superpowers:brainstorming"], sources: [], injectedTokens: 50 });
+    recordActivity(join(dir, ".telos"), { ts: day2, promptSnippet: "r", intent: "bug fix", agents: ["ecc:typescript-reviewer"], sources: [], injectedTokens: 200 });
+    const svc = GraphService.fromDb(dbPath, dir);
+    const app = buildServer(svc);
+    const res = await app.inject({ method: "GET", url: "/api/harness/history" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.totalPrompts).toBe(3);
+    expect(body.totalInjected).toBe(350);
+    expect(body.distinctAgents).toBe(2);
+    expect(body.days).toHaveLength(2);
+    expect(body.days[0]).toEqual({ day: "2026-06-20", prompts: 2, agents: 2, injectedTokens: 150 });
+    expect(body.days[1]).toEqual({ day: "2026-06-21", prompts: 1, agents: 1, injectedTokens: 200 });
+    await app.close(); svc.close();
+  });
+
+  it("GET /api/harness/history returns fallback when provider lacks the method", async () => {
+    const minimalProvider: any = {
+      getOverview: () => ({}), getChildren: () => null, getNode: () => null,
+      search: () => [], getFiles: () => [], getFilePaths: () => new Set<string>(), repoRoot: null,
+      // Intentionally omit getHistory to test the route's else-branch
+    };
+    const app = buildServer(minimalProvider);
+    const res = await app.inject({ method: "GET", url: "/api/harness/history" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ totalPrompts: 0, totalInjected: 0, distinctAgents: 0, firstTs: null, lastTs: null, days: [] });
+    await app.close();
+  });
 });

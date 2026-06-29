@@ -63,6 +63,17 @@ export interface UsageStats {
   agents: { id: string; count: number; lastTs: number }[];
   sources: { source: string; count: number; lastTs: number }[];
 }
+// Longevity view: per-day usage + injected-token trend over the project's whole
+// life (not a rolling window) — the History tab's "how Telos shaped tokens" story.
+export interface HistoryDay { day: string; prompts: number; agents: number; injectedTokens: number }
+export interface HistoryStats {
+  totalPrompts: number;
+  totalInjected: number;
+  distinctAgents: number;
+  firstTs: number | null;
+  lastTs: number | null;
+  days: HistoryDay[];
+}
 
 // ── Control rail status (assembled from existing reads/streams) ──────────────
 export interface GraphStats { nodes: number; edges: number; files: number; languages: string[]; enriched: number; }

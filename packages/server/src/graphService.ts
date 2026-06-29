@@ -8,7 +8,7 @@ import {
   enrichGraph, heuristicEnricher,
   TelosGraph, TelosNode, AggregatedGraph, GraphView, NodeDetail,
 } from "@telos/engine";
-import { recommend, readActivity, readMcpActivity, computeUsage, semanticAsk, buildFocusedContextPack, renderFocusedContextPack, type ActivityFeed } from "@telos/harness";
+import { recommend, readActivity, readMcpActivity, computeUsage, computeHistory, semanticAsk, buildFocusedContextPack, renderFocusedContextPack, type ActivityFeed } from "@telos/harness";
 import { GraphProvider, TraceHub } from "./server.js";
 
 export interface MeasureResult extends SavingsReport { files: number; missing: number }
@@ -93,6 +93,13 @@ export class GraphService implements GraphProvider {
   getUsage(window?: number) {
     if (!this.repoRoot) return { windowPrompts: 0, agents: [], sources: [] };
     return computeUsage(join(this.repoRoot, ".telos"), window);
+  }
+
+  /** Longevity view: per-day usage + injected-token trend over the project's life. */
+  getHistory() {
+    if (!this.repoRoot)
+      return { totalPrompts: 0, totalInjected: 0, distinctAgents: 0, firstTs: null, lastTs: null, days: [] };
+    return computeHistory(join(this.repoRoot, ".telos"));
   }
 
   getStats(): { nodes: number; edges: number; files: number; languages: string[]; enriched: number } {

@@ -41,6 +41,9 @@ function fakeApi(over: Partial<TelosApi> = {}): TelosApi {
       agents: [{ id: "ecc:database-reviewer", count: 2, lastTs: Date.now() }],
       sources: [{ source: "ecc", count: 2, lastTs: Date.now() }],
     }),
+    history: vi.fn().mockResolvedValue({
+      totalPrompts: 0, totalInjected: 0, distinctAgents: 0, firstTs: null, lastTs: null, days: [],
+    }),
     measure: vi.fn().mockResolvedValue({
       baselineTokens: 9000, packTokens: 100, reductionPct: 98, ratio: 90, costSavedUsd: 0.03, files: 5, missing: 0,
     }),
@@ -166,5 +169,32 @@ describe("HarnessPanel control panel", () => {
     await user.click(screen.getByLabelText(/Show ecc agents/i));
     expect(await screen.findByText(/● 2×/)).toBeInTheDocument();   // database-reviewer used twice
     expect(screen.getAllByText(/○ idle/).length).toBeGreaterThanOrEqual(1); // performance-optimizer idle
+  });
+
+  // ── History tab (Phase 2 longevity view) ──────────────────────────────────
+
+  it("shows the History tab empty state when no history exists", async () => {
+    render(<HarnessPanel open api={fakeApi()} onClose={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /^history$/i }));
+    expect(await screen.findByText(/No history yet/i)).toBeInTheDocument();
+  });
+
+  it("renders cumulative totals and a per-day injected-token trend in History", async () => {
+    const history = {
+      totalPrompts: 3, totalInjected: 350, distinctAgents: 2,
+      firstTs: Date.parse("2026-06-20T10:00:00Z"), lastTs: Date.parse("2026-06-21T10:00:00Z"),
+      days: [
+        { day: "2026-06-20", prompts: 2, agents: 2, injectedTokens: 150 },
+        { day: "2026-06-21", prompts: 1, agents: 1, injectedTokens: 200 },
+      ],
+    };
+    render(<HarnessPanel open api={fakeApi({ history: vi.fn().mockResolvedValue(history) })} onClose={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /^history$/i }));
+    expect(await screen.findByText(/3 prompts routed/)).toBeInTheDocument();
+    expect(screen.getByText(/350 tok injected/)).toBeInTheDocument();
+    expect(screen.getByText(/2 distinct agents/)).toBeInTheDocument();
+    // per-day rows (month-day labels)
+    expect(screen.getByText("06-20")).toBeInTheDocument();
+    expect(screen.getByText("06-21")).toBeInTheDocument();
   });
 });
