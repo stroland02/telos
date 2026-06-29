@@ -10,6 +10,7 @@ import { promisify } from "node:util";
 import { GraphService, buildServer } from "@telos/server";
 import { loadContext, startStdio } from "@telos/mcp";
 import { runDoctor, DEFAULT_CATALOG, routePrompt, PROMPT_CATALOG, recommend, buildSetupPlan, buildHarnessStatus, HARNESS_INSTALLS, parseLock, type HarnessLock, type HarnessStatus, activate, deactivate, statusLineText, routeForHook, readConfig, setEnabled, ALL_SOURCES, type CapabilitySource, loadRoster, planWorkflow, renderPlan, recordActivity, estimateTokens, computeUsage } from "@telos/harness";
+import { runGrepAssist } from "./grepAssist.js";
 import { productContextFromGraph } from "./productContext.js";
 import { writeProductContextCache } from "./productContextCache.js";
 import { runForge, stubDriver, claudeAgentDriver, ForgeRunResult } from "@telos/forge";
@@ -601,6 +602,11 @@ export function buildProgram(): Command {
     .option("--line", "print a single line (used by the Claude Code statusline)", false)
     .action(async (path: string | undefined) => {
       console.log(await runStatusLine(path ?? "."));
+    });
+  program.command("grep-assist [path]").description("PreToolUse hook: answer Grep/Glob from the graph (grep→graph)")
+    .option("--hook", "read a PreToolUse payload from stdin and emit graph matches as additionalContext", false)
+    .action(async (path: string | undefined) => {
+      await runGrepAssist(resolve(path ?? "."), await readStdin());
     });
   program.command("resolve [path]").description("Scan for resolutions: run review agents over the riskiest nodes, flag findings on the map")
     .option("--driver <id>", "review driver: claude | stub", "stub")

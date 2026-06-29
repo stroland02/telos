@@ -42,7 +42,7 @@ export function buildMcpServer(ctx: ToolContext): McpServer {
   server.registerTool(
     "telos_explore",
     {
-      description: "Structural answer for a query: matching symbols with callers, callees, impact.",
+      description: "Structural answer for a query: matching symbols with callers, callees, impact. Prefer this over Grep/Glob for finding where code lives or how it connects — a graph lookup, not a file scan.",
       inputSchema: { query: z.string(), limit: z.number().optional() },
     },
     logged(ctx, "telos_explore", (args) => asText(runExplore(ctx, args))),
@@ -105,7 +105,7 @@ export function buildMcpServer(ctx: ToolContext): McpServer {
   server.registerTool(
     "telos_ask",
     {
-      description: "Where does X happen? Ranks the most relevant symbols for a natural-language question over the graph.",
+      description: "Where does X happen? Ranks the most relevant symbols for a natural-language question over the graph. Reach for this before Grep/Glob when locating functionality by intent.",
       inputSchema: { question: z.string(), limit: z.number().optional() },
     },
     logged(ctx, "telos_ask", (args) => asText(runAsk(ctx, args))),

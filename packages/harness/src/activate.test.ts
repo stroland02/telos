@@ -67,6 +67,17 @@ describe("activate UserPromptSubmit hook", () => {
     expect(w.hooks.UserPromptSubmit[0].hooks[0].command).toBe("telos route --hook");
   });
 
+  it("installs a Grep|Glob PreToolUse grep-assist hook by default and deactivate removes it", () => {
+    dir = mkdtempSync(join(tmpdir(), "telos-act-grep-"));
+    activate(dir);
+    const w = JSON.parse(readFileSync(join(dir, ".claude", "settings.json"), "utf8"));
+    expect(w.hooks.PreToolUse[0].matcher).toBe("Grep|Glob");
+    expect(w.hooks.PreToolUse[0].hooks[0].command).toBe("telos grep-assist --hook");
+    deactivate(dir);
+    const after = JSON.parse(readFileSync(join(dir, ".claude", "settings.json"), "utf8"));
+    expect(after.hooks?.PreToolUse).toBeUndefined();
+  });
+
   it("can be told to skip the hook with hookCommand: null", () => {
     const d = mkdtempSync(join(tmpdir(), "telos-act-nohook-"));
     try {
