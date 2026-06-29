@@ -20,6 +20,11 @@ const ROSTER: HarnessRoster = {
     cap("ecc:performance-optimizer", "ecc"),
     cap("ecc:database-reviewer", "ecc"),
     cap("ecc:doc-updater", "ecc"),
+    cap("ecc:build-error-resolver", "ecc"),
+    cap("ecc:go-build-resolver", "ecc"),
+    cap("ecc:rust-build-resolver", "ecc"),
+    cap("ecc:strategic-compact", "ecc"),
+    cap("ecc:go-test", "ecc"),
   ],
   sources: [],
   scannedAt: 0,
@@ -102,5 +107,43 @@ describe("planWorkflow", () => {
 
   it("every template trigger list is non-empty", () => {
     expect(WORKFLOW_TEMPLATES.every((t) => t.triggers.length > 0)).toBe(true);
+  });
+
+  // ── #1 build/compile routing ───────────────────────────────────────────────
+  it("routes a build/compile failure to the build-fix template, not the debugger", () => {
+    const plan = planWorkflow("the build fails with a type error in the server", ROSTER, ALL);
+    expect(plan.template).toBe("build-fix");
+    expect(plan.steps[0].agents.map((a) => a.id)).toContain("ecc:build-error-resolver");
+  });
+
+  it("resolves build-resolver to the stack-specific resolver, falling back to the generic one", () => {
+    const go = resolveRole("build-resolver", ROSTER, ALL, { languages: ["go"], layers: [], changedFiles: [] });
+    expect(go!.id).toBe("ecc:go-build-resolver");
+    const ts = resolveRole("build-resolver", ROSTER, ALL, { languages: ["typescript"], layers: [], changedFiles: [] });
+    expect(ts!.id).toBe("ecc:build-error-resolver"); // no TS-specific resolver → generic
+  });
+
+  it("a plain runtime bug (no build/compile words) still routes to bugfix", () => {
+    expect(planWorkflow("the parser keeps crashing with an error", ROSTER, ALL).template).toBe("bugfix");
+  });
+
+  it("resolves tester to the language test skill when present, else generic TDD", () => {
+    const go = resolveRole("tester", ROSTER, ALL, { languages: ["go"], layers: [], changedFiles: [] });
+    expect(go!.id).toBe("ecc:go-test");
+    const py = resolveRole("tester", ROSTER, ALL, { languages: ["python"], layers: [], changedFiles: [] });
+    expect(py!.id).toBe("superpowers:test-driven-development"); // no ecc:python test skill → generic
+  });
+
+  // ── #2 compressor no longer dead-ends on missing headroom ──────────────────
+  it("resolves compressor to an ECC context skill when headroom is absent", () => {
+    const noHeadroom = ["ecc", "superpowers"]; // headroom not enabled
+    const c = resolveRole("compressor", ROSTER, noHeadroom, { languages: ["typescript"], layers: [], changedFiles: [] });
+    expect(c!.id).toBe("ecc:strategic-compact");
+  });
+
+  it("the context-heavy template produces a non-empty plan without headroom", () => {
+    const plan = planWorkflow("the context is too long, compress the context", ROSTER, ["ecc"]);
+    expect(plan.template).toBe("context-heavy");
+    expect(plan.steps.flatMap((s) => s.agents).length).toBeGreaterThan(0);
   });
 });

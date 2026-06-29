@@ -9,6 +9,7 @@ export type WorkflowRole =
   | "planner"
   | "tester"
   | "language-reviewer"
+  | "build-resolver"
   | "security-reviewer"
   | "code-reviewer"
   | "debugger"
@@ -65,6 +66,20 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     ],
   },
   {
+    // Placed BEFORE bugfix: a build/compile failure routes to the language's
+    // build-resolver (ECC ships one per stack), not the generic debugger. Triggers
+    // are specific multi-word phrases so a plain "error" still goes to bugfix.
+    id: "build-fix",
+    title: "Build fix",
+    intent: "build fix",
+    sources: ["ecc"],
+    triggers: ["build fail", "build error", "build is broken", "build broke", "won't compile", "wont compile", "compile error", "compilation error", "compiler error", "type error", "tsc error", "cargo build", "gradle build", "cannot find module", "module not found"],
+    steps: [
+      { phase: "build-fix", parallel: false, roles: ["build-resolver"] },
+      { phase: "review", parallel: true, roles: ["language-reviewer"] },
+    ],
+  },
+  {
     id: "bugfix",
     title: "Bug fix",
     intent: "bug fix",
@@ -101,7 +116,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     id: "context-heavy",
     title: "Context compression",
     intent: "context compression",
-    sources: ["headroom"],
+    sources: ["headroom", "ecc"],
     triggers: ["too many tokens", "compress the context", "reduce token", "context too long"],
     steps: [{ phase: "compress", parallel: false, roles: ["compressor"] }],
   },
@@ -123,31 +138,69 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   },
 ];
 
-// Each role's preferred capability id(s). The language reviewer is resolved
-// separately from the product's languages.
-const ROLE_PREFERENCES: Record<Exclude<WorkflowRole, "language-reviewer">, string[]> = {
+// Each role's preferred capability id(s). Language-aware roles (language-reviewer,
+// build-resolver, tester) are resolved from the product's languages instead.
+// Compressor prefers headroom, but falls back to ECC's context skills so the
+// context-heavy template still resolves when headroom isn't installed.
+type StaticRole = Exclude<WorkflowRole, "language-reviewer" | "build-resolver" | "tester">;
+const ROLE_PREFERENCES: Record<StaticRole, string[]> = {
   designer: ["superpowers:brainstorming"],
   planner: ["superpowers:writing-plans"],
-  tester: ["superpowers:test-driven-development", "ecc:tdd-guide"],
   "security-reviewer": ["ecc:security-reviewer"],
   "code-reviewer": ["ecc:code-reviewer"],
   debugger: ["superpowers:systematic-debugging"],
   perf: ["ecc:performance-optimizer"],
   "db-reviewer": ["ecc:database-reviewer"],
-  compressor: ["headroom:compress"],
+  compressor: ["headroom:compress", "ecc:strategic-compact", "ecc:context-budget", "ecc:token-budget-advisor"],
   doc: ["ecc:doc-updater"],
 };
+
+function hasTsx(ctx?: ProductContext): boolean {
+  const langs = (ctx?.languages ?? []).map((l) => l.toLowerCase());
+  return langs.some((l) => l.includes("tsx")) || (ctx?.changedFiles ?? []).some((f) => f.endsWith(".tsx"));
+}
 
 function languageReviewerId(ctx?: ProductContext): string[] {
   const langs = (ctx?.languages ?? []).map((l) => l.toLowerCase());
   const ids: string[] = [];
-  if (langs.some((l) => l.includes("tsx")) || (ctx?.changedFiles ?? []).some((f) => f.endsWith(".tsx"))) ids.push("ecc:react-reviewer");
+  if (hasTsx(ctx)) ids.push("ecc:react-reviewer");
   if (langs.includes("typescript") || langs.includes("javascript")) ids.push("ecc:typescript-reviewer");
   if (langs.includes("python")) ids.push("ecc:python-reviewer");
   if (langs.includes("go")) ids.push("ecc:go-reviewer");
   if (langs.includes("rust")) ids.push("ecc:rust-reviewer");
   ids.push("ecc:code-reviewer"); // always a safe fallback
   return ids;
+}
+
+// The stack-specific build/compile error fixer, falling back to ECC's generic
+// build-error-resolver so any product gets *a* resolver.
+function buildResolverId(ctx?: ProductContext): string[] {
+  const langs = (ctx?.languages ?? []).map((l) => l.toLowerCase());
+  const ids: string[] = [];
+  if (hasTsx(ctx)) ids.push("ecc:react-build-resolver");
+  if (langs.includes("go")) ids.push("ecc:go-build-resolver");
+  if (langs.includes("rust")) ids.push("ecc:rust-build-resolver");
+  ids.push("ecc:build-error-resolver"); // generic TS/JS/Python + universal fallback
+  return ids;
+}
+
+// Prefer the language's test skill (behavior/coverage-aware) before the generic
+// TDD discipline, so a React/Go/Rust repo gets its own test workflow.
+function testerId(ctx?: ProductContext): string[] {
+  const langs = (ctx?.languages ?? []).map((l) => l.toLowerCase());
+  const ids: string[] = [];
+  if (hasTsx(ctx)) ids.push("ecc:react-test");
+  if (langs.includes("go")) ids.push("ecc:go-test");
+  if (langs.includes("rust")) ids.push("ecc:rust-test");
+  ids.push("superpowers:test-driven-development", "ecc:tdd-guide"); // generic fallback
+  return ids;
+}
+
+function preferencesFor(role: WorkflowRole, ctx?: ProductContext): string[] {
+  if (role === "language-reviewer") return languageReviewerId(ctx);
+  if (role === "build-resolver") return buildResolverId(ctx);
+  if (role === "tester") return testerId(ctx);
+  return ROLE_PREFERENCES[role];
 }
 
 /** Resolve a role to a concrete capability present in the roster and enabled. */
@@ -158,8 +211,7 @@ export function resolveRole(
   ctx?: ProductContext,
 ): DiscoveredCapability | null {
   const allowed = new Set(enabledSources);
-  const prefs = role === "language-reviewer" ? languageReviewerId(ctx) : ROLE_PREFERENCES[role];
-  for (const id of prefs) {
+  for (const id of preferencesFor(role, ctx)) {
     const found = roster.capabilities.find((c) => c.id === id && allowed.has(c.source));
     if (found) return found;
   }
@@ -184,6 +236,7 @@ function whyFor(role: WorkflowRole): string {
     planner: "break the work into a plan",
     tester: "tests first",
     "language-reviewer": "language-specific review",
+    "build-resolver": "fix the build/compile errors",
     "security-reviewer": "security review",
     "code-reviewer": "final gate",
     debugger: "find the root cause",

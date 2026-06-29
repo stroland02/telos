@@ -154,6 +154,22 @@ describe("HarnessPanel control panel", () => {
     expect(header.textContent).toMatch(/1 used · 22 curated · 1 installed/);
   });
 
+  it("surfaces when used agents were pulled from the full roster beyond curated", async () => {
+    // database-reviewer is curated (in ecc capabilities); rust-reviewer is NOT —
+    // it stands in for a Phase 3 specialist routed from the full installed roster.
+    const usage = {
+      windowPrompts: 4,
+      agents: [
+        { id: "ecc:database-reviewer", count: 2, lastTs: Date.now() },
+        { id: "ecc:rust-reviewer", count: 1, lastTs: Date.now() },
+      ],
+      sources: [{ source: "ecc", count: 3, lastTs: Date.now() }],
+    };
+    render(<HarnessPanel open api={fakeApi({ usage: vi.fn().mockResolvedValue(usage) })} onClose={() => {}} />);
+    await screen.findByText("ECC — agents, skills, reviewers");
+    expect(screen.getByText(/1 from full roster/)).toBeInTheDocument();
+  });
+
   it("shows per-harness used/curated and flags an idle enabled harness", async () => {
     render(<HarnessPanel open api={fakeApi()} onClose={() => {}} />);
     // ecc used 1 of its 2 curated capabilities

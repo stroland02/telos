@@ -83,6 +83,11 @@ export function HarnessPanel({
   // installed = ALL on-disk agents+skills across harnesses (roster-backed); the
   // full pool Telos can reach, vs. the curated set it routes by default.
   const installedTotal = status ? status.installed.reduce((n, h) => n + h.nodeCapabilities, 0) : 0;
+  // Proof the quality-gated router reaches BEYOND the curated catalog into the
+  // full installed roster: how many recently-used agents are not curated entries
+  // (e.g. a stack-specific reviewer pulled in by the Phase 3 specialist gate).
+  const curatedIds = new Set((status?.installed ?? []).flatMap((h) => (h.capabilities ?? []).map((c) => c.id)));
+  const usedFromFullRoster = (usage?.agents ?? []).filter((a) => !curatedIds.has(a.id)).length;
 
   const drift = status?.drift;
   const driftLabel = !drift ? "" : drift.status === "drift"
@@ -104,7 +109,12 @@ export function HarnessPanel({
           ↓ {fmt(injected)} tok injected · ↑ {fmt(saved)} tok saved
         </div>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--t-meta-size)", color: "var(--text-muted)" }}>
-          {activeAgents} used · {curatedTotal} curated · {fmt(installedTotal)} installed <span style={{ color: "var(--text-faint)" }}>(last {usage?.windowPrompts ?? 0} routed prompts)</span>
+          {activeAgents} used
+          {usedFromFullRoster > 0 && (
+            <span title="agents routed from the full installed roster, beyond the curated catalog — the quality-gated router reaching the full pool"
+              style={{ color: "var(--accent)" }}>{` (${usedFromFullRoster} from full roster)`}</span>
+          )}
+          {" · "}{curatedTotal} curated · {fmt(installedTotal)} installed <span style={{ color: "var(--text-faint)" }}>(last {usage?.windowPrompts ?? 0} routed prompts)</span>
         </div>
       </div>
 
