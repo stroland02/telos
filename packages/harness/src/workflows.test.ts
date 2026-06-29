@@ -25,6 +25,8 @@ const ROSTER: HarnessRoster = {
     cap("ecc:rust-build-resolver", "ecc"),
     cap("ecc:strategic-compact", "ecc"),
     cap("ecc:go-test", "ecc"),
+    cap("ecc:orch-add-feature", "ecc"),
+    cap("ecc:orch-fix-defect", "ecc"),
   ],
   sources: [],
   scannedAt: 0,
@@ -145,5 +147,27 @@ describe("planWorkflow", () => {
     const plan = planWorkflow("the context is too long, compress the context", ROSTER, ["ecc"]);
     expect(plan.template).toBe("context-heavy");
     expect(plan.steps.flatMap((s) => s.agents).length).toBeGreaterThan(0);
+  });
+
+  // ── #4 orch-* pipeline handoff ─────────────────────────────────────────────
+  it("recommends the ECC orchestration pipeline for feature-build and bugfix when installed+enabled", () => {
+    expect(planWorkflow("build a new settings page", ROSTER, ALL).orchestrator?.id).toBe("ecc:orch-add-feature");
+    expect(planWorkflow("the parser keeps crashing with an error", ROSTER, ALL).orchestrator?.id).toBe("ecc:orch-fix-defect");
+  });
+
+  it("omits the orchestrator when ECC is disabled (no dead handoff)", () => {
+    const plan = planWorkflow("build a new feature", ROSTER, ["superpowers"]);
+    expect(plan.template).toBe("feature-build");
+    expect(plan.orchestrator).toBeUndefined();
+  });
+
+  it("omits the orchestrator when the orch skill is absent from the roster", () => {
+    const noOrch: HarnessRoster = { ...ROSTER, capabilities: ROSTER.capabilities.filter((c) => !c.id.startsWith("ecc:orch-")) };
+    expect(planWorkflow("build a new feature", noOrch, ALL).orchestrator).toBeUndefined();
+  });
+
+  it("sets no orchestrator on intents that define none (review/docs)", () => {
+    expect(planWorkflow("review this before merging", ROSTER, ALL).orchestrator).toBeUndefined();
+    expect(planWorkflow("update the readme", ROSTER, ALL).orchestrator).toBeUndefined();
   });
 });

@@ -17,6 +17,14 @@ export function renderPlan(plan: OrchestrationPlan, product?: ProductContext): s
   // instead of a dim two-liner that blends into hook noise.
   const lines = [`╭─ ⟢ TELOS ACTIVE · ${plan.intent}${prod}`];
 
+  // Lead handoff: when an ECC orchestration pipeline covers this intent (and is
+  // installed + enabled), recommend it first, then offer the manual breakdown.
+  if (plan.orchestrator) {
+    lines.push(`│ ▶ Run [telos] ${plan.orchestrator.id}`);
+    lines.push(`│   ${plan.orchestrator.pipeline}`);
+    lines.push("│ — or dispatch manually —");
+  }
+
   let n = 0;
   for (const step of plan.steps) {
     if (step.agents.length === 0) continue;

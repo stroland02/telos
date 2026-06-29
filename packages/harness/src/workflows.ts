@@ -24,6 +24,12 @@ export interface WorkflowStep {
   roles: WorkflowRole[];
 }
 
+// An ECC orchestration skill (e.g. ecc:orch-add-feature) that runs this intent
+// end-to-end as its own research→…→gated-commit pipeline. When the skill is
+// installed + enabled, the plan recommends it as the lead action (the hook can
+// only nudge, never auto-invoke). `pipeline` is the one-line summary shown.
+export interface Orchestrator { id: string; pipeline: string }
+
 export interface WorkflowTemplate {
   id: string;
   title: string;
@@ -31,6 +37,7 @@ export interface WorkflowTemplate {
   sources: string[]; // harnesses this template draws on
   triggers: string[]; // prompt keywords that select it
   steps: WorkflowStep[];
+  orchestrator?: Orchestrator; // optional end-to-end ECC pipeline for this intent
 }
 
 export interface OrchestrationPlanStep {
@@ -44,6 +51,7 @@ export interface OrchestrationPlan {
   template: string | null;
   steps: OrchestrationPlanStep[];
   rationale: string;
+  orchestrator?: Orchestrator; // set only when the ECC pipeline is installed + enabled
 }
 
 // Signature pipelines mined from each harness's own process. Roles are resolved
@@ -54,6 +62,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     title: "Feature build",
     intent: "feature build",
     sources: ["superpowers", "ecc"],
+    orchestrator: { id: "ecc:orch-add-feature", pipeline: "research → plan → TDD → review → gated commit" },
     // Require a concrete "build/add/implement a THING" phrasing. Trailing spaces
     // make the short-word triggers collision-safe: "implement a " does NOT match
     // "implement all" / "implement authentication"; bare "build"/"feature" are out.
@@ -84,6 +93,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     title: "Bug fix",
     intent: "bug fix",
     sources: ["superpowers", "ecc"],
+    orchestrator: { id: "ecc:orch-fix-defect", pipeline: "reproduce → failing test → fix → review → gated commit" },
     triggers: ["bug", "crash", "error", "failing", "broken", "not working", "regression", "stack trace"],
     steps: [
       { phase: "diagnose", parallel: false, roles: ["debugger"] },
@@ -277,7 +287,16 @@ export function planFromTemplate(
   const prod = ctx && (ctx.languages.length || ctx.layers.length)
     ? ` on a ${ctx.languages.join("/") || "?"} product`
     : "";
-  return { intent: tpl.intent, template: tpl.id, steps, rationale: `${tpl.title}${prod}` };
+  const plan: OrchestrationPlan = { intent: tpl.intent, template: tpl.id, steps, rationale: `${tpl.title}${prod}` };
+  // Recommend the ECC orchestration pipeline as the lead action — but only when
+  // it's actually installed AND its source is enabled, so a repo without ECC
+  // never sees a dead handoff. Both the keyword and semantic paths inherit this.
+  if (tpl.orchestrator) {
+    const allowed = new Set(enabledSources);
+    const present = roster.capabilities.some((c) => c.id === tpl.orchestrator!.id && allowed.has(c.source));
+    if (present) plan.orchestrator = tpl.orchestrator;
+  }
+  return plan;
 }
 
 export function planWorkflow(
